@@ -1,4 +1,4 @@
-# ebl-frontend
+# eblFrontend
 
 블록체인 기반 전자선하증권(e-B/L) 발행·양도 서비스의 프론트엔드 저장소입니다.
 관리 효율을 위해 하나의 큰 저장소 대신 **기능 및 화면 단위 브랜치 전략**으로 관리합니다.
@@ -6,7 +6,7 @@
 ## 디렉토리 구조
 
 ```
-ebl-frontend/
+eblFrontend/
 ├── src/
 │   ├── features/
 │   │   ├── common/         # 디자인시스템, 레이아웃, 인증(로그인/회원가입), 랜딩, 알림센터
@@ -33,6 +33,10 @@ ebl-frontend/
 작업 시 해당 `feature/*` 브랜치에서 `src/features/{module}/` 디렉토리를 중심으로
 개발하고, 완료 후 `develop`으로 병합합니다. `develop`이 안정화되면 `main`으로 병합합니다.
 
+## 환경 변수
+
+`.env.example`을 참고하여 `.env`를 생성하세요. `.env`는 git에 커밋되지 않습니다.
+
 ## 관련 저장소
-- `ebl-backend`: API 서버 / 블록체인 / AI 검증 서비스
-- `ebl-integration`: 배포/CI-CD/통합테스트/문서
+- `eblBackend`: API 서버 / 블록체인 / AI 검증 서비스
+- `eblIntegration`: 배포/CI-CD/통합테스트/문서
