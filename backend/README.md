@@ -6,7 +6,7 @@ API 서버, 스마트컨트랙트(블록체인), AI 서류검증 서비스를 �
 ## 디렉토리 구조
 
 ```
-eblBackend/
+Smart_e-BL_Backend/
 ├── api/                     # 메인 API 서버 (BE)
 │   ├── src/
 │   │   ├── auth/            # 회원가입/로그인/PKI 전자서명/RBAC 미들웨어
@@ -37,5 +37,5 @@ eblBackend/
 `.env` 파일을 생성하세요. `.env`는 git에 커밋되지 않습니다.
 
 ## 관련 저장소
-- `eblFrontend`: 프론트엔드 (화면 구현 단위 브랜치 전략)
-- `eblIntegration`: 배포/CI-CD/통합테스트/문서
+- `Smart_e-BL_Frontend`: 프론트엔드 (화면 구현 단위 브랜치 전략)
+- `Smart_e-BL`: 배포/CI-CD/통합테스트/문서
