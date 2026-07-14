@@ -1,0 +1,27 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env
+.env
+.env.local
+
+# Hardhat / Blockchain
+artifacts/
+cache/
+typechain-types/
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
