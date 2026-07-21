@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "test": "node --test --test-timeout=20000"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +18,19 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "nodemailer": "^9.0.3"
+    "express-rate-limit": "^8.6.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "node-forge": "^1.4.0",
+    "nodemailer": "^9.0.3",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
   }
 }
