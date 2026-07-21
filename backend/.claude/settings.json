@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "shell": "bash",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"커밋 전 /security-review를 먼저 실행해 보안 검토를 하는 것을 권장합니다. 필요하면 그대로 진행하세요.\"}}'",
+            "statusMessage": "커밋 전 보안 검토 안내 확인 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
