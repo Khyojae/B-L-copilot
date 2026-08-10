@@ -34,6 +34,7 @@ class ReviewReason(str, Enum):
     LOW_CONFIDENCE = "low_confidence"       # 값은 있으나 OCR 신뢰도 미달
     ANCHOR_DERIVED = "anchor_derived"       # 좌표가 아닌 라벨 근접으로 추정
     LABEL_ECHOED = "label_echoed"           # 값에 항목명이 그대로 섞임
+    UNCALIBRATED_LAYOUT = "uncalibrated_layout"  # 구역 좌표를 보정하지 않은 형식
 
 
 # 화면에 그대로 쓸 수 있는 한국어 라벨.
@@ -61,7 +62,24 @@ _REASON_MESSAGES: Dict[ReviewReason, str] = {
     ReviewReason.LOW_CONFIDENCE: "인식 정확도가 낮습니다. 원본과 대조해 주세요.",
     ReviewReason.ANCHOR_DERIVED: "위치가 아닌 항목명으로 찾은 값입니다. 확인해 주세요.",
     ReviewReason.LABEL_ECHOED: "값에 서식의 항목명이 섞여 있습니다. 원본과 대조해 주세요.",
+    ReviewReason.UNCALIBRATED_LAYOUT: "이 형식은 필드 위치가 서식마다 달라 값이 밀릴 수 있습니다. 원본과 대조해 주세요.",
 }
+
+# 구역 좌표를 보정하지 않은 입력 형식.
+#
+# `FieldParser.REGIONS` 는 라벨 데이터셋(1654×2340 스캔본) 레이아웃에 맞춰
+# 교정된 값이다. 그 데이터셋에서 온 입력(`json`)과 OCR 로 읽은 스캔본은 같은
+# 서식 계열이라 구역이 대체로 맞는다. 반면 아래 형식들은 **서식 배치가 제각각**
+# 이라 구역이 맞을 근거가 없다.
+#
+# 그런데 이 형식들은 동시에 **신뢰도가 전 필드 1.0** 이다. 글자를 정확히 읽은
+# 것이 맞으므로 옳은 값이지만, 그 결과 `LOW_CONFIDENCE` 판정이 원리적으로
+# 발동하지 않는다. 즉 **가장 밀리기 쉬운 입력에서 신뢰도 신호가 죽어 있다.**
+#
+# `LABEL_ECHOED` 가 일부를 잡지만 전부는 아니다. 실측에서 `PLACE OF ISSUE` 의
+# 값 `PUSAN` 이 `port_of_discharge` 로 꽂혔는데, 항목명이 섞이지 않아 세 검사를
+# 모두 통과했다 — 핵심 필드에 틀린 값이 확인 없이 검증까지 흘러간 경우다.
+_UNCALIBRATED_SOURCES = frozenset({"pdf-text", "excel", "email-body"})
 
 # 값에 섞였을 때 오추출로 볼 항목명의 최소 길이.
 #
@@ -117,6 +135,12 @@ class BLDraft:
     source: str = ""
     ocr_mean_confidence: float = 0.0
     processing_time_ms: Optional[int] = None
+    # 서류 종류. 선하증권 / 상업송장 / 포장명세서 / 미상.
+    #
+    # 초안의 **형태는 종류와 무관하게 같다.** 필드 이름과 라벨만 달라진다.
+    # 종류마다 다른 응답 구조를 내면 S3 편집기가 종류 수만큼 렌더러를
+    # 갖게 되고, 종류를 추가할 때마다 화면도 함께 고쳐야 한다.
+    form_type: str = "선하증권"
 
     # ── 조회 ──────────────────────────────────────────────────────
 
@@ -148,6 +172,7 @@ class BLDraft:
     def to_dict(self) -> dict:
         return {
             "image_id": self.image_id,
+            "form_type": self.form_type,
             "source": self.source,
             "ocr_mean_confidence": round(self.ocr_mean_confidence, 4),
             "processing_time_ms": self.processing_time_ms,
@@ -179,7 +204,9 @@ def build_draft(
         value = getattr(fields, name)
         confidence = fields.confidence.get(name)
         is_critical = name in CRITICAL_FIELD_NAMES
-        reason = _review_reason(name, value, confidence, fields, is_critical, threshold)
+        reason = _review_reason(
+            name, value, confidence, fields, is_critical, threshold, draft.source
+        )
 
         draft.fields.append(
             DraftField(
@@ -205,6 +232,7 @@ def _review_reason(
     fields: BLFields,
     is_critical: bool,
     threshold: float,
+    source: str = "",
 ) -> Optional[ReviewReason]:
     """확인이 필요한 이유. 필요 없으면 None."""
     if not value:
@@ -229,24 +257,47 @@ def _review_reason(
     if is_critical and fields.provenance.get(name) == "anchor":
         return ReviewReason.ANCHOR_DERIVED
 
+    # 구역 좌표를 보정하지 않은 형식에서 구역으로 잡힌 핵심 필드.
+    #
+    # 위 세 검사가 전부 통과해도 값이 틀릴 수 있다. 신뢰도는 1.0 으로 고정이고,
+    # 항목명이 섞이지 않은 채 **옆 칸 값이 통째로 들어오는** 경우가 남는다.
+    # 그런 값은 겉보기에 정상이라 사람이 보지 않으면 걸러지지 않는다.
+    #
+    # 핵심 필드로 한정하는 이유는 ANCHOR_DERIVED 와 같다 — 전 필드에 걸면
+    # 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다. 5개면 화면에서
+    # 훑을 만하고, 이 다섯이 틀리면 하자 검증 결과 전체가 무의미해진다.
+    if is_critical and source in _UNCALIBRATED_SOURCES:
+        return ReviewReason.UNCALIBRATED_LAYOUT
+
     return None
 
 
 def _label_vocabulary() -> frozenset:
-    """서식 항목명 어휘. `FieldParser.FIELD_ANCHORS` 를 그대로 쓴다.
+    """서식 항목명 어휘.
 
     앵커 목록이 곧 "서류에 인쇄된 항목명" 목록이므로 따로 관리하면 두
     목록이 어긋난다. 룰을 데이터로 두는 것과 같은 이유다.
+
+    **선하증권 외 서류의 항목명도 함께 모은다.** 빠뜨리면 그 서류에서만
+    검사가 헐거워진다 — 실제로 송장의 `INVOICE DATE` 가 값에 딸려 들어왔는데
+    어휘에 없어 통과했다. 서류 종류가 늘 때마다 여기를 고쳐야 한다면 같은
+    실수가 반복되므로, 명세에서 자동으로 끌어온다.
     """
     global _LABEL_VOCABULARY
     if _LABEL_VOCABULARY is None:
+        from . import doc_types
         from .field_parser import FieldParser
 
         phrases = [
             phrase
             for group in FieldParser.FIELD_ANCHORS.values()
             for phrase in group
-        ] + FieldParser.EXTRA_FORM_LABELS
+        ] + FieldParser.EXTRA_FORM_LABELS + [
+            phrase
+            for spec in doc_types.SPECS.values()
+            for group in spec.anchors.values()
+            for phrase in group
+        ]
         _LABEL_VOCABULARY = frozenset(
             normalized
             for normalized in (_normalize(p) for p in phrases)
@@ -283,3 +334,65 @@ def _echoes_label(value: str) -> bool:
         if len(normalized) < len(label) and f" {normalized} " in f" {label} ":
             return True
     return False
+
+
+def build_document_draft(
+    fields,
+    ocr: Optional[OCRResult] = None,
+    threshold: float = LOW_CONFIDENCE_THRESHOLD,
+) -> BLDraft:
+    """선하증권 외 서류(`doc_parser.DocumentFields`) → 초안.
+
+    `build_draft` 와 **같은 형태**를 낸다. 필드 이름·라벨·핵심 여부만 서류
+    명세에서 가져온다. 형태를 맞추는 이유는 `BLDraft.form_type` 주석에 적었다.
+
+    확인 사유 판정은 공유한다 — 누락, 저신뢰, 항목명 혼입은 서류 종류와
+    무관한 실패 유형이다. 다만 앵커 추출 감점은 여기서 따로 걸지 않는다.
+    이 경로는 **전부** 앵커라 전건에 걸리는 사유가 되어 신호가 되지 못한다.
+    대신 감점된 신뢰도가 저신뢰 판정으로 이어진다.
+    """
+    spec = fields.spec
+    draft = BLDraft(
+        image_id=ocr.image_id if ocr else "",
+        form_type=spec.name,
+        source=ocr.source if ocr else "",
+        ocr_mean_confidence=ocr.mean_confidence if ocr else 0.0,
+        processing_time_ms=ocr.processing_time_ms if ocr else None,
+    )
+
+    for name in spec.fields:
+        value = fields.get(name)
+        confidence = fields.confidence.get(name)
+        is_critical = name in spec.critical
+        reason = _document_review_reason(value, confidence, is_critical, threshold)
+
+        draft.fields.append(
+            DraftField(
+                name=name,
+                label=spec.label_for(name),
+                value=value,
+                confidence=confidence,
+                source=fields.provenance.get(name),
+                is_critical=is_critical,
+                needs_review=reason is not None,
+                review_reason=reason,
+                review_message=_REASON_MESSAGES.get(reason) if reason else None,
+            )
+        )
+
+    return draft
+
+
+def _document_review_reason(
+    value: Optional[str],
+    confidence: Optional[float],
+    is_critical: bool,
+    threshold: float,
+) -> Optional[ReviewReason]:
+    if not value:
+        return ReviewReason.MISSING_CRITICAL if is_critical else ReviewReason.MISSING
+    if confidence is not None and confidence < threshold:
+        return ReviewReason.LOW_CONFIDENCE
+    if _echoes_label(value):
+        return ReviewReason.LABEL_ECHOED
+    return None
