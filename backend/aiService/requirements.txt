@@ -25,3 +25,12 @@ reportlab>=4.2.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12
+
+# ── 테스트 ───────────────────────────────────────────────────────
+# fastapi.testclient(=starlette TestClient)가 요구한다.
+# starlette 1.6.0 이 httpx2>=2.0.0 을 선언하므로 그 하한에 맞춘다.
+# (httpx2 는 pydantic/httpx2 — httpx 의 후속 프로젝트다)
+pytest>=8.3.0
+httpx2>=2.0.0
+# PDF 본문 검증(test_report.py)에서 쓴다.
+PyMuPDF>=1.24.0
