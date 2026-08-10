@@ -436,6 +436,114 @@ class TestISBP:
 
         assert verdict.violations == []
 
+    def test_발행일_누락을_잡는다(self, engine):
+        # D021 의 조문 근거가 발행지와 발행일을 함께 요구하는데 발행일을
+        # 검사하는 룰이 없었다.
+        bl = clean_bl(date_of_issue=None)
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        d022 = next(v for v in verdict.violations if v.rule_id == "D022")
+        assert "ISBP" in d022.source
+        assert d022.severity is Severity.CRITICAL
+
+    def test_발행일이_없으면_날짜_룰이_전부_평가불가로_빠진다(self, engine):
+        # D022 를 둔 이유가 이것이다. 발행일을 빼면 날짜 하자를 보는 룰이
+        # 전부 침묵하므로, 잡는 룰이 없으면 위반 0건 = '하자 없음' 이 된다.
+        bl = clean_bl(date_of_issue=None, on_board_date=None)
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        skipped_ids = {s.rule_id for s in verdict.skipped}
+        assert {"D008", "D018", "D019"} <= skipped_ids
+        assert "D022" in {v.rule_id for v in verdict.violations}
+
+    def test_항구가_지역으로_기재되면_잡는다(self, engine):
+        bl = clean_bl(port_of_discharge="ANY EUROPEAN PORT")
+
+        verdict = engine.verify(bl, clean_lc(port_of_discharge=None), as_of=AS_OF)
+
+        d025 = next(v for v in verdict.violations if v.rule_id == "D025")
+        assert "ISBP" in d025.source
+        assert "EUROPEAN PORT" in d025.message
+
+    def test_항구_미특정은_LC_없이도_평가된다(self, engine):
+        # 문면상 하자는 L/C 를 보지 않는다. 조건부 룰로 만들면 L/C 없이
+        # 돌릴 때 통째로 검사되지 않는다.
+        bl = clean_bl(port_of_loading="ANY MAIN PORT IN KOREA")
+
+        verdict = engine.verify(bl, LCTerms(), as_of=AS_OF)
+
+        assert "D025" in {v.rule_id for v in verdict.violations}
+
+    def test_운임_후불이_C조건과_저촉되면_잡는다(self, engine):
+        bl = clean_bl(total_freight="FREIGHT COLLECT")
+
+        verdict = engine.verify(bl, clean_lc(incoterms="CIF"), as_of=AS_OF)
+
+        d026 = next(v for v in verdict.violations if v.rule_id == "D026")
+        assert "ISBP" in d026.source
+
+    def test_운임_후불이_화물명세에_있어도_잡는다(self, engine):
+        # 운임란에 금액이 있으면 첫 필드에서 멈추던 경로. 값이 있을수록
+        # 검사가 줄어드는 역전이 생긴다.
+        bl = clean_bl(
+            total_freight="$1,741.56",
+            description_of_goods="SAW MACHINE CIF FREIGHT COLLECT",
+        )
+
+        verdict = engine.verify(bl, clean_lc(incoterms="CIF"), as_of=AS_OF)
+
+        assert "D026" in {v.rule_id for v in verdict.violations}
+
+    def test_F조건에_운임_선불은_하자가_아니다(self, engine):
+        # 매도인이 편의상 선지급한 것일 수 있고 은행이 그것으로 거절하지
+        # 않는다. 대칭으로 만들면 정상 건이 하자로 잡힌다.
+        bl = clean_bl(total_freight="FREIGHT PREPAID")
+
+        verdict = engine.verify(bl, clean_lc(incoterms="FOB"), as_of=AS_OF)
+
+        assert "D026" not in {v.rule_id for v in verdict.violations}
+        assert "D026" in {s.rule_id for s in verdict.skipped}
+
+
+class TestFaceOfDocument:
+    """문면상 하자 — L/C 를 보지 않고 서류 자체로 판정하는 룰."""
+
+    def test_고장_문언을_잡는다(self, engine):
+        bl = clean_bl(description_of_goods="SAW MACHINE FOB, 3 CARTONS DAMAGED")
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        d023 = next(v for v in verdict.violations if v.rule_id == "D023")
+        assert d023.severity is Severity.CRITICAL
+        assert "DAMAGED" in d023.message
+
+    def test_낱말_경계로_본다(self, engine):
+        # 부분 일치로 두면 WETSUIT 이 고장 문언(WET)으로 잡힌다. 오탐 하나가
+        # 정상 서류를 반려시키는 룰이라 좁게 잡는다.
+        bl = clean_bl(description_of_goods="NEOPRENE WETSUIT FOB")
+
+        verdict = engine.verify(bl, clean_lc(description_of_goods=None), as_of=AS_OF)
+
+        assert "D023" not in {v.rule_id for v in verdict.violations}
+
+    def test_예정_선박_표시를_잡는다(self, engine):
+        bl = clean_bl(vessel="INTENDED VESSEL MSC BIANCA")
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        d024 = next(v for v in verdict.violations if v.rule_id == "D024")
+        assert d024.severity is Severity.WARNING
+
+    def test_대상_필드가_비면_평가불가다(self, engine):
+        # '문언이 없다'와 '볼 것이 없다'는 다르다. 누락은 required 룰이 잡는다.
+        bl = clean_bl(description_of_goods=None)
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        assert "D023" in {s.rule_id for s in verdict.skipped}
+
 
 class TestSourceVerification:
     """조문 인용의 실무 검증 상태 — 기획안 9절 "멘토 기업 실무 검증"."""

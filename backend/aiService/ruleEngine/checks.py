@@ -358,6 +358,85 @@ def forbidden_when_prohibited(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     return passed()
 
 
+def contains_forbidden(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """서류에 있어서는 안 되는 문언이 있는지. **L/C 조건을 보지 않는다.**
+
+    `forbidden_when_prohibited` 와 나눈 이유가 여기다. 그쪽은 L/C 가 금지했을
+    때만 켜지는 조건부 룰이라 신용장이 침묵하면 평가불가로 빠진다. 이쪽은
+    신용장이 무엇을 말하든 서류 자체가 하자인 문언 — 고장 문언(UCP 600
+    Art.27), 예정 선박 표시, 특정되지 않은 항구 — 을 잡는다. 조건부 룰로
+    만들면 L/C 없이 돌릴 때 통째로 검사되지 않는다.
+
+    **부분 문자열이 아니라 낱말 단위로 본다.** `forbidden_when_prohibited` 는
+    "PARTIAL SHIPMENT" 처럼 긴 구를 찾으므로 부분 일치로 충분하지만, 여기
+    키워드는 "WET"·"TORN" 처럼 짧다. 부분 일치로 두면 "WETSUIT" 이 고장
+    문언으로 잡힌다. 오탐 하나가 정상 서류를 반려시키는 룰이라 좁게 잡는다.
+    """
+    names = _rule_fields(rule)
+    keywords = [str(k).upper() for k in rule.get("keywords", [])]
+    if not keywords:
+        return not_evaluated("룰에 검사할 문언이 없습니다")
+
+    for name in names:
+        value = field_value(bl, name)
+        if not value:
+            continue
+        haystack = value.upper()
+        for keyword in keywords:
+            if re.search(rf"\b{re.escape(keyword)}\b", haystack):
+                return violated(detail=keyword, bl=value)
+
+    # 대상 필드가 전부 비어 있으면 '문언이 없다'가 아니라 '볼 것이 없다'다.
+    # 누락은 required 룰이 따로 잡는다.
+    if not any(field_value(bl, name) for name in names):
+        return not_evaluated("검사할 서류 내용이 없습니다")
+    return passed()
+
+
+# 운임을 매도인이 부담하는 거래조건. B/L 의 운임 후불 표시와 저촉된다.
+# 반대 방향(F·E 조건인데 운임 선불)은 넣지 않는다 — 아래 함수 주석 참고.
+_FREIGHT_PREPAID_TERMS = ("CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP")
+
+_FREIGHT_COLLECT_WORDS = ("FREIGHT COLLECT", "COLLECT")
+
+
+def freight_prepaid_required(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """L/C 거래조건이 운임 선불인데 서류가 후불로 표시했는지.
+
+    CFR·CIF·CPT·CIP·D 조건은 매도인이 주운송비를 부담한다. 그 거래조건으로
+    발행된 신용장에 "FREIGHT COLLECT" 선하증권을 제시하면 서류가 신용장의
+    거래조건과 저촉된다.
+
+    **반대 방향은 잡지 않는다.** FOB·FCA·EXW 인데 운임이 선불로 표시된
+    경우는 매도인이 편의상 선지급한 것일 수 있고 은행이 이를 이유로 거절하지
+    않는 것이 실무다. 대칭이 예뻐 보인다고 넣으면 정상 건이 하자로 잡힌다.
+    기획안 9절의 '심각도 보수적 산정'이 이 방향을 가리킨다.
+    """
+    names = _rule_fields(rule)
+    term = str(lc.get(rule.get("lc_field", "")) or "").upper()
+
+    if not term:
+        return not_evaluated("L/C 에 거래조건이 명시되지 않았습니다")
+    base = next((t for t in _FREIGHT_PREPAID_TERMS if term.startswith(t)), None)
+    if base is None:
+        return not_evaluated(f"운임 선불 조건이 아닙니다: {term}", lc=term)
+
+    # `_first_present` 를 쓰지 않는다. 운임 후불 표시는 운임란이 아니라 화물
+    # 명세·비고에 찍히는 일이 많은데, 첫 필드만 보면 운임란에 금액이 있는 순간
+    # 나머지를 보지 않는다. 값이 있을수록 검사가 줄어드는 역전이다.
+    values = [(n, field_value(bl, n)) for n in names]
+    present = [(n, v) for n, v in values if v]
+    if not present:
+        return not_evaluated("서류에 운임 표시가 없습니다", lc=term)
+
+    for _, value in present:
+        haystack = value.upper()
+        for word in _FREIGHT_COLLECT_WORDS:
+            if re.search(rf"\b{re.escape(word)}\b", haystack):
+                return violated(detail=word, bl=value, lc=term)
+    return passed(bl=present[0][1], lc=term)
+
+
 def contains_incoterms(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     """L/C 지정 거래조건이 물품 명세에 표시되었는지."""
     lc_value = lc.get(rule.get("lc_field", ""))
@@ -466,6 +545,8 @@ REGISTRY: Dict[str, CheckFn] = {
     "numeric_not_above": numeric_not_above,
     "within_tolerance": within_tolerance,
     "forbidden_when_prohibited": forbidden_when_prohibited,
+    "contains_forbidden": contains_forbidden,
+    "freight_prepaid_required": freight_prepaid_required,
     "contains_incoterms": contains_incoterms,
     "bl_in_documents_required": bl_in_documents_required,
 }

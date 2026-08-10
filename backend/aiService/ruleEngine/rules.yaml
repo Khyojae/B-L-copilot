@@ -207,7 +207,7 @@ rules:
     message: 발행일({bl})이 제시 시점({lc})보다 {detail}일 미래입니다.
     remedy: 발행일 오기입인지 확인하세요. 선일자 발행이면 은행이 수리하지 않습니다.
 
-  # ── 당사자 표시 ───────────────────────────────────────────────
+  # ── 당사자·발행 표시 ──────────────────────────────────────────
   - id: D020
     title: 통지처 불일치
     severity: warning
@@ -228,6 +228,96 @@ rules:
     source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
     message: 발행지 정보가 없습니다.
     remedy: 선하증권이 발행된 장소를 기재하세요.
+
+  # D021 의 조문 근거가 **발행지와 발행일을 함께** 요구하는데 룰은 발행지만
+  # 검사하고 있었다. 발행일 누락을 잡는 룰이 카탈로그에 없었다.
+  #
+  # 조용한 구멍이다. 발행일이 없으면 D008(유효기간)·D018(제시기간)·D019(선일자)
+  # 가 전부 `not_evaluated` 로 빠지므로, **발행일을 통째로 빼면 날짜 하자가
+  # 하나도 잡히지 않는다.** 위반 0건은 화면에서 '하자 없음'으로 읽힌다.
+  #
+  # severity 를 발행지(warning)보다 높게 잡은 이유는 조문이 아니라 심사
+  # 가능성이다. 발행지는 없어도 나머지 심사가 되지만, 발행일은 제시기간과
+  # 유효기일 판정의 기준일이라 없으면 심사 자체가 성립하지 않는다.
+  - id: D022
+    title: 발행일 누락
+    severity: critical
+    weight: 0.30
+    fields: [date_of_issue]
+    check: required
+    source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
+    message: 발행일 정보가 없습니다.
+    remedy: 선하증권 발행일을 기재하세요. 없으면 제시기간·유효기일 심사가 불가능합니다.
+
+  # ── 문면상 하자 ───────────────────────────────────────────────
+  #
+  # 아래 셋은 L/C 를 보지 않는다. 신용장이 무엇을 말하든 서류 문면 자체가
+  # 하자인 항목이라 `contains_forbidden` 을 쓴다. 조건부 룰로 만들면 L/C
+  # 없이 돌릴 때 통째로 검사되지 않는다.
+  - id: D023
+    title: 고장 문언 (무고장 선하증권 아님)
+    severity: critical
+    weight: 0.35
+    fields: [description_of_goods]
+    check: contains_forbidden
+    keywords:
+      - DAMAGED
+      - BROKEN
+      - TORN
+      - STAINED
+      - SOILED
+      - LEAKING
+      - RUSTY
+      - SHORT SHIPPED
+      - INSUFFICIENT PACKING
+      - INADEQUATE PACKING
+    source: UCP 600 Art.27 — 은행은 무고장 운송서류만을 수리한다. 물품 또는 포장의 하자 상태를 명시적으로 선언한 조항이 있으면 무고장이 아니다.
+    message: 물품·포장의 하자 상태를 나타내는 문언이 있습니다. ({detail})
+    remedy: 고장 문언이 붙은 선하증권은 은행이 수리하지 않습니다. 선사에 무고장 선하증권 발행을 요청하세요.
+
+  # 한계를 알고 쓸 것. 실제 고장 문언은 서식의 remarks 구역에 찍히는데
+  # 현재 추출기에는 그 구역이 없다. 화물 명세로 흘러든 경우만 잡힌다.
+  # remarks 추출이 붙으면 이 룰은 `fields` 한 줄만 고치면 된다 — 룰을
+  # 데이터로 둔 값어치가 나오는 자리다.
+
+  - id: D024
+    title: 예정 선박 표시
+    severity: warning
+    weight: 0.12
+    fields: [vessel]
+    check: contains_forbidden
+    keywords:
+      - INTENDED
+    source: UCP 600 Art.20(a)(ii) — 선하증권에 '예정 선박' 표시가 있으면 선적일과 실제 선박명을 담은 본선적재부기가 필요하다.
+    message: 선박명이 예정 선박으로 표시되어 있습니다. ({detail})
+    remedy: 실제 적재 선박명이 기재된 본선적재부기를 받으세요.
+
+  # critical 로 둔 이유. 항구가 특정되지 않으면 Art.20(a)(iii) 의 '선적항
+  # 표시' 자체가 성립하지 않고, D003·D012 의 대조는 그 값을 항구명으로
+  # 믿고 도는 탓에 조용히 통과할 수 있다.
+  #
+  # 신용장은 "ANY EUROPEAN PORT" 처럼 지역으로 쓸 수 있다. 선하증권이
+  # 그 문구를 그대로 옮겨 적는 것이 실제로 흔한 하자다.
+  - id: D025
+    title: 항구가 특정되지 않음
+    severity: critical
+    weight: 0.30
+    fields: [port_of_loading, port_of_discharge]
+    check: contains_forbidden
+    keywords:
+      - ANY PORT
+      - ANY PORTS
+      - MAIN PORT
+      - MAIN PORTS
+      - EUROPEAN PORT
+      - EUROPEAN PORTS
+      - ASIAN PORT
+      - ASIAN PORTS
+      - CONTINENTAL PORT
+      - CONTINENTAL PORTS
+    source: ISBP 821 E — 신용장이 지역 또는 복수의 항구를 허용하더라도 선하증권은 실제 선적항과 양륙항을 표시해야 한다.
+    message: 항구가 실제 항구명이 아니라 지역·범위로 기재되어 있습니다. ({detail})
+    remedy: 실제 선적·양륙이 이루어진 항구명을 기재하세요.
 
   # ── 수량·금액 ─────────────────────────────────────────────────
   - id: D007
@@ -264,6 +354,21 @@ rules:
     source: UCP 600 Art.30(a) — 신용장 금액에 about 등이 사용된 경우 10%를 초과하지 않는 과부족이 허용된다.
     message: 운임({bl})이 L/C 허용 범위({lc})를 벗어납니다.
     remedy: 운임 산출 근거를 확인하고 허용 오차 범위 내로 조정하세요.
+
+  # 한 방향만 잡는다. C·D 조건은 매도인이 주운송비를 부담하므로 운임 후불
+  # 표시가 거래조건과 저촉되지만, 반대(FOB 인데 운임 선불)는 매도인이 편의상
+  # 선지급한 것일 수 있고 은행이 그것으로 거절하지 않는다. 대칭이 예뻐 보인다고
+  # 넣으면 정상 건이 하자로 잡힌다.
+  - id: D026
+    title: 운임 지급 조건 저촉
+    severity: warning
+    weight: 0.12
+    fields: [total_freight, description_of_goods]
+    check: freight_prepaid_required
+    lc_field: incoterms
+    source: ISBP 821 E — 운임 지급에 관한 표시는 신용장의 거래조건과 저촉되지 않아야 한다.
+    message: L/C 거래조건({lc})은 운임 선불인데 서류에 후불 표시가 있습니다. ({detail})
+    remedy: 운임 선불(FREIGHT PREPAID) 선하증권으로 교체하거나 L/C 거래조건 변경을 요청하세요.
 
   # ── 금지 조건 위반 ────────────────────────────────────────────
   - id: D013

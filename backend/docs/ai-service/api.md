@@ -107,7 +107,7 @@ uvicorn api.main:app --port 5000 --reload
 
 ```
 $ curl -s http://127.0.0.1:5099/health
-{"status":"ok","rules_loaded":21,"env":"development"}
+{"status":"ok","rules_loaded":29,"env":"development"}
 ```
 
 ```
