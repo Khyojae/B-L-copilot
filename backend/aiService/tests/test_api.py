@@ -245,6 +245,99 @@ class TestReport:
         assert hangul > 100
 
 
+class TestReportShare:
+    """F4 공유 — 기획안 5절 "PDF 출력·공유 가능"."""
+
+    BODY = {"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+
+    def test_링크를_발급한다(self, client):
+        response = client.post("/report/share", json=self.BODY)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["token"]
+        assert body["path"].endswith(body["token"])
+        assert body["pdf_path"].endswith("/pdf")
+
+    def test_공유_링크가_같은_리포트를_낸다(self, client):
+        # 저장하지 않으므로, 링크를 열 때마다 다시 조립한다. 원본과
+        # 어긋나면 공유받은 쪽이 다른 판정을 보게 된다.
+        direct = client.post("/report", json=self.BODY).json()
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+
+        shared = client.get(f"/report/shared/{token}")
+
+        assert shared.status_code == 200
+        assert shared.json() == direct
+
+    def test_공유_링크로_PDF를_연다(self, client):
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+
+        response = client.get(f"/report/shared/{token}/pdf")
+
+        assert response.status_code == 200
+        assert response.content.startswith(b"%PDF")
+        # 링크를 클릭하면 브라우저에서 바로 보여야 한다. attachment 면
+        # 받는 쪽이 파일을 내려받아 여는 한 단계를 더 거친다.
+        assert response.headers["content-disposition"].startswith("inline")
+
+    def test_위조된_토큰을_거절한다(self, client):
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+        head, packed, signature = token.split(".")
+        forged = f"{head}.{packed}.{'A' * len(signature)}"
+
+        assert client.get(f"/report/shared/{forged}").status_code == 404
+
+    def test_본문을_바꾸면_서명이_깨진다(self, client):
+        # 서명이 본문을 덮지 않으면 받은 쪽이 내용을 고쳐 열 수 있다.
+        import base64
+        import json
+        import zlib
+
+        from report import share
+
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+        head, packed, signature = token.split(".")
+        body = json.loads(zlib.decompress(share._b64decode(packed)))
+        body["data"]["bl"]["bl_no"] = "위조됨"
+        tampered = base64.urlsafe_b64encode(
+            zlib.compress(json.dumps(body).encode())
+        ).decode().rstrip("=")
+
+        response = client.get(f"/report/shared/{head}.{tampered}.{signature}")
+
+        assert response.status_code == 404
+
+    def test_만료된_링크는_410_이다(self, client):
+        # 404 로 내면 받은 쪽이 '주소가 틀렸나'를 의심하게 된다.
+        from report import share
+
+        token = share.encode({"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF},
+                             ttl_seconds=60, now=0)
+
+        response = client.get(f"/report/shared/{token}")
+
+        assert response.status_code == 410
+        assert "만료" in response.json()["detail"]
+
+    def test_형식이_틀린_토큰을_거절한다(self, client):
+        assert client.get("/report/shared/아무거나").status_code == 404
+
+    def test_열리지_않을_링크는_발급하지_않는다(self, client):
+        # 발급은 되고 열면 400 이면, 공유받은 쪽에서 터지고 원인을 알 수 없다.
+        response = client.post("/report/share", json={"bl": {}})
+
+        assert response.status_code == 400
+
+    def test_만료를_지정할_수_있다(self, client):
+        short = client.post(
+            "/report/share", json={**self.BODY, "ttl_seconds": 3600}
+        ).json()
+        default = client.post("/report/share", json=self.BODY).json()
+
+        assert short["expires_at"] < default["expires_at"]
+
+
 class TestPipelineIntegration:
     def test_추출_검증_리포트가_이어진다(self, client):
         # F1 → F3 → F4 가 같은 필드 형태로 이어지는지 확인한다.

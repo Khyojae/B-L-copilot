@@ -19,6 +19,13 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from report import apply_narrative, build_report, render_pdf
+from report.share import (
+    DEFAULT_TTL_SECONDS,
+    ExpiredShareToken,
+    ShareTokenError,
+    ShareTokenTooLarge,
+)
+from report import share as share_tokens
 from ruleEngine import LCTerms, RuleEngine
 
 # 룰 카탈로그는 프로세스 기동 시 1회만 읽는다. 요청마다 읽으면 YAML 파싱이
@@ -38,6 +45,13 @@ def engine() -> RuleEngine:
 async def lifespan(_: FastAPI):
     """기동 시 카탈로그를 검증한다. 룰이 깨졌으면 여기서 죽는 편이 낫다."""
     print(f"[aiService] 룰 카탈로그 로드 완료: {len(engine())}건")
+    if share_tokens.secret_is_ephemeral():
+        # 죽이지는 않는다 — 개발·시연에서는 임시 키로 충분하다. 다만 배포에서
+        # 이 줄이 보이면 재시작마다 공유 링크가 끊긴다는 뜻이다.
+        print(
+            f"[aiService] 경고: {share_tokens.SECRET_ENV} 미설정 — "
+            "공유 링크가 서버 재시작 시 무효가 됩니다."
+        )
     yield
 
 
@@ -171,6 +185,50 @@ async def extract_from_image(file: UploadFile = File(...)) -> dict:
     return _draft_response(draft)
 
 
+@app.post("/extract/pdf")
+async def extract_from_pdf(
+    file: UploadFile = File(...),
+    page: int = 0,
+) -> dict:
+    """F1 — PDF → B/L 초안.
+
+    텍스트 레이어가 있는 PDF(전자 발행 서류 대부분)는 **OCR 을 타지 않는다.**
+    스캔본만 이미지로 구워 OCR 에 넘기므로, 그때만 PaddleOCR 이 필요하다.
+    어느 경로였는지는 응답의 `source` 에 `pdf-text` / `pdf-ocr` 로 남는다.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from ocr import IntakePipeline
+
+    payload = await file.read()
+    if not payload:
+        raise HTTPException(status_code=400, detail="빈 파일입니다.")
+    if not payload.startswith(b"%PDF"):
+        # 확장자가 아니라 내용으로 판정한다. 이미지 파일을 .pdf 로 바꿔
+        # 올리는 일이 흔하고, 그때 PyMuPDF 오류를 그대로 흘리면 원인을
+        # 알 수 없는 500 이 된다.
+        raise HTTPException(
+            status_code=400,
+            detail="PDF 파일이 아닙니다. 이미지는 /extract 를 쓰세요.",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "upload.pdf"
+        path.write_bytes(payload)
+        try:
+            draft = IntakePipeline().run_from_pdf(str(path), page_number=page)
+        except ValueError as exc:
+            # 페이지 번호 범위 초과·빈 PDF — 요청이 잘못된 경우다.
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ImportError as exc:
+            # PyMuPDF 미설치, 또는 스캔본인데 PaddleOCR 미설치.
+            # 서버 구성 문제지 요청 오류가 아니다.
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return _draft_response(draft)
+
+
 @app.post("/verify", response_model=VerifyResponse)
 def verify(req: VerifyRequest) -> VerifyResponse:
     """F3 하자 예측. 기획안 S4(검증 결과) 화면이 이 응답을 그대로 그린다."""
@@ -224,13 +282,118 @@ def report_json(req: ReportRequest) -> dict:
 @app.post("/report/pdf")
 def report_pdf(req: ReportRequest) -> Response:
     """리포트 PDF. 기획안 5.2 'PDF 로 저장·공유'."""
-    report = _make_report(req)
+    return _pdf_response(_make_report(req), inline=False)
+
+
+def _pdf_response(report, inline: bool) -> Response:
+    """PDF 응답. 공유 링크는 브라우저에서 바로 열려야 하므로 inline 이다."""
+    disposition = "inline" if inline else "attachment"
     filename = f"BL_Copilot_Report_{report.bl_no or 'draft'}.pdf"
     return Response(
         content=render_pdf(report),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
+
+
+# ── F4 공유 ──────────────────────────────────────────────────────
+
+class ShareRequest(ReportRequest):
+    """공유 링크 발급 요청. 리포트 요청에 만료만 더한다."""
+
+    ttl_seconds: Optional[int] = Field(
+        None,
+        ge=60,
+        le=90 * 24 * 60 * 60,
+        description="링크 유효기간(초). 생략하면 7일.",
+    )
+
+
+class ShareResponse(BaseModel):
+    token: str
+    path: str
+    pdf_path: str
+    expires_at: datetime
+    ephemeral_secret: bool = Field(
+        ...,
+        description=(
+            "True 면 서버 재시작 시 링크가 무효가 된다. "
+            "REPORT_SHARE_SECRET 를 설정하면 False."
+        ),
+    )
+    warning: Optional[str] = None
+
+
+@app.post("/report/share", response_model=ShareResponse)
+def create_share_link(req: ShareRequest) -> ShareResponse:
+    """F4 — 리포트 공유 링크 발급. 기획안 5절 "PDF 출력·공유 가능".
+
+    저장하지 않는다. 링크가 입력을 싣고 다니며, 열릴 때마다 같은 리포트를
+    다시 조립한다. 설계 근거와 한계는 `report/share.py` 를 볼 것.
+    """
+    # 발급 시점에 한 번 조립해 본다. 열어 봐야 400 이 나는 링크를 쥐여주면
+    # 공유받은 쪽에서 터지고, 그때는 원인을 알 방법이 없다.
+    _make_report(req)
+
+    payload = {
+        "bl": req.bl,
+        "lc": req.lc,
+        "as_of": req.as_of.isoformat() if req.as_of else None,
+        "submitted_documents": req.submitted_documents,
+    }
+    try:
+        token = share_tokens.encode(
+            payload, ttl_seconds=req.ttl_seconds or DEFAULT_TTL_SECONDS
+        )
+    except ShareTokenTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+    ephemeral = share_tokens.secret_is_ephemeral()
+    return ShareResponse(
+        token=token,
+        path=f"/report/shared/{token}",
+        pdf_path=f"/report/shared/{token}/pdf",
+        expires_at=datetime.fromtimestamp(share_tokens.expires_at(token)),
+        ephemeral_secret=ephemeral,
+        warning=(
+            f"{share_tokens.SECRET_ENV} 가 설정되지 않아 서버 재시작 시 "
+            "링크가 무효가 됩니다."
+            if ephemeral else None
+        ),
+    )
+
+
+def _report_from_token(token: str):
+    """토큰 → 리포트. 공유 경로 두 개가 공유한다."""
+    try:
+        payload = share_tokens.decode(token)
+    except ExpiredShareToken as exc:
+        # 410 이다. 404 로 내면 받은 쪽이 '주소가 틀렸나'를 의심하게 된다.
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+    except ShareTokenError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    as_of = payload.get("as_of")
+    return _make_report(
+        ReportRequest(
+            bl=payload["bl"],
+            lc=payload.get("lc"),
+            as_of=datetime.fromisoformat(as_of) if as_of else None,
+            submitted_documents=payload.get("submitted_documents"),
+        )
+    )
+
+
+@app.get("/report/shared/{token}")
+def read_shared_report(token: str) -> dict:
+    """공유된 리포트 JSON."""
+    return _report_from_token(token).to_dict()
+
+
+@app.get("/report/shared/{token}/pdf")
+def read_shared_report_pdf(token: str) -> Response:
+    """공유된 리포트 PDF. 링크를 클릭하면 브라우저에서 바로 열린다."""
+    return _pdf_response(_report_from_token(token), inline=True)
 
 
 __all__ = ["app"]

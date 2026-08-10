@@ -92,6 +92,16 @@ DEFECT_KINDS = (
     "stale_presentation",   # 제시기간 경과
 )
 
+# 같은 필드에 쓰는 하자 쌍. 함께 주입하면 나중 것이 앞의 것을 덮어쓰는데,
+# `injected` 에는 둘 다 남아 서류에 없는 하자를 라벨이 주장하게 된다.
+# 그 상태로 유형별 재현율을 재면 검출기가 아니라 생성기의 결함이 측정된다.
+#
+# late_shipment 는 선적일을 L/C 기한 뒤로(=최근), stale_presentation 은
+# 기준일 22~60일 전으로 민다. 둘 다 on_board_date 이고 방향이 반대다.
+CONFLICTING_KINDS = (
+    ("late_shipment", "stale_presentation"),
+)
+
 
 class SyntheticGenerator:
     """하자를 주입한 학습 데이터를 만든다."""
@@ -133,8 +143,10 @@ class SyntheticGenerator:
 
         if inject:
             # 실제 하자 건은 대개 한두 개가 겹친다. 3개 이상은 드물다.
-            kinds = self.rng.sample(
-                DEFECT_KINDS, k=self.rng.choices([1, 2, 3], weights=[6, 3, 1])[0]
+            kinds = _drop_conflicts(
+                self.rng.sample(
+                    DEFECT_KINDS, k=self.rng.choices([1, 2, 3], weights=[6, 3, 1])[0]
+                )
             )
             for kind in kinds:
                 self._inject(bl, lc, kind)
@@ -275,6 +287,22 @@ class SyntheticGenerator:
 
 
 # ── 유틸 ─────────────────────────────────────────────────────────
+
+def _drop_conflicts(kinds: List[str]) -> List[str]:
+    """같은 필드를 두고 다투는 하자 중 뒤에 오는 것을 뺀다.
+
+    표본 순서를 그대로 존중해 앞의 것을 남긴다 — 어느 쪽을 살릴지는
+    무작위여야 특정 유형이 과소 표집되지 않는다.
+    """
+    kept: List[str] = []
+    for kind in kinds:
+        rivals = {b for a, b in CONFLICTING_KINDS if a == kind}
+        rivals |= {a for a, b in CONFLICTING_KINDS if b == kind}
+        if rivals & set(kept):
+            continue
+        kept.append(kind)
+    return kept
+
 
 def _fmt(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")

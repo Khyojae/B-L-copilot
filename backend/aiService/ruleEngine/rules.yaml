@@ -159,9 +159,9 @@ rules:
     remedy: L/C 유효기간 내 발행분으로 교체하거나 조건변경을 요청하세요.
 
   - id: D018
-    title: 서류제시기간 임박·경과
-    severity: warning
-    weight: 0.15
+    title: 서류제시기간 경과
+    severity: critical
+    weight: 0.30
     fields: [on_board_date, date_of_issue]
     check: presentation_period
     source: UCP 600 Art.14(c) — 서류는 선적일 후 21일 이내에, 그리고 유효기일 이내에 제시되어야 한다.

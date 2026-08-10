@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Sequence
 
 from ruleEngine.engine import RuleEngine
 
-from .features import FEATURE_NAMES, extract_features
+from .features import FEATURE_NAMES, RAW_FEATURE_NAMES, extract_features
 from .predictor import DefectPredictor
 from .synth import Sample, SyntheticGenerator
 
@@ -95,18 +95,30 @@ class EvaluationReport:
 
     rules_only: Metrics
     rules_plus_model: Optional[Metrics] = None
+    raw_features_only: Optional[Metrics] = None
     target_f1: float = 0.85
     per_defect_recall: Dict[str, float] = field(default_factory=dict)
     feature_importance: Dict[str, float] = field(default_factory=dict)
+    raw_feature_importance: Dict[str, float] = field(default_factory=dict)
     train_count: int = 0
     eval_count: int = 0
 
     @property
     def best_f1(self) -> float:
+        # `raw_features_only` 는 제외한다. 그건 배포 후보가 아니라 "모델이
+        # 룰과 독립적으로 무엇을 아는가"를 재는 비교군이다. 여기에 넣으면
+        # 진단용 수치가 기획안 목표 달성 판정을 밀어 올릴 수 있다.
         scores = [self.rules_only.f1]
         if self.rules_plus_model:
             scores.append(self.rules_plus_model.f1)
         return max(scores)
+
+    @property
+    def model_contribution(self) -> Optional[float]:
+        """결합 모델이 룰 단독 대비 더한 F1."""
+        if not self.rules_plus_model:
+            return None
+        return self.rules_plus_model.f1 - self.rules_only.f1
 
     @property
     def meets_target(self) -> bool:
@@ -123,8 +135,16 @@ class EvaluationReport:
             "rules_plus_model": (
                 self.rules_plus_model.to_dict() if self.rules_plus_model else None
             ),
+            "raw_features_only": (
+                self.raw_features_only.to_dict() if self.raw_features_only else None
+            ),
+            "model_contribution": (
+                round(self.model_contribution, 4)
+                if self.model_contribution is not None else None
+            ),
             "per_defect_recall": self.per_defect_recall,
             "feature_importance": self.feature_importance,
+            "raw_feature_importance": self.raw_feature_importance,
         }
 
     def to_text(self) -> str:
@@ -138,11 +158,14 @@ class EvaluationReport:
             "",
             _metrics_block("룰엔진 단독", self.rules_only),
         ]
+        if self.raw_features_only:
+            lines.append(_metrics_block("원시 특징만 (룰 출력 제외)", self.raw_features_only))
         if self.rules_plus_model:
             lines.append(_metrics_block("룰 + XGBoost", self.rules_plus_model))
-            delta = self.rules_plus_model.f1 - self.rules_only.f1
-            lines.append(f"  모델 기여도: F1 {delta:+.4f}")
+            lines.append(f"  모델 기여도: F1 {self.model_contribution:+.4f}")
             lines.append("")
+        if self.raw_features_only and self.rules_plus_model:
+            lines.append(self._independence_block())
 
         if self.per_defect_recall:
             lines.append("하자 유형별 재현율")
@@ -166,6 +189,101 @@ class EvaluationReport:
         lines.append(f"{verdict}  (최고 F1 {self.best_f1:.4f})")
         lines.append("=" * 62)
         return "\n".join(lines)
+
+    def _independence_block(self) -> str:
+        """룰과 모델이 얼마나 겹치는지 3열로 보인다.
+
+        기획안 8.2 가 요구하는 학술적 정당화의 핵심 질문은 "모델이 룰의
+        복제본 아닌가"이다. 결합 F1 하나만 내면 그 질문에 답할 수 없다.
+        룰 없이 원시 특징만으로 어디까지 가는지를 나란히 놓아야,
+        모델이 독립적으로 아는 것이 무엇인지 수치로 말할 수 있다.
+        """
+        rows = [
+            ("룰엔진만", self.rules_only),
+            ("원시 특징만 (룰 출력 제외)", self.raw_features_only),
+            ("룰 + XGBoost", self.rules_plus_model),
+        ]
+        lines = [
+            "룰·모델 독립성 (기획안 8.2 — 순환논리 대응)",
+            f"  {_pad('구성', 28)} {_rjust('정밀도', 8)} {_rjust('재현율', 8)}"
+            f" {_rjust('F1', 8)}",
+            "  " + "-" * 54,
+        ]
+        for title, m in rows:
+            lines.append(
+                f"  {_pad(title, 28)} {m.precision:8.4f} {m.recall:8.4f} {m.f1:8.4f}"
+            )
+
+        raw, combined = self.raw_features_only.f1, self.rules_plus_model.f1
+        lines += [
+            "",
+            f"  룰 없이 도달한 F1   {raw:.4f}  (룰 단독 대비 {raw - self.rules_only.f1:+.4f})",
+            f"  모델이 더한 F1      {self.model_contribution:+.4f}  (룰 → 결합)",
+            "",
+        ]
+        lines += _wrap(self._independence_verdict(), width=58,
+                       first="  → ", rest="    ")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _independence_verdict(self) -> str:
+        """3열 수치를 한 문장으로 읽는다.
+
+        발표에서 이 줄이 그대로 인용될 수 있으므로, 유리하게 읽지 않는다.
+        """
+        raw = self.raw_features_only.f1
+        gain = self.model_contribution or 0.0
+        share = raw / self.rules_only.f1 if self.rules_only.f1 else 0.0
+
+        if gain < 0.01 and share < 0.9:
+            return (
+                f"모델은 룰과 독립적으로는 룰 성능의 {share:.0%} 밖에 못 내고, "
+                f"결합해도 F1 을 {gain:+.4f} 만 더한다. 현 설계에서 모델의 "
+                "기여는 룰 결과의 재가중에 가깝다."
+            )
+        if gain < 0.01:
+            return (
+                f"원시 특징만으로 룰 성능의 {share:.0%} 에 도달하지만 결합 이득은 "
+                f"{gain:+.4f} 에 그친다. 두 축이 같은 하자를 본다는 뜻이다."
+            )
+        return (
+            f"원시 특징만으로 룰 성능의 {share:.0%} 를 내고, 결합 시 "
+            f"{gain:+.4f} 를 더한다. 모델이 룰과 다른 신호를 쓰고 있다."
+        )
+
+
+def _display_width(text: str) -> int:
+    """터미널에서 차지하는 칸 수. 한글·전각 문자는 두 칸이다.
+
+    len() 으로 열을 맞추면 한글이 섞인 표가 어긋난다.
+    """
+    import unicodedata
+
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text)
+
+
+def _pad(text: str, width: int) -> str:
+    return text + " " * max(0, width - _display_width(text))
+
+
+def _rjust(text: str, width: int) -> str:
+    return " " * max(0, width - _display_width(text)) + text
+
+
+def _wrap(text: str, width: int, first: str = "", rest: str = "") -> List[str]:
+    """표시 폭 기준으로 줄바꿈한다. textwrap 은 한글 폭을 모른다."""
+    lines: List[str] = []
+    prefix, current = first, ""
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if current and _display_width(prefix + candidate) > width:
+            lines.append(prefix + current)
+            prefix, current = rest, word
+        else:
+            current = candidate
+    if current:
+        lines.append(prefix + current)
+    return lines
 
 
 def _metrics_block(title: str, m: Metrics) -> str:
@@ -213,22 +331,39 @@ def evaluate(
         return report
 
     try:
-        predictor = DefectPredictor()
-        predictor.train(
-            train_rows, train_labels,
-            eval_rows=eval_rows, eval_labels=eval_labels,
+        predictor = _fit(DefectPredictor(), train_rows, train_labels,
+                         eval_rows, eval_labels)
+        # 비교군: 룰엔진 출력을 뺀 원시 특징만으로 학습한다. 이 축이 없으면
+        # "모델이 룰을 되학습한 것 아닌가"에 수치로 답할 수 없다.
+        raw_predictor = _fit(
+            DefectPredictor(feature_names=RAW_FEATURE_NAMES),
+            train_rows, train_labels, eval_rows, eval_labels,
         )
     except ImportError as exc:
         print(f"[알림] 모델 평가 건너뜀 — {exc}")
         return report
 
-    combined = Metrics()
-    for probability, actual in zip(predictor.predict_batch(eval_rows), eval_labels):
-        combined.add(probability >= 0.5, bool(actual))
-    report.rules_plus_model = combined
+    report.rules_plus_model = _score(predictor, eval_rows, eval_labels)
     report.feature_importance = predictor.feature_importance()
+    report.raw_features_only = _score(raw_predictor, eval_rows, eval_labels)
+    report.raw_feature_importance = raw_predictor.feature_importance()
 
     return report
+
+
+def _fit(predictor, train_rows, train_labels, eval_rows, eval_labels):
+    predictor.train(
+        train_rows, train_labels,
+        eval_rows=eval_rows, eval_labels=eval_labels,
+    )
+    return predictor
+
+
+def _score(predictor, eval_rows, eval_labels) -> Metrics:
+    metrics = Metrics()
+    for probability, actual in zip(predictor.predict_batch(eval_rows), eval_labels):
+        metrics.add(probability >= 0.5, bool(actual))
+    return metrics
 
 
 def _build_matrix(

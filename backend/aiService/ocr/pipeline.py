@@ -44,6 +44,14 @@ class IntakePipeline:
         path = self._preprocess(image_path) if preprocess else image_path
         return self._run(self.extractor.from_image(path))
 
+    def run_from_pdf(self, pdf_path: str, page_number: int = 0) -> BLDraft:
+        """PDF 로 실행.
+
+        텍스트 레이어가 있으면 OCR 을 타지 않으므로 **PaddleOCR 없이도
+        동작한다.** 스캔본일 때만 OCR 이 필요하다.
+        """
+        return self._run(self.extractor.from_pdf(pdf_path, page_number))
+
     def run_batch(self, label_dir: str, max_files: int = 0) -> List[BLDraft]:
         """라벨 디렉토리 일괄 처리. 실패 건은 건너뛰고 계속한다."""
         files = sorted(Path(label_dir).glob("*.json"))

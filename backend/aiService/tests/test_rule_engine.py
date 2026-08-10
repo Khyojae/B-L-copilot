@@ -351,6 +351,18 @@ class TestInputTypes:
         assert "D018" not in {v.rule_id for v in early.violations}
         assert "D018" in {v.rule_id for v in late.violations}
 
+    def test_제시기간_경과는_CRITICAL_이다(self):
+        # UCP 600 Art.14(c) 위반은 은행이 수리를 거절하는 하자다.
+        # warning 으로 두면 has_critical 로 재는 모든 지표에서 이 유형이
+        # 통째로 미검출로 집계된다.
+        bl = clean_bl(on_board_date="2026-05-01")
+
+        verdict = RuleEngine().verify(bl, clean_lc(), as_of=datetime(2026, 7, 10))
+
+        assert verdict.has_critical
+        d018 = next(v for v in verdict.violations if v.rule_id == "D018")
+        assert d018.severity is Severity.CRITICAL
+
 
 class TestMT700:
     def test_태그로_LC를_만든다(self, engine):
