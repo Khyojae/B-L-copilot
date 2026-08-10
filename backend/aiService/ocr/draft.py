@@ -12,6 +12,7 @@ B/L 초안 생성 (F1 후반부).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
@@ -32,6 +33,7 @@ class ReviewReason(str, Enum):
     MISSING = "missing"                     # 그 외 필드 추출 실패
     LOW_CONFIDENCE = "low_confidence"       # 값은 있으나 OCR 신뢰도 미달
     ANCHOR_DERIVED = "anchor_derived"       # 좌표가 아닌 라벨 근접으로 추정
+    LABEL_ECHOED = "label_echoed"           # 값에 항목명이 그대로 섞임
 
 
 # 화면에 그대로 쓸 수 있는 한국어 라벨.
@@ -58,7 +60,18 @@ _REASON_MESSAGES: Dict[ReviewReason, str] = {
     ReviewReason.MISSING: "추출하지 못했습니다. 원본을 확인해 주세요.",
     ReviewReason.LOW_CONFIDENCE: "인식 정확도가 낮습니다. 원본과 대조해 주세요.",
     ReviewReason.ANCHOR_DERIVED: "위치가 아닌 항목명으로 찾은 값입니다. 확인해 주세요.",
+    ReviewReason.LABEL_ECHOED: "값에 서식의 항목명이 섞여 있습니다. 원본과 대조해 주세요.",
 }
+
+# 값에 섞였을 때 오추출로 볼 항목명의 최소 길이.
+#
+# `FIELD_ANCHORS` 에는 "POL", "FROM" 같은 짧은 것도 있는데, 그런 조각은
+# 정상 상호·항구명에도 흔히 들어가 오탐이 된다. 반대로 너무 길게 잡으면
+# `VESSEL`(6자) 처럼 실제로 관측된 오추출을 놓친다.
+#
+# 오탐의 대가는 불필요한 확인 요청 한 건이고, 미탐의 대가는 **틀린 값이
+# 확인 없이 검증까지 흘러가는 것**이다. 대가가 비대칭이므로 낮게 잡는다.
+_MIN_LABEL_LENGTH = 6
 
 
 @dataclass
@@ -73,6 +86,13 @@ class DraftField:
     needs_review: bool
     review_reason: Optional[ReviewReason] = None
     review_message: Optional[str] = None
+    # 이 값이 어떻게 나왔는지. "region" | "anchor" | "llm" | None(값 없음).
+    #
+    # 신뢰도만으로는 부족하다. 0.55 라는 숫자는 "좌표로 찾았는데 OCR 이
+    # 흐릿했다"와 "LLM 이 원문을 보고 답했다"를 구분하지 못하는데, 사람이
+    # 그 값을 확인하는 방법은 둘이 전혀 다르다. 앞은 원본 이미지의 그 자리를
+    # 보면 되고, 뒤는 서류 전체에서 근거를 찾아야 한다.
+    source: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -80,6 +100,7 @@ class DraftField:
             "label": self.label,
             "value": self.value,
             "confidence": self.confidence,
+            "source": self.source,
             "is_critical": self.is_critical,
             "needs_review": self.needs_review,
             "review_reason": self.review_reason.value if self.review_reason else None,
@@ -166,6 +187,7 @@ def build_draft(
                 label=FIELD_LABELS.get(name, name),
                 value=value,
                 confidence=confidence,
+                source=fields.provenance.get(name),
                 is_critical=is_critical,
                 needs_review=reason is not None,
                 review_reason=reason,
@@ -191,6 +213,16 @@ def _review_reason(
     if confidence is not None and confidence < threshold:
         return ReviewReason.LOW_CONFIDENCE
 
+    # 값에 서식의 항목명이 그대로 들어왔으면 구역 판정이 밀린 것이다.
+    #
+    # 이 검사가 필요한 이유는 신뢰도가 오추출을 못 잡기 때문이다. 텍스트
+    # 레이어 PDF 는 전 필드가 신뢰도 1.0 인데 — 글자를 정확히 읽은 것은
+    # 맞으므로 옳은 값이다 — *올바른 필드에 꽂혔는가* 는 다른 질문이다.
+    # 그 결과 값이 밀려도 확인 대기열이 비어 사람이 아무것도 보지 않는다.
+    # 입력이 정확할수록 검토가 사라지는 역설이라 별도 신호가 필요하다.
+    if _echoes_label(value):
+        return ReviewReason.LABEL_ECHOED
+
     # 앵커 추출은 OCR 신뢰도가 높아도 매핑이 틀렸을 수 있다.
     # 핵심 필드에 한해서만 확인을 요구한다 — 전 필드에 걸면
     # 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다.
@@ -198,3 +230,56 @@ def _review_reason(
         return ReviewReason.ANCHOR_DERIVED
 
     return None
+
+
+def _label_vocabulary() -> frozenset:
+    """서식 항목명 어휘. `FieldParser.FIELD_ANCHORS` 를 그대로 쓴다.
+
+    앵커 목록이 곧 "서류에 인쇄된 항목명" 목록이므로 따로 관리하면 두
+    목록이 어긋난다. 룰을 데이터로 두는 것과 같은 이유다.
+    """
+    global _LABEL_VOCABULARY
+    if _LABEL_VOCABULARY is None:
+        from .field_parser import FieldParser
+
+        phrases = [
+            phrase
+            for group in FieldParser.FIELD_ANCHORS.values()
+            for phrase in group
+        ] + FieldParser.EXTRA_FORM_LABELS
+        _LABEL_VOCABULARY = frozenset(
+            normalized
+            for normalized in (_normalize(p) for p in phrases)
+            if len(normalized) >= _MIN_LABEL_LENGTH
+        )
+    return _LABEL_VOCABULARY
+
+
+_LABEL_VOCABULARY: Optional[frozenset] = None
+
+
+def _normalize(text: str) -> str:
+    """대문자·영숫자·공백만 남긴다. `B/L NO.` 와 `BL NO` 를 같게 본다."""
+    return re.sub(r"[^A-Z0-9 ]", " ", text.upper()).strip()
+
+
+def _echoes_label(value: str) -> bool:
+    """값이 서식 항목명을 품고 있거나, 항목명의 조각인지.
+
+    두 방향을 다 본다. 실제로 두 방향 모두 관측됐다 —
+    `DESCRIPTION OF GOODS SAW MACHINE` 은 항목명을 품은 경우고,
+    `OCEAN VESSEL` 라벨에서 잘려 나온 `OCEAN` 은 조각인 경우다.
+    """
+    normalized = re.sub(r"\s+", " ", _normalize(value))
+    if not normalized:
+        return False
+
+    padded = f" {normalized} "
+    for label in _label_vocabulary():
+        if f" {label} " in padded:
+            return True
+        # 값 전체가 항목명의 일부인 경우. 값이 항목명보다 짧을 때만 본다 —
+        # 정상 값이 항목명의 부분 문자열이 되는 일은 드물다.
+        if len(normalized) < len(label) and f" {normalized} " in f" {label} ":
+            return True
+    return False

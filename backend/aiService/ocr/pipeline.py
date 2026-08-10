@@ -11,13 +11,20 @@ F1 인테이크 파이프라인.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from .draft import BLDraft, build_draft
 from .extractor import OCRExtractor
 from .field_parser import FieldParser
+from .llm_extract import LLMFieldExtractor
 from .types import LOW_CONFIDENCE_THRESHOLD, BLFields, OCRResult
+
+
+def _env_flag(name: str) -> bool:
+    """환경변수를 불리언으로. 미설정은 거짓이다."""
+    return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 class IntakePipeline:
@@ -28,10 +35,20 @@ class IntakePipeline:
         lang: str = "en",
         use_gpu: bool = False,
         confidence_threshold: float = LOW_CONFIDENCE_THRESHOLD,
+        use_llm: Optional[bool] = None,
     ) -> None:
+        """use_llm 은 파서가 비운 핵심 필드를 LLM 으로 채울지 여부다.
+
+        기본값은 환경변수 `LLM_STRUCTURED_EXTRACT` 이고, 그마저 없으면 꺼짐이다.
+        **기본을 켬으로 두지 않는 이유**는 이 경로가 외부 API 호출이기 때문이다.
+        켜져 있으면 테스트와 시연이 네트워크·요금·지연에 묶이고, 그 사실이
+        코드 어디에도 드러나지 않는다. 켜는 것은 명시적 결정이어야 한다.
+        """
         self.extractor = OCRExtractor(lang=lang, use_gpu=use_gpu)
         self.parser = FieldParser()
         self.confidence_threshold = confidence_threshold
+        self.use_llm = _env_flag("LLM_STRUCTURED_EXTRACT") if use_llm is None else use_llm
+        self._llm: Optional[LLMFieldExtractor] = None
 
     # ── 실행 ──────────────────────────────────────────────────────
 
@@ -52,6 +69,18 @@ class IntakePipeline:
         """
         return self._run(self.extractor.from_pdf(pdf_path, page_number))
 
+    def run_from_excel(self, path: str, sheet: str | None = None) -> BLDraft:
+        """엑셀로 실행. OCR 을 타지 않으므로 PaddleOCR 없이 동작한다."""
+        return self._run(self.extractor.from_excel(path, sheet=sheet))
+
+    def run_from_email(self, path: str) -> BLDraft:
+        """이메일(.eml)로 실행.
+
+        첨부가 서류이면 그 형식의 경로를 탄다. 따라서 스캔 이미지가 첨부된
+        경우에만 PaddleOCR 이 필요하다.
+        """
+        return self._run(self.extractor.from_email(path))
+
     def run_batch(self, label_dir: str, max_files: int = 0) -> List[BLDraft]:
         """라벨 디렉토리 일괄 처리. 실패 건은 건너뛰고 계속한다."""
         files = sorted(Path(label_dir).glob("*.json"))
@@ -70,6 +99,12 @@ class IntakePipeline:
 
     def _run(self, ocr: OCRResult) -> BLDraft:
         fields: BLFields = self.parser.parse(ocr)
+        if self.use_llm:
+            # 파서가 비운 자리만 채운다. 채운 필드는 provenance 가 "llm" 이고
+            # 신뢰도가 임계값 아래라 초안 편집기가 사람 확인을 요구한다.
+            if self._llm is None:
+                self._llm = LLMFieldExtractor()
+            self._llm.fill_gaps(fields, ocr)
         return build_draft(fields, ocr, threshold=self.confidence_threshold)
 
     @staticmethod

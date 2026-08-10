@@ -152,6 +152,34 @@ class FieldParser:
     }
 
     # ── 정규식 ────────────────────────────────────────────────────
+    # ── 서식에 인쇄된 항목명 ──────────────────────────────────────
+    #
+    # `FIELD_ANCHORS` 는 **파서가 fallback 에 쓰는** 항목명이라 일부 필드만
+    # 갖는다. 아래는 그 밖에 서식에 흔히 인쇄되는 항목명이며, 파싱에는
+    # 쓰지 않는다 — 값에 항목명이 섞여 들어왔는지 판정하는 데만 쓴다
+    # (`draft._echoes_label`).
+    #
+    # 값으로도 등장하는 문구는 넣지 않는다. `FREIGHT PREPAID` 는 항목명처럼
+    # 보이지만 실제 운임란의 **값**이므로, 넣으면 정상 값이 오탐된다.
+    EXTRA_FORM_LABELS: List[str] = [
+        "CONSIGNEE",
+        "NOTIFY PARTY",
+        "DESCRIPTION OF GOODS",
+        "DESCRIPTION OF PACKAGES AND GOODS",
+        "NUMBER OF PACKAGES",
+        "MARKS AND NUMBERS",
+        "GROSS WEIGHT",
+        "NET WEIGHT",
+        "MEASUREMENT",
+        "PLACE OF ISSUE",
+        "PLACE OF RECEIPT",
+        "TOTAL FREIGHT",
+        "FREIGHT AND CHARGES",
+        "VOYAGE NO",
+        "CONTAINER NO",
+        "SEAL NO",
+    ]
+
     RE_DATE = re.compile(
         r"\b("
         r"\d{4}-\d{2}-\d{2}"                                 # 2014-09-15
@@ -182,8 +210,20 @@ class FieldParser:
 
     # ── 공개 API ──────────────────────────────────────────────────
 
+    # 지면 배치가 없는 입력. 좌표는 있지만 **B/L 서식 위의 위치가 아니라**
+    # 그리드·줄 번호를 펼친 것이므로, REGIONS 판정이 엉뚱한 값을 집는다.
+    # 실제로 엑셀 B/L 을 구역으로 읽으면 선적항 자리에 양하항·화물명세가
+    # 통째로 들어온다 — 그리고 그건 값이 있으므로 앵커 탐색까지 가지 않는다.
+    #
+    # 이 입력들은 "A열 라벨 / B열 값", "라벨: 값" 형태라 앵커가 정확하다.
+    # 구역을 건너뛰면 모든 필드가 앵커 경로로 떨어진다.
+    LAYOUTLESS_SOURCES = frozenset({"excel", "email-body"})
+
     def parse(self, ocr: OCRResult) -> BLFields:
-        regions = self._extract_regions(ocr)
+        if ocr.source in self.LAYOUTLESS_SOURCES:
+            regions: Dict[str, RegionContent] = {}
+        else:
+            regions = self._extract_regions(ocr)
         return self._map_fields(regions, ocr)
 
     # ── 1단계: bbox → 라인 재조합 ─────────────────────────────────
@@ -244,6 +284,10 @@ class FieldParser:
         def region(name: str) -> RegionContent:
             return get(name) or empty
 
+        # 지면 배치가 없는 입력에서는 앵커 아래쪽을 보지 않는다. 그리드의
+        # 아랫줄은 같은 필드의 다음 줄이 아니라 **다른 필드**다.
+        same_line = ocr.source in self.LAYOUTLESS_SOURCES
+
         # ── B/L No. ───────────────────────────────────────────────
         bl_region = region("bl_no")
         header_region = region("header")
@@ -251,7 +295,7 @@ class FieldParser:
         if bl_no:
             f.set_field("bl_no", bl_no, bl_region.confidence or header_region.confidence, "region")
         else:
-            found = self._find_by_anchor("bl_no", ocr.bboxes)
+            found = self._find_by_anchor("bl_no", ocr.bboxes, same_line)
             if found:
                 bl_no = self._pick_bl_no(found.text)
                 if bl_no:
@@ -263,7 +307,7 @@ class FieldParser:
         if shipper:
             f.set_field("shipper", shipper, shipper_region.confidence, "region")
         else:
-            found = self._find_by_anchor("shipper", ocr.bboxes)
+            found = self._find_by_anchor("shipper", ocr.bboxes, same_line)
             if found:
                 value = self._clean_party_name(found.text) or found.text.strip()[:150]
                 f.set_field("shipper", value or None, found.confidence, "anchor")
@@ -274,13 +318,30 @@ class FieldParser:
             ("notify_party", "notify"),
         ):
             rc = region(region_name)
-            f.set_field(field_name, self._clean_party_name(rc.text), rc.confidence, "region")
+            value = self._clean_party_name(rc.text)
+            if value:
+                f.set_field(field_name, value, rc.confidence, "region")
+                continue
+            # 구역이 비면 앵커로 찾는다. 구역만 보던 시절에는 지면 배치가
+            # 없는 입력(엑셀·이메일 본문)에서 이 두 필드가 항상 비었다.
+            found = self._find_by_anchor(field_name, ocr.bboxes, same_line)
+            if found:
+                cleaned = self._clean_party_name(found.text) or found.text.strip()[:150]
+                f.set_field(field_name, cleaned or None, found.confidence, "anchor")
 
         # ── Vessel / Voyage ───────────────────────────────────────
         vessel_region = region("vessel_info")
         vessel, voyage = self._extract_vessel_voyage(vessel_region.text)
-        f.set_field("vessel", vessel, vessel_region.confidence, "region")
-        f.set_field("voyage_no", voyage, vessel_region.confidence, "region")
+        if vessel or voyage:
+            f.set_field("vessel", vessel, vessel_region.confidence, "region")
+            f.set_field("voyage_no", voyage, vessel_region.confidence, "region")
+        else:
+            found = self._find_by_anchor("vessel", ocr.bboxes, same_line)
+            if found:
+                vessel, voyage = self._extract_vessel_voyage(found.text)
+                f.set_field("vessel", vessel or found.text.strip()[:100],
+                            found.confidence, "anchor")
+                f.set_field("voyage_no", voyage, found.confidence, "anchor")
 
         # ── 선적항 / 양하항 ───────────────────────────────────────
         for field_name, region_name in (
@@ -292,7 +353,7 @@ class FieldParser:
             if port:
                 f.set_field(field_name, port, rc.confidence, "region")
             else:
-                found = self._find_by_anchor(field_name, ocr.bboxes)
+                found = self._find_by_anchor(field_name, ocr.bboxes, same_line)
                 if found:
                     f.set_field(
                         field_name,
@@ -392,9 +453,15 @@ class FieldParser:
     # ── 키워드 앵커 fallback ──────────────────────────────────────
 
     def _find_by_anchor(
-        self, field_name: str, bboxes: List[BBox]
+        self, field_name: str, bboxes: List[BBox], same_line_only: bool = False
     ) -> Optional[RegionContent]:
-        """필드 라벨을 찾아 그 오른쪽/아래 텍스트를 수집한다."""
+        """필드 라벨을 찾아 그 오른쪽/아래 텍스트를 수집한다.
+
+        `same_line_only` 는 지면 배치가 없는 입력(엑셀·이메일 본문)에서 켠다.
+        B/L 서식에서는 라벨 아래에 값이 오는 배치가 흔하지만, 그리드에서
+        **아래 줄은 다른 필드**다. 아래를 함께 담으면 선적항 값에 양하항과
+        화물명세가 붙는다.
+        """
         candidates = self.FIELD_ANCHORS.get(field_name, [])
         anchor = self._locate_anchor(bboxes, candidates)
         if anchor is None:
@@ -409,7 +476,8 @@ class FieldParser:
                 (abs(b.center_y - anchor.center_y) <= line_height * 0.7
                  and b.x_min > anchor.x_max)
                 # 또는 바로 아래 한두 줄
-                or (anchor.center_y + line_height * 0.3 < b.center_y
+                or (not same_line_only
+                    and anchor.center_y + line_height * 0.3 < b.center_y
                     < anchor.center_y + line_height * 2.5
                     and anchor.x_min - line_height <= b.x_min
                     <= anchor.x_max + line_height * 4)

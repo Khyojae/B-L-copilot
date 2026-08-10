@@ -172,6 +172,51 @@ class OCRExtractor:
         # 스캔본. OCR 이 필요하고, 그만큼 느리다.
         return self._from_pdf_scan(image_bytes, Path(pdf_path).stem)
 
+    def from_excel(self, path: str, sheet: Optional[str] = None) -> OCRResult:
+        """엑셀 한 시트에서 추출한다. OCR 을 타지 않는다."""
+        from .spreadsheet import from_excel
+
+        return from_excel(path, sheet=sheet)
+
+    def from_email(self, path: str) -> OCRResult:
+        """이메일에서 추출한다.
+
+        **첨부를 먼저 본다.** 무역 실무에서 이메일 본문은 대개 안내문이고
+        첨부가 서류이므로, 본문부터 읽으면 선하증권 대신 인사말을 파싱한다.
+        지원 첨부가 없을 때만 본문을 읽는다.
+
+        어느 경로였는지는 `source` 에 남는다 — `email-pdf` / `email-excel` /
+        `email-image` / `email-body`. 본문에서 뽑은 값과 첨부 원본에서 뽑은
+        값은 신뢰 수준이 다르므로 호출부가 구분할 수 있어야 한다.
+        """
+        import tempfile
+
+        from .mail import body_to_result, parse_email
+
+        content = parse_email(path)
+        image_id = Path(path).stem
+        chosen = content.best_attachment()
+
+        if chosen is None:
+            return body_to_result(content, image_id)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            attached = Path(tmp) / f"attachment{chosen.suffix}"
+            attached.write_bytes(chosen.payload)
+
+            if chosen.kind == "pdf":
+                result = self.from_pdf(str(attached))
+            elif chosen.kind == "excel":
+                result = self.from_excel(str(attached))
+            else:
+                result = self.from_image(str(attached))
+
+        # 첨부를 거쳤다는 사실이 source 에 남아야 한다. 안 남기면 이메일로
+        # 받은 스캔본과 직접 올린 스캔본이 구분되지 않는다.
+        result.source = f"email-{chosen.kind}"
+        result.image_id = image_id
+        return result
+
     def _from_pdf_scan(self, image_bytes: bytes, image_id: str) -> OCRResult:
         """텍스트 레이어가 없는 PDF 를 구워 OCR 에 넘긴다."""
         import tempfile
