@@ -15,7 +15,9 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-from .draft import BLDraft, build_draft
+from . import doc_types
+from .doc_parser import DocumentParser
+from .draft import BLDraft, build_document_draft, build_draft
 from .extractor import OCRExtractor
 from .field_parser import FieldParser
 from .llm_extract import LLMFieldExtractor
@@ -46,6 +48,7 @@ class IntakePipeline:
         """
         self.extractor = OCRExtractor(lang=lang, use_gpu=use_gpu)
         self.parser = FieldParser()
+        self.doc_parser = DocumentParser()
         self.confidence_threshold = confidence_threshold
         self.use_llm = _env_flag("LLM_STRUCTURED_EXTRACT") if use_llm is None else use_llm
         self._llm: Optional[LLMFieldExtractor] = None
@@ -98,6 +101,16 @@ class IntakePipeline:
     # ── 내부 ─────────────────────────────────────────────────────
 
     def _run(self, ocr: OCRResult) -> BLDraft:
+        spec = doc_types.spec_for(self._form_type(ocr))
+        if spec is not None:
+            # 선하증권 외 서류. 좌표 교정본이 없어 앵커만 쓴다 — 근거는
+            # doc_types 도입부에 적었다. LLM 보충은 선하증권 필드 이름을
+            # 전제하므로 여기서는 태우지 않는다.
+            return build_document_draft(
+                self.doc_parser.parse(ocr, spec), ocr,
+                threshold=self.confidence_threshold,
+            )
+
         fields: BLFields = self.parser.parse(ocr)
         if self.use_llm:
             # 파서가 비운 자리만 채운다. 채운 필드는 provenance 가 "llm" 이고
@@ -106,6 +119,20 @@ class IntakePipeline:
                 self._llm = LLMFieldExtractor()
             self._llm.fill_gaps(fields, ocr)
         return build_draft(fields, ocr, threshold=self.confidence_threshold)
+
+    @staticmethod
+    def _form_type(ocr: OCRResult) -> str:
+        """서류 종류를 정한다. **본문 판별을 메타데이터보다 우선한다.**
+
+        추출기들이 `form_type` 을 "선하증권"으로 하드코딩해 넣기 때문이다.
+        그 값을 믿으면 송장을 올려도 선하증권으로 처리되고, B/L 구역 좌표로
+        파싱된 그럴듯한 오값이 나온다. 오류가 아니라 값이라 조용하다.
+
+        판별에 실패하면(`미상`) 메타데이터로 돌아간다 — 라벨 JSON 의
+        `Images.form_type` 은 사람이 적어 둔 값이라 믿을 만하다.
+        """
+        detected = doc_types.detect(ocr.raw_text)
+        return ocr.form_type if detected == doc_types.UNKNOWN else detected
 
     @staticmethod
     def _preprocess(image_path: str) -> str:

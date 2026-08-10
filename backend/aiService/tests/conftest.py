@@ -217,3 +217,68 @@ def paddle_page(
     if scores is not None:
         page["rec_scores"] = list(scores)
     return page
+
+
+# ── 선하증권 외 서류 (6번 서류 세트 확장) ──────────────────────────
+#
+# 항목명과 값을 별개 bbox 로 둔다. 앵커 파서가 "항목명을 찾아 그 오른쪽·
+# 아래를 읽는" 방식이므로, 한 상자에 합쳐 넣으면 파서를 우회해 버린다.
+
+INVOICE_LINES = [
+    (0.35, 0.06, "COMMERCIAL INVOICE"),
+    (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+    (0.05, 0.18, "INVOICE DATE"), (0.30, 0.18, "2026-06-01"),
+    (0.05, 0.24, "SELLER"), (0.30, 0.24, "GAE WOON CO., LTD."),
+    (0.05, 0.30, "BUYER"), (0.30, 0.30, "DHHJ FRANCHISING CO., LTD."),
+    (0.05, 0.38, "L/C NO"), (0.30, 0.38, "LC-2026-001"),
+    (0.05, 0.46, "DESCRIPTION OF GOODS"), (0.40, 0.46, "SAW MACHINE"),
+    (0.05, 0.54, "QUANTITY"), (0.30, 0.54, "27 SET"),
+    (0.05, 0.60, "PRICE TERM"), (0.30, 0.60, "FOB BUSAN"),
+    (0.05, 0.70, "TOTAL AMOUNT"), (0.30, 0.70, "USD 41,250.00"),
+]
+
+PACKING_LINES = [
+    (0.38, 0.06, "PACKING LIST"),
+    (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+    (0.05, 0.18, "DATE"), (0.30, 0.18, "2026-06-01"),
+    (0.05, 0.24, "SELLER"), (0.30, 0.24, "GAE WOON CO., LTD."),
+    (0.05, 0.30, "BUYER"), (0.30, 0.30, "DHHJ FRANCHISING CO., LTD."),
+    (0.05, 0.40, "DESCRIPTION OF GOODS"), (0.40, 0.40, "SAW MACHINE"),
+    (0.05, 0.48, "NUMBER OF PACKAGES"), (0.40, 0.48, "27 CTNS"),
+    (0.05, 0.54, "GROSS WEIGHT"), (0.35, 0.54, "884.00 KGS"),
+    (0.05, 0.60, "NET WEIGHT"), (0.35, 0.60, "812.00 KGS"),
+    (0.05, 0.66, "MEASUREMENT"), (0.35, 0.66, "349.64 CBM"),
+    (0.05, 0.74, "MARKS AND NUMBERS"), (0.40, 0.74, "DHHJ / BUSAN / NO.1-27"),
+]
+
+
+def lines_to_bboxes(lines) -> List[dict]:
+    """(가로비, 세로비, 글자) 목록 → 라벨 JSON bbox 목록."""
+    boxes = []
+    for xr, yr, text in lines:
+        x0 = int(xr * IMAGE_WIDTH)
+        y0 = int(yr * IMAGE_HEIGHT)
+        width = int(len(text) * 0.011 * IMAGE_WIDTH)
+        height = int(0.014 * IMAGE_HEIGHT)
+        boxes.append({
+            "data": text,
+            "x": [x0, x0 + width, x0 + width, x0],
+            "y": [y0, y0, y0 + height, y0 + height],
+        })
+    return boxes
+
+
+def write_document_pdf(tmp_path: Path, lines, name: str) -> str:
+    return write_bl_pdf(tmp_path, lines_to_bboxes(lines), name=name)
+
+
+@pytest.fixture
+def invoice_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어를 가진 상업송장 PDF."""
+    return write_document_pdf(tmp_path, INVOICE_LINES, "invoice.pdf")
+
+
+@pytest.fixture
+def packing_list_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어를 가진 포장명세서 PDF."""
+    return write_document_pdf(tmp_path, PACKING_LINES, "packing.pdf")
