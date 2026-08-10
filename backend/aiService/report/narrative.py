@@ -12,15 +12,31 @@ LLM 이 없거나(키 미설정) 실패해도 템플릿 요약이 나온다. 발
 from __future__ import annotations
 
 import os
-from typing import Optional, Protocol, Tuple
+from dataclasses import dataclass
+from typing import Optional, Protocol
 
 from .model import Report
 
 
-class Narrator(Protocol):
-    """리포트 → (한 줄 요약, 문단 요약)."""
+@dataclass
+class Summary:
+    """요약 결과.
 
-    def summarize(self, report: Report) -> Tuple[str, str]: ...
+    `source` 를 반환값에 싣는 이유는, LLM 요약기가 내부적으로 템플릿으로
+    떨어질 수 있기 때문이다. 요약기의 클래스 이름으로 출처를 판정하면
+    실패해서 템플릿이 쓰인 경우에도 리포트가 'AI 생성 요약'이라고 표기한다.
+    PDF 각주에 그대로 찍히는 값이라 거짓말이 된다.
+    """
+
+    headline: str
+    narrative: str
+    source: str  # template | llm
+
+
+class Narrator(Protocol):
+    """리포트 → 요약."""
+
+    def summarize(self, report: Report) -> Summary: ...
 
 
 class TemplateNarrator:
@@ -28,7 +44,7 @@ class TemplateNarrator:
 
     name = "template"
 
-    def summarize(self, report: Report) -> Tuple[str, str]:
+    def summarize(self, report: Report) -> Summary:
         critical = report.counts.get("critical", 0)
         warning = report.counts.get("warning", 0)
         info = report.counts.get("info", 0)
@@ -70,7 +86,7 @@ class TemplateNarrator:
                 f"자료 부족으로 검사하지 못한 항목이 {len(report.unchecked)}건 있습니다."
             )
 
-        return headline, " ".join(parts)
+        return Summary(headline=headline, narrative=" ".join(parts), source=self.name)
 
 
 # LLM 에 넘길 지시. 숫자를 새로 만들지 말라는 제약이 핵심이다.
@@ -99,16 +115,22 @@ class LLMNarrator:
         self._complete = complete
         self._fallback = fallback or TemplateNarrator()
 
-    def summarize(self, report: Report) -> Tuple[str, str]:
+    def summarize(self, report: Report) -> Summary:
         try:
             text = self._complete(_SYSTEM_PROMPT, _render_facts(report))
         except Exception:  # noqa: BLE001 - 요약 실패가 리포트를 막지 않는다
+            # 폴백 결과를 그대로 돌려준다. source 가 'template' 로 남아
+            # 리포트가 출처를 정직하게 표기한다.
             return self._fallback.summarize(report)
 
         lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
         if not lines:
             return self._fallback.summarize(report)
-        return lines[0], " ".join(lines[1:]) or lines[0]
+        return Summary(
+            headline=lines[0],
+            narrative=" ".join(lines[1:]) or lines[0],
+            source=self.name,
+        )
 
 
 def _render_facts(report: Report) -> str:
@@ -153,15 +175,17 @@ def default_narrator() -> Narrator:
 
 def apply_narrative(report: Report, narrator: Optional[Narrator] = None) -> Report:
     """리포트에 요약을 채워 넣는다."""
-    narrator = narrator or default_narrator()
-    report.headline, report.narrative = narrator.summarize(report)
-    report.narrative_source = getattr(narrator, "name", "template")
+    summary = (narrator or default_narrator()).summarize(report)
+    report.headline = summary.headline
+    report.narrative = summary.narrative
+    report.narrative_source = summary.source
     return report
 
 
 __all__ = [
     "LLMNarrator",
     "Narrator",
+    "Summary",
     "TemplateNarrator",
     "apply_narrative",
     "default_narrator",

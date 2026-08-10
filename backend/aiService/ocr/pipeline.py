@@ -66,16 +66,25 @@ class IntakePipeline:
 
     @staticmethod
     def _preprocess(image_path: str) -> str:
-        """전처리 후 경로 반환. OpenCV 가 없으면 원본을 그대로 쓴다."""
+        """전처리 후 경로 반환. OpenCV 가 없으면 원본을 그대로 쓴다.
+
+        preprocessor 모듈은 cv2 를 함수 안에서 import 하므로 모듈 import 자체는
+        성공하고, ImportError 는 생성자에서 난다. 따라서 import 문만 감싸면
+        '없으면 생략'이 실제로는 동작하지 않는다 — 생성까지 함께 감싼다.
+
+        전처리는 정확도를 높이는 보정이지 필수 단계가 아니다. OpenCV 가 없다고
+        추출 자체가 실패하면, 무거운 선택 의존성이 사실상 필수가 된다.
+        """
         try:
             from .preprocessor import ImagePreprocessor
+
+            pp = ImagePreprocessor()
         except ImportError:
             print("[경고] OpenCV 미설치 → 전처리 생략")
             return image_path
 
         source = Path(image_path)
         out_path = source.with_name(f"{source.stem}_preprocessed{source.suffix}")
-        pp = ImagePreprocessor()
         pp.save(pp.process(image_path), str(out_path))
         return str(out_path)
 

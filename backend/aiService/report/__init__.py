@@ -15,6 +15,7 @@ from .model import (
 from .narrative import (
     LLMNarrator,
     Narrator,
+    Summary,
     TemplateNarrator,
     apply_narrative,
     default_narrator,
@@ -29,6 +30,7 @@ __all__ = [
     "Recommendation",
     "Report",
     "RiskItem",
+    "Summary",
     "TemplateNarrator",
     "UncheckedItem",
     "apply_narrative",
