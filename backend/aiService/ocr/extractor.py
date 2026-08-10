@@ -21,6 +21,19 @@ from .types import BBox, OCRResult
 # 지원 대상 PaddleOCR. 3.x 는 2.x 와 반환 구조가 다르다(rec_texts/dt_polys vs 튜플).
 PADDLEOCR_MIN_VERSION = "3.6.0"
 
+# oneDNN(MKLDNN) 가속을 끈다. paddlepaddle 3.3.1 Windows CPU 에서 텍스트 검출
+# 추론이 다음으로 죽는다:
+#
+#   NotImplementedError: (Unimplemented) ConvertPirAttribute2RuntimeAttribute
+#   not support [pir::ArrayAttribute<pir::DoubleAttribute>]
+#   (at onednn_instruction.cc:118)
+#
+# PIR 실행기가 oneDNN 커널의 double 배열 속성을 변환하지 못하는 문제로,
+# 모델·입력과 무관하게 항상 재현된다. 끄면 통과한다. 켜서 얻는 것은 CPU
+# 추론 속도뿐이고 못 켜면 기능 자체가 죽으므로 기본값을 꺼짐으로 둔다.
+# 상위 버전에서 고쳐지면 이 상수만 되돌리면 된다.
+_ENABLE_MKLDNN = False
+
 # 라벨 JSON 의 기본 이미지 크기. 학습 데이터셋의 표준 해상도이며
 # field_parser 의 구역 좌표가 이 비율을 기준으로 교정되어 있다.
 _DEFAULT_IMAGE_WIDTH = 1654
@@ -186,5 +199,6 @@ class OCRExtractor:
                 lang=self._lang,
                 use_doc_orientation_classify=False,
                 use_doc_unwarping=False,
+                enable_mkldnn=_ENABLE_MKLDNN,
             )
         return self._ocr
