@@ -266,6 +266,32 @@ def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     return passed(bl=bl_value, lc=str(days))
 
 
+def date_not_in_future(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """서류 날짜가 제시 시점보다 미래인지 (ISBP 821 — 날짜).
+
+    서류는 제시일보다 늦은 날짜로 발행될 수 없다. 발행일이 미래라는 것은
+    오탈자이거나 선일자 발행이며, 어느 쪽이든 은행이 짚는다.
+
+    다른 날짜 룰과 달리 **L/C 를 보지 않는다.** 서류 하나만으로 판정되는
+    내부 정합성 검사라 L/C 가 없어도 평가된다 — L/C 없이 돌릴 때 대부분의
+    룰이 평가불가로 빠지는 상황에서, 이런 룰이 실제 검사 범위를 넓혀 준다.
+    """
+    names = _rule_fields(rule)
+    _, bl_value = _first_present(bl, names)
+    if not bl_value:
+        return not_evaluated("서류에 해당 날짜가 없습니다")
+
+    issued = parse_date(bl_value)
+    if issued is None:
+        return not_evaluated(f"서류 날짜를 해석할 수 없습니다: {bl_value}", bl=bl_value)
+
+    as_of = rule.get("_as_of") or datetime.now()
+    if issued > as_of:
+        ahead = (issued - as_of).days
+        return violated(detail=str(ahead), bl=bl_value, lc=as_of.strftime("%Y-%m-%d"))
+    return passed(bl=bl_value)
+
+
 def numeric_not_above(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     """수치가 L/C 한도를 넘지 않았는지."""
     names = _rule_fields(rule)
@@ -436,6 +462,7 @@ REGISTRY: Dict[str, CheckFn] = {
     "contains_keywords": contains_keywords,
     "date_not_after": date_not_after,
     "presentation_period": presentation_period,
+    "date_not_in_future": date_not_in_future,
     "numeric_not_above": numeric_not_above,
     "within_tolerance": within_tolerance,
     "forbidden_when_prohibited": forbidden_when_prohibited,

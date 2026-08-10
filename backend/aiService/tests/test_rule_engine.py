@@ -28,6 +28,9 @@ def clean_bl(**overrides) -> BLFields:
         gross_weight="884 KG",
         measurement="349.64 CBM",
         date_of_issue="2026-06-01",
+        # 발행지. D021 이 요구한다 — 정상 서류 픽스처는 서식의 필수 기재를
+        # 빠짐없이 채워야, 룰이 늘 때 '정상인데 위반'이 나지 않는다.
+        place_of_issue="PUSAN",
         on_board_date="2026-06-01",
         total_freight="$1,741.56",
     )
@@ -387,3 +390,67 @@ class TestMT700:
 
         assert lc.partial_shipment == "ALLOWED"
         assert lc.transhipment == "ALLOWED"
+
+
+class TestISBP:
+    """ISBP 821 근거 룰 — 기획안 5절 "위반 예상 조항(UCP600·ISBP)"."""
+
+    def test_발행일이_미래면_잡는다(self, engine):
+        bl = clean_bl(date_of_issue="2026-08-01")
+
+        verdict = engine.verify(bl, clean_lc(), as_of=datetime(2026, 6, 10))
+
+        d019 = next(v for v in verdict.violations if v.rule_id == "D019")
+        assert "ISBP" in d019.source
+        # 고정 문구가 아니라 실제 차이 일수가 들어가야 한다.
+        assert "52일" in d019.message
+
+    def test_발행일_미래는_LC_없이도_평가된다(self, engine):
+        # 서류 하나로 판정되는 내부 정합성 검사다. L/C 없이 돌릴 때
+        # 대부분의 룰이 평가불가로 빠지는데, 이런 룰이 검사 범위를 넓힌다.
+        bl = clean_bl(date_of_issue="2026-07-01")
+
+        verdict = engine.verify(bl, LCTerms(), as_of=datetime(2026, 6, 10))
+
+        assert "D019" in {v.rule_id for v in verdict.violations}
+        assert "D019" not in {s.rule_id for s in verdict.skipped}
+
+    def test_통지처_불일치를_잡는다(self, engine):
+        bl = clean_bl(notify_party="WRONG NOTIFY CO., LTD.")
+        lc = clean_lc(notify_party="TRY ENERGY CO., LTD.")
+
+        verdict = engine.verify(bl, lc, as_of=AS_OF)
+
+        d020 = next(v for v in verdict.violations if v.rule_id == "D020")
+        assert "ISBP" in d020.source
+
+    def test_발행지_누락을_잡는다(self, engine):
+        bl = clean_bl(place_of_issue=None)
+
+        verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
+
+        assert "D021" in {v.rule_id for v in verdict.violations}
+
+    def test_정상_서류는_새_룰에도_걸리지_않는다(self, engine):
+        verdict = engine.verify(clean_bl(), clean_lc(), as_of=AS_OF)
+
+        assert verdict.violations == []
+
+
+class TestSourceVerification:
+    """조문 인용의 실무 검증 상태 — 기획안 9절 "멘토 기업 실무 검증"."""
+
+    def test_기본값은_미검증이다(self, engine):
+        # 일부에만 verified: false 를 달면 나머지가 검증된 것처럼 읽힌다.
+        # 확인을 거친 룰이 없으므로 전건이 미검증이어야 한다.
+        assert len(engine.unverified_rules()) == len(engine.rules)
+
+    def test_명시한_룰만_검증으로_센다(self):
+        rules = load_rules()
+        rules[0]["verified"] = True
+
+        assert len(RuleEngine(rules).unverified_rules()) == len(rules) - 1
+
+    def test_모든_룰에_조문_근거가_있다(self, engine):
+        # 근거 없는 룰은 리포트에서 인용할 것이 없다.
+        assert all(r.get("source") for r in engine.rules)

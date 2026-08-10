@@ -33,6 +33,16 @@ class RuleEngine:
         self.rules: List[dict] = rules if rules is not None else load_rules()
         _validate_catalog(self.rules)
 
+    # ── 조문 검증 상태 ────────────────────────────────────────────
+
+    def unverified_rules(self) -> List[dict]:
+        """조문 인용이 아직 실무 검증을 거치지 않은 룰.
+
+        `verified: true` 를 명시한 룰만 검증된 것으로 본다. 기본값이
+        미검증인 이유는 rules.yaml 머리말에 적었다.
+        """
+        return [r for r in self.rules if r.get("verified") is not True]
+
     # ── 실행 ──────────────────────────────────────────────────────
 
     def verify(

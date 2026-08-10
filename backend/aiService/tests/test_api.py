@@ -28,6 +28,7 @@ CLEAN_BL = {
     "description_of_goods": "SAW MACHINE",
     "gross_weight": "884 KG",
     "date_of_issue": "2026-06-01",
+    "place_of_issue": "PUSAN",
     "on_board_date": "2026-06-01",
     "total_freight": "$1,741.56",
 }
@@ -251,7 +252,32 @@ class TestReport:
         }
 
     def test_요약에_산출_주체가_남는다(self, client):
-        # 룰 가중치 합산을 학습된 모델의 확률로 표기하면 안 된다.
+        """표기가 실제 산출 주체와 일치해야 한다.
+
+        이전 판은 `== "rules-v1"` 을 단언했다. 모델이 파이프라인에 붙기 전의
+        상태를 굳힌 것이라, 모델을 연결하자 **정상 동작이 실패로 잡혔다.**
+        재고 싶은 것은 특정 값이 아니라 표기와 실제의 일치다.
+        """
+        body = {"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+        summary = client.post("/report", json=body).json()["summary"]
+        prediction = client.post("/verify", json=body).json()["prediction"]
+
+        assert summary["model"] in {"rules-v1", "xgboost-v1"}
+        # 같은 입력인데 두 응답의 산출 주체가 갈리면 어느 쪽이 참인지 알 수 없다.
+        assert summary["model"] == prediction["model"]
+        # Prediction.to_dict 는 4자리로 반올림하고 리포트는 원값을 담는다.
+        assert round(summary["defect_probability"], 4) == prediction["probability"]
+
+    def test_모델이_없으면_룰로_표기한다(self, client, tmp_path, monkeypatch):
+        # 조용히 룰 가중치로 떨어지면서 'AI 예측'으로 표기하면,
+        # 5절이 기록한 "리포트 출처 거짓 표기" 결함이 되풀이된다.
+        from mlModel.predictor import DefectPredictor
+
+        import api.main as main
+
+        monkeypatch.setattr(
+            main, "_predictor", DefectPredictor(model_path=tmp_path / "없음.json")
+        )
         summary = client.post(
             "/report", json={"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
         ).json()["summary"]

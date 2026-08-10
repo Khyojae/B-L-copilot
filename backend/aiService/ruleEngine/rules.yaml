@@ -15,6 +15,18 @@
 #          치명 0.30~0.40 / 경고 0.08~0.15 / 참고 0.02 대역을 쓴다.
 #          치명 3건이면 1.0 에 닿도록 잡았다.
 # message: {bl} {lc} {detail} 이 실행 시 치환된다.
+#
+# verified: 이 룰의 `source` 조문 인용을 **무역 실무자가 실제 조문과 대조해
+#           확인했는지**. 생략하면 미검증이다.
+#
+#           기본값을 미검증으로 둔 이유는, 일부 룰에만 `verified: false` 를
+#           달면 나머지는 검증된 것처럼 읽히기 때문이다. 지금 확인을 거친
+#           룰은 하나도 없으므로 전건이 미검증이 맞다.
+#
+#           기획안 9절이 대응책으로 "멘토 기업 실무 검증"을 명시한다.
+#           발표에서 조문이 틀리면 시스템 전체의 신뢰가 무너지므로,
+#           확인이 끝난 룰부터 `verified: true` 를 달아 나가면 된다.
+#           `GET /rules` 와 기동 로그가 남은 건수를 보고한다.
 
 version: 1
 
@@ -184,6 +196,38 @@ rules:
     source: UCP 600 Art.14(c) — 서류는 선적일 후 21일 이내에, 그리고 유효기일 이내에 제시되어야 한다.
     message: 선적일로부터 {detail}일이 지났습니다. 제시기간은 {lc}일입니다.
     remedy: 즉시 은행에 제시하세요. 기간이 지나면 stale B/L 하자가 됩니다.
+
+  - id: D019
+    title: 발행일이 미래
+    severity: critical
+    weight: 0.35
+    fields: [date_of_issue]
+    check: date_not_in_future
+    source: ISBP 821 A — 서류는 제시일보다 늦은 날짜로 발행될 수 없다.
+    message: 발행일({bl})이 제시 시점({lc})보다 {detail}일 미래입니다.
+    remedy: 발행일 오기입인지 확인하세요. 선일자 발행이면 은행이 수리하지 않습니다.
+
+  # ── 당사자 표시 ───────────────────────────────────────────────
+  - id: D020
+    title: 통지처 불일치
+    severity: warning
+    weight: 0.12
+    fields: [notify_party]
+    check: match_place
+    lc_field: notify_party
+    source: ISBP 821 A.1 — 서류상 당사자 표시는 신용장 및 타 서류와 저촉되지 않아야 한다.
+    message: Notify Party 가 L/C 지정과 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 가 지정한 통지처 상호를 그대로 기재하세요.
+
+  - id: D021
+    title: 발행지 누락
+    severity: warning
+    weight: 0.08
+    fields: [place_of_issue]
+    check: required
+    source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
+    message: 발행지 정보가 없습니다.
+    remedy: 선하증권이 발행된 장소를 기재하세요.
 
   # ── 수량·금액 ─────────────────────────────────────────────────
   - id: D007
