@@ -151,3 +151,79 @@ class TestPaddleOCRAbsent:
 
         with pytest.raises(ImportError, match="from_json"):
             OCRExtractor()._get_ocr()
+
+
+class TestPDF:
+    """PDF 입력 — 기획안 5절 "이메일·엑셀·PDF 등 비정형 선적 서류"."""
+
+    def test_텍스트_레이어를_그대로_읽는다(self, bl_pdf):
+        result = OCRExtractor().from_pdf(bl_pdf)
+
+        assert result.source == "pdf-text"
+        assert len(result.bboxes) >= 10
+        # 텍스트 레이어는 추측이 아니라 원문이다.
+        assert all(b.confidence == 1.0 for b in result.bboxes)
+
+    def test_OCR_없이_동작한다(self, bl_pdf, monkeypatch):
+        # PaddleOCR 이 없어도 텍스트 레이어 경로는 살아 있어야 한다.
+        # 이것이 PDF 입력을 시연에 넣을 수 있는 근거다.
+        extractor = OCRExtractor()
+
+        def 폭발(*args, **kwargs):
+            raise AssertionError("텍스트 레이어가 있는데 OCR 을 호출했습니다")
+
+        monkeypatch.setattr(extractor, "from_image", 폭발)
+
+        assert extractor.from_pdf(bl_pdf).bboxes
+
+    def test_지면_크기를_좌표계로_쓴다(self, bl_pdf):
+        # 구역 판정이 비율이므로 지면 크기가 틀리면 전 필드가 어긋난다.
+        result = OCRExtractor().from_pdf(bl_pdf)
+
+        assert (result.image_width, result.image_height) == (595, 842)
+        for box in result.bboxes:
+            assert 0 <= box.x_min and box.x_max <= result.image_width
+            assert 0 <= box.y_min and box.y_max <= result.image_height
+
+    def test_라벨_JSON_과_같은_필드를_뽑는다(self, bl_pdf, complete_label):
+        # 같은 bbox 목록으로 만든 두 입력이 같은 초안을 내야, PDF 경로가
+        # 기존 파서를 제대로 재사용하는 것이다.
+        from ocr.field_parser import FieldParser
+
+        extractor, parser = OCRExtractor(), FieldParser()
+        from_pdf = parser.parse(extractor.from_pdf(bl_pdf)).to_dict()
+        from_json = parser.parse(extractor.from_json(complete_label)).to_dict()
+
+        assert from_pdf == from_json
+
+    def test_텍스트가_없으면_OCR_로_넘긴다(self, scanned_pdf, monkeypatch):
+        # 스캔본을 텍스트 레이어로 오인하면 본문이 통째로 빠진 결과를
+        # 자신 있게 내놓게 된다.
+        from ocr.types import OCRResult
+
+        extractor = OCRExtractor()
+        불린 = {}
+
+        def 가짜_OCR(path):
+            불린["path"] = path
+            return OCRResult(
+                image_id="x", image_width=1654, image_height=2340,
+                form_type="선하증권", bboxes=[], source="paddleocr",
+            )
+
+        monkeypatch.setattr(extractor, "from_image", 가짜_OCR)
+        result = extractor.from_pdf(scanned_pdf)
+
+        assert 불린["path"].endswith(".png")
+        assert result.source == "pdf-ocr"
+
+    def test_없는_페이지는_거절한다(self, bl_pdf):
+        with pytest.raises(ValueError, match="범위를 벗어났"):
+            OCRExtractor().from_pdf(bl_pdf, page_number=7)
+
+    def test_PDF_가_아니면_예외가_난다(self, tmp_path):
+        path = tmp_path / "not.pdf"
+        path.write_bytes(b"not a pdf at all")
+
+        with pytest.raises(Exception):
+            OCRExtractor().from_pdf(str(path))

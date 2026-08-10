@@ -106,6 +106,72 @@ class TestExtract:
         assert "pip install" in response.json()["detail"]
 
 
+class TestExtractPDF:
+    """F1 PDF 입력 — 기획안 5절 "이메일·엑셀·**PDF** 등 비정형 선적 서류"."""
+
+    def _upload(self, client, path, **params):
+        with open(path, "rb") as f:
+            return client.post(
+                "/extract/pdf",
+                files={"file": ("bl.pdf", f.read(), "application/pdf")},
+                params=params,
+            )
+
+    def test_PDF로_초안을_만든다(self, client, bl_pdf):
+        response = self._upload(client, bl_pdf)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["is_ready_for_verification"] is True
+        names = {f["name"]: f["value"] for f in body["fields"]}
+        assert names["bl_no"] == "HG290309"
+
+    def test_텍스트_레이어_경로임을_알린다(self, client, bl_pdf):
+        # 신뢰도 1.0 이 '원문 그대로'인지 'OCR 이 확신한 값'인지는
+        # 전혀 다른 이야기다. 화면이 구분할 수 있어야 한다.
+        assert self._upload(client, bl_pdf).json()["source"] == "pdf-text"
+
+    def test_이미지를_PDF로_올리면_400이다(self, client):
+        # 확장자가 아니라 내용으로 판정한다. PyMuPDF 오류를 그대로 흘리면
+        # 원인을 알 수 없는 500 이 된다.
+        response = client.post(
+            "/extract/pdf",
+            files={"file": ("fake.pdf", b"PNG_NOT_A_PDF", "application/pdf")},
+        )
+
+        assert response.status_code == 400
+        assert "PDF" in response.json()["detail"]
+
+    def test_빈_파일은_400이다(self, client):
+        response = client.post(
+            "/extract/pdf", files={"file": ("empty.pdf", b"", "application/pdf")}
+        )
+
+        assert response.status_code == 400
+
+    def test_없는_페이지는_400이다(self, client, bl_pdf):
+        response = self._upload(client, bl_pdf, page=7)
+
+        assert response.status_code == 400
+        assert "범위" in response.json()["detail"]
+
+    def test_라벨_경로와_같은_초안을_낸다(self, client, bl_pdf):
+        # 두 입력 경로가 갈리면 '편집 후 재검증'이 다른 코드 경로를 탄다.
+        from_pdf = self._upload(client, bl_pdf).json()
+        from_label = client.post(
+            "/extract/label",
+            json={
+                "Images": {"identifier": "bl", "width": 1654, "height": 2340},
+                "bbox": complete_bl_bboxes(),
+            },
+        ).json()
+
+        assert (
+            {f["name"]: f["value"] for f in from_pdf["fields"]}
+            == {f["name"]: f["value"] for f in from_label["fields"]}
+        )
+
+
 class TestVerify:
     def test_정상_서류는_위반이_없다(self, client):
         response = client.post(

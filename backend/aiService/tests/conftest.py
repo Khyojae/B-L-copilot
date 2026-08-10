@@ -120,6 +120,68 @@ def complete_bl_bboxes(
     ]
 
 
+# PDF 지면 크기(A4, 포인트). 라벨 좌표를 **비율로** 옮기므로 실제 값은
+# 중요하지 않다. 오히려 라벨 해상도(1654×2340)와 다른 값을 쓰는 편이,
+# 구역 판정이 절대 좌표가 아니라 비율로 도는지 함께 검증해 준다.
+PDF_PAGE_WIDTH = 595.0
+PDF_PAGE_HEIGHT = 842.0
+
+
+def write_bl_pdf(
+    tmp_path: Path,
+    bboxes: Sequence[dict],
+    name: str = "bl.pdf",
+    with_text_layer: bool = True,
+) -> str:
+    """bbox 목록 → 텍스트 레이어를 가진 PDF.
+
+    라벨 JSON 과 **같은 bbox 목록**으로 만든다. 두 입력이 같은 초안을 내는지
+    비교할 수 있어야, PDF 경로가 기존 파서를 제대로 재사용하는지 확인된다.
+
+    `with_text_layer=False` 면 글자를 그리지 않는다. 스캔본(텍스트 레이어
+    없음) 판정 경로를 타게 하는 데 쓴다.
+    """
+    pymupdf = pytest.importorskip("pymupdf", reason="PyMuPDF 미설치")
+
+    doc = pymupdf.open()
+    page = doc.new_page(width=PDF_PAGE_WIDTH, height=PDF_PAGE_HEIGHT)
+    if with_text_layer:
+        for item in bboxes:
+            text = (item.get("data") or "").strip()
+            xs, ys = item.get("x", []), item.get("y", [])
+            if not text or not xs or not ys:
+                continue
+            # 라벨 픽셀 좌표 → 지면 비율 → 포인트.
+            x = min(xs) / IMAGE_WIDTH * PDF_PAGE_WIDTH
+            # insert_text 는 베이스라인을 받는다. 상자 아래변에 맞춘다.
+            y = max(ys) / IMAGE_HEIGHT * PDF_PAGE_HEIGHT
+            height = (max(ys) - min(ys)) / IMAGE_HEIGHT * PDF_PAGE_HEIGHT
+            page.insert_text(
+                (x, y), text, fontsize=max(4.0, height * 0.8), fontname="helv"
+            )
+    else:
+        # 빈 지면이면 PyMuPDF 가 페이지를 만들어도 내용이 없다. 스캔본처럼
+        # 보이도록 사각형만 하나 그려 둔다 — 텍스트가 아닌 내용물이다.
+        page.draw_rect(pymupdf.Rect(50, 50, 545, 792))
+
+    path = tmp_path / name
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
+def bl_pdf(tmp_path: Path) -> str:
+    """모든 핵심 필드가 채워진 정상 B/L PDF (텍스트 레이어 있음)."""
+    return write_bl_pdf(tmp_path, complete_bl_bboxes())
+
+
+@pytest.fixture
+def scanned_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어가 없는 PDF. OCR 경로로 떨어져야 한다."""
+    return write_bl_pdf(tmp_path, [], name="scan.pdf", with_text_layer=False)
+
+
 @pytest.fixture
 def label_factory(tmp_path: Path):
     """bbox 목록 → 라벨 JSON 경로."""
