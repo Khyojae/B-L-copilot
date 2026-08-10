@@ -16,6 +16,13 @@ venv/
 .env
 .env.local
 
+# 인증서 / 키
+# api/certs/ 는 scripts/generate-dev-ca.js 로 로컬 생성되는 개발용 CA다.
+# 커밋된 적은 없으나 `git add -A` 로 딸려 들어가는 것을 막는다.
+certs/
+*.pem
+*.key
+
 # Hardhat / Blockchain
 artifacts/
 cache/
