@@ -157,6 +157,30 @@ def required(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     return violated(detail=name or "", bl=None)
 
 
+def required_if_lc(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """L/C 가 해당 조건을 지정한 경우에만 필수.
+
+    `required` 와 나누는 이유는 통지처 같은 항목 때문이다. B/L 번호나 수하인은
+    L/C 와 무관하게 없으면 하자지만, 통지처는 **L/C 가 지정했을 때만** 하자다.
+    지정이 없는데도 하자로 세면 정상 서류에 없는 하자를 만들어낸다.
+
+    지정이 없으면 `not_evaluated` 다. `passed` 가 아니다 — 검사한 결과 통과한
+    것과 검사 대상이 아니었던 것은 다르고, 그 차이가 리포트에 드러나야 한다.
+    """
+    names = _rule_fields(rule)
+    if not names:
+        return not_evaluated("룰에 검사 대상 필드가 없습니다")
+
+    lc_value = lc.get(rule.get("lc_field", ""))
+    name, value = _first_present(bl, names)
+
+    if not lc_value:
+        return not_evaluated("L/C 에 해당 조건이 명시되지 않았습니다", bl=value)
+    if value:
+        return passed(bl=value, lc=lc_value)
+    return violated(detail=name or "", bl=None, lc=lc_value)
+
+
 def match_place(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     """서류 값이 L/C 지정 값과 맞는지. 항구 이명과 법인격 표기를 흡수한다."""
     names = _rule_fields(rule)
@@ -407,6 +431,7 @@ CheckFn = Callable[[object, LCTerms, dict], CheckOutcome]
 
 REGISTRY: Dict[str, CheckFn] = {
     "required": required,
+    "required_if_lc": required_if_lc,
     "match_place": match_place,
     "contains_keywords": contains_keywords,
     "date_not_after": date_not_after,

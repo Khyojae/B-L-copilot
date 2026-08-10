@@ -408,11 +408,33 @@ class TestEvaluationHarness:
         assert report.rules_only.total == 60
 
     def test_유형별_재현율이_유형을_구분한다(self):
-        # 전부 1.000 이면 진단 도구 구실을 못 한다.
-        report = evaluate(count=600, seed=42, train_model=False)
-        recalls = set(report.per_defect_recall.values())
+        """놓치는 유형이 생기면 그 유형만 떨어져야 한다.
 
-        assert len(recalls) > 1, "유형별 재현율이 전부 같아 진단에 쓸 수 없습니다"
+        이전 판은 "전 유형이 1.000 이면 진단 도구 구실을 못 한다"며 값이
+        서로 다를 것을 요구했다. 룰 보강으로 전 유형이 1.000 이 되면서 그
+        단언은 **검출력이 완성된 상태를 실패로 부르게** 됐다.
+
+        재고 싶은 것은 값의 다양성이 아니라 지표의 분해능이다. 룰 하나를
+        일부러 낮춰 그 유형만 떨어지는지 본다.
+        """
+        from mlModel.evaluate import _per_defect_recall
+        from ruleEngine.engine import load_rules
+
+        samples = SyntheticGenerator(seed=42).generate(600, defect_ratio=1.0)
+        full = _per_defect_recall(RuleEngine(), samples)
+
+        assert set(full) == set(DEFECT_KINDS)
+
+        # 제시기간 룰을 warning 으로 낮춘다. 판정이 has_critical 이므로
+        # 이 유형만 미검출로 잡혀야 한다.
+        rules = load_rules()
+        for rule in rules:
+            if rule["id"] == "D018":
+                rule["severity"] = "warning"
+        degraded = _per_defect_recall(RuleEngine(rules), samples)
+
+        assert degraded["stale_presentation"] < full["stale_presentation"]
+        assert degraded["port_mismatch"] == full["port_mismatch"]
 
     def test_텍스트_리포트가_렌더링된다(self):
         report = evaluate(count=200, seed=42, train_model=False)

@@ -174,11 +174,17 @@ class SyntheticGenerator:
         weight = round(rng.uniform(200, 900), 2)
         freight = round(rng.uniform(800, 4000), 2)
 
+        # 통지처는 L/C 가 지정할 수도, 안 할 수도 있다. 실무에서 갈리는
+        # 지점이고, D010 이 그 구분에 따라 켜지고 꺼진다. 전건에 지정을 넣으면
+        # 조건부 룰을 만들어 놓고 조건이 항상 참인 데이터로 재는 셈이 된다.
+        notify_party = rng.choice(COMPANIES)
+        lc_notify = notify_party if rng.random() < 0.6 else None
+
         bl = BLFields(
             bl_no=f"{rng.choice(['HG', 'SEAU', 'MSCU', 'KRPU'])}{rng.randint(100000, 999999)}",
             shipper=shipper,
             consignee=consignee,
-            notify_party=rng.choice(COMPANIES),
+            notify_party=notify_party,
             vessel=rng.choice(VESSELS),
             voyage_no=f"V.{rng.randint(100, 999)}",
             port_of_loading=pol_full,
@@ -202,6 +208,7 @@ class SyntheticGenerator:
             port_of_loading=pol_short,
             port_of_discharge=pod_short,
             consignee=consignee,
+            notify_party=lc_notify,
             description_of_goods=goods,
             latest_shipment_date=_fmt(latest_shipment),
             expiry_date=_fmt(expiry),
@@ -247,6 +254,12 @@ class SyntheticGenerator:
         elif kind == "missing_field":
             target = rng.choice(["bl_no", "consignee", "vessel", "notify_party"])
             bl.set_field(target, None, 0.0, "region")
+            if target == "notify_party":
+                # 통지처 누락은 L/C 가 지정했을 때만 하자다. 지정이 없는 채로
+                # 비우고 label=1 을 붙이면 **하자가 아닌 서류를 하자라고 가르치는
+                # 것**이 된다. 그 라벨에 맞추려면 룰이 정상 서류를 하자로 잡아야
+                # 하므로, 재현율을 올리려는 시도가 정밀도를 무너뜨린다.
+                lc.notify_party = lc.notify_party or rng.choice(COMPANIES)
 
         elif kind == "freight_deviation":
             base = lc.freight_amount or 1000.0
