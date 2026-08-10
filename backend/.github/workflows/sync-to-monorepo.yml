@@ -45,6 +45,25 @@ jobs:
             exit 1
           fi
 
+      # gh 는 GH_TOKEN 을 보지만 git 은 보지 않는다. 스크립트가 클론은
+      # `gh repo clone` 으로, push 는 평범한 `git push` 로 하기 때문에
+      # 이 설정이 없으면 클론까지 성공한 뒤 push 에서 죽는다:
+      #
+      #   fatal: could not read Username for 'https://github.com'
+      #
+      # 이 결함이 늦게 드러난 이유는 스크립트가 "변경 사항 없음"이면 push
+      # 앞에서 빠져나가기 때문이다. 보낼 내용이 없던 초기 실행들은 인증
+      # 경로를 한 번도 타지 않고 성공으로 기록됐다.
+      #
+      # 스크립트가 아니라 워크플로에 두는 이유: `gh auth setup-git` 은
+      # 전역 git 설정에 credential helper 를 등록한다. 스크립트는 로컬에서도
+      # 실행되므로, 거기 넣으면 개발자 PC 의 git 설정을 건드리게 된다.
+      - name: git 인증 설정
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.MONOREPO_TOKEN }}
+        run: gh auth setup-git --hostname github.com
+
       - name: 동기화 실행
         env:
           # gh CLI 는 GH_TOKEN 을 본다. 통합 저장소에 쓸 수 있는 토큰을 넘긴다.
