@@ -1,0 +1,147 @@
+# 서류 간 정합성 룰 카탈로그 (UCP 600 Art.14(d)(e) / ISBP 821)
+#
+# 기획안 5절의 "L/C 조건 및 **서류 간 정합성**과 대조" 중 뒷부분이다.
+# `rules.yaml` 은 서류 1건을 L/C 에 대조하고, 이 파일은 **서류끼리** 대조한다.
+#
+# 파일을 나눈 이유는 검사 함수의 입력이 다르기 때문이다. rules.yaml 의 검사는
+# (bl, lc, rule) 을 받지만 여기는 두 서류의 값을 받는다. 한 파일에 섞으면
+# 룰마다 어느 서명인지 알 수 없어 카탈로그를 읽는 사람도 코드도 분기해야 한다.
+#
+# left / right : {doc: 서류종류, field: 필드명}
+#   서류 종류 이름은 `ocr/doc_types.py` 의 상수와 같은 표기를 쓴다.
+#   `신용장` 은 서류가 아니라 LCTerms 를 가리키는 예약어다.
+#
+# **어느 한쪽 서류가 세트에 없으면 위반이 아니라 평가불가다.**
+# 없는 것과 어긋나는 것은 다르다. 이걸 위반으로 세면 B/L 만 올린 사용자에게
+# 저촉 하자가 무더기로 뜨는데, 그 하자들은 서류를 더 올리는 것 말고는 고칠
+# 방법이 없다. 사용자가 고칠 수 없는 것을 하자로 표시하면 화면이 신뢰를 잃는다.
+
+version: 1
+
+rules:
+  # ── 당사자 표시 ───────────────────────────────────────────────
+  - id: X001
+    title: 수하인·매수인 저촉
+    severity: critical
+    weight: 0.35
+    check: same_party
+    left: {doc: 선하증권, field: consignee}
+    right: {doc: 상업송장, field: buyer}
+    source: UCP 600 Art.14(d) — 서류의 기재는 그 서류·다른 요구서류·신용장의 기재와 저촉되어서는 안 된다.
+    verified: false
+    message: 선하증권 수하인과 송장 매수인이 다릅니다. (B/L {left} / 송장 {right})
+    remedy: 두 서류의 상호를 L/C 지정 표기로 통일하세요.
+
+  - id: X002
+    title: 송하인·매도인 저촉
+    severity: warning
+    weight: 0.12
+    check: same_party
+    left: {doc: 선하증권, field: shipper}
+    right: {doc: 상업송장, field: seller}
+    source: ISBP 821 A.1 — 서류상 당사자 표시는 신용장 및 타 서류와 저촉되지 않아야 한다.
+    verified: false
+    message: 선하증권 송하인과 송장 매도인이 다릅니다. (B/L {left} / 송장 {right})
+    remedy: 수출자 상호를 두 서류에 동일하게 기재하세요.
+
+  # ── 물품 명세 ─────────────────────────────────────────────────
+  - id: X003
+    title: 물품 명세 저촉 (B/L ↔ 송장)
+    severity: critical
+    weight: 0.35
+    check: goods_compatible
+    left: {doc: 선하증권, field: description_of_goods}
+    right: {doc: 상업송장, field: description_of_goods}
+    source: UCP 600 Art.14(e) — 상업송장 외의 서류에서 물품 명세는 신용장 명세와 저촉되지 않는 일반적 용어로 기재될 수 있다.
+    verified: false
+    message: 선하증권과 송장의 물품 명세가 저촉됩니다. (B/L {left} / 송장 {right})
+    remedy: 선하증권 명세를 송장 명세와 저촉되지 않는 표현으로 정정하세요.
+
+  - id: X004
+    title: 물품 명세 저촉 (송장 ↔ 포장명세서)
+    severity: warning
+    weight: 0.12
+    check: goods_compatible
+    left: {doc: 상업송장, field: description_of_goods}
+    right: {doc: 포장명세서, field: description_of_goods}
+    source: UCP 600 Art.14(d) — 서류 상호간 기재가 저촉되어서는 안 된다.
+    verified: false
+    message: 송장과 포장명세서의 물품 명세가 저촉됩니다. (송장 {left} / 포장 {right})
+    remedy: 포장명세서 품명을 송장과 맞추세요.
+
+  # ── 수량·중량 ─────────────────────────────────────────────────
+  - id: X005
+    title: 총 중량 저촉
+    severity: critical
+    weight: 0.30
+    check: same_quantity
+    unit: KG
+    left: {doc: 선하증권, field: gross_weight}
+    right: {doc: 포장명세서, field: gross_weight}
+    source: ISBP 821 — 서류에 기재된 중량은 서류 상호간 저촉되지 않아야 한다.
+    verified: false
+    message: 총 중량이 서류 간에 다릅니다. (B/L {left} / 포장 {right})
+    remedy: 실측 중량을 확인하고 두 서류를 일치시키세요.
+
+  - id: X006
+    title: 용적 저촉
+    severity: warning
+    weight: 0.10
+    check: same_quantity
+    unit: CBM
+    left: {doc: 선하증권, field: measurement}
+    right: {doc: 포장명세서, field: measurement}
+    source: 실무관행 — 용적 불일치는 운임 정산 분쟁으로 이어진다.
+    verified: false
+    message: 용적이 서류 간에 다릅니다. (B/L {left} / 포장 {right})
+    remedy: 검량 결과를 확인하고 두 서류를 일치시키세요.
+
+  # ── 서류 상호 참조 ────────────────────────────────────────────
+  - id: X007
+    title: 송장 번호 저촉
+    severity: warning
+    weight: 0.12
+    check: same_reference
+    left: {doc: 상업송장, field: invoice_no}
+    right: {doc: 포장명세서, field: invoice_no}
+    source: ISBP 821 A.1 — 서류 상호 참조 번호는 일치해야 한다.
+    verified: false
+    message: 포장명세서가 참조한 송장 번호가 송장과 다릅니다. (송장 {left} / 포장 {right})
+    remedy: 포장명세서의 송장 번호를 정정하세요.
+
+  - id: X008
+    title: 신용장 번호 저촉
+    severity: warning
+    weight: 0.12
+    check: same_reference
+    left: {doc: 상업송장, field: lc_no}
+    right: {doc: 신용장, field: lc_no}
+    source: ISBP 821 A.1 — 서류가 인용한 신용장 번호는 신용장과 일치해야 한다.
+    verified: false
+    message: 송장이 인용한 신용장 번호가 다릅니다. (송장 {left} / L/C {right})
+    remedy: 송장의 L/C 번호를 정정하세요.
+
+  # ── 금액·조건 ─────────────────────────────────────────────────
+  - id: X009
+    title: 송장 금액이 신용장 금액 초과
+    severity: critical
+    weight: 0.40
+    check: amount_not_above
+    left: {doc: 상업송장, field: total_amount}
+    right: {doc: 신용장, field: currency_amount}
+    source: UCP 600 Art.18(b) — 지정은행은 신용장 금액을 초과하여 발행된 상업송장을 수리하지 않을 수 있다.
+    verified: false
+    message: 송장 금액({left})이 신용장 금액({right})을 초과합니다.
+    remedy: 사후 정정이 어려운 하자입니다. 금액을 맞추거나 L/C 증액을 요청하세요.
+
+  - id: X010
+    title: 가격 조건 저촉
+    severity: warning
+    weight: 0.12
+    check: same_reference
+    left: {doc: 상업송장, field: incoterms}
+    right: {doc: 신용장, field: incoterms}
+    source: ISBP 821 C — 송장의 가격 조건은 신용장의 조건과 일치해야 한다.
+    verified: false
+    message: 송장 가격 조건이 신용장과 다릅니다. (송장 {left} / L/C {right})
+    remedy: L/C 가 정한 Incoterms 로 정정하세요.
