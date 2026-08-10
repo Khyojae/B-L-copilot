@@ -21,7 +21,7 @@ from typing import List, Optional, Sequence
 
 from ruleEngine.types import LCTerms, Verdict
 
-from .features import FEATURE_NAMES, extract_features
+from .features import FEATURE_NAMES, extract_features, select
 
 DEFAULT_MODEL_PATH = Path(__file__).parent / "artifacts" / "defect_model.json"
 
@@ -65,9 +65,14 @@ class DefectPredictor:
         self,
         model_path: Optional[Path] = None,
         threshold: float = 0.5,
+        feature_names: Optional[Sequence[str]] = None,
     ) -> None:
         self.model_path = Path(model_path) if model_path else DEFAULT_MODEL_PATH
         self.threshold = threshold
+        # 기본은 전체 피처다. 부분집합을 주면 그 열만 쓰는 비교군 모델이 된다
+        # (`features.RAW_FEATURE_NAMES`). 순서는 저장·로드에서 대조하므로
+        # 여기서 정한 순서가 그대로 규약이 된다.
+        self.feature_names: List[str] = list(feature_names or FEATURE_NAMES)
         self._booster = None
         self._loaded = False
 
@@ -119,15 +124,21 @@ class DefectPredictor:
         eval_rows: Optional[Sequence[Sequence[float]]] = None,
         eval_labels: Optional[Sequence[int]] = None,
     ) -> None:
-        """모델을 학습한다."""
+        """모델을 학습한다.
+
+        `rows` 는 언제나 `FEATURE_NAMES` 전체 순서로 받는다. 부분집합 모델도
+        마찬가지다 — 열을 고르는 일은 예측기가 한다. 호출부가 자르게 두면
+        학습과 추론에서 서로 다르게 자를 수 있고, 그 오류는 조용하다.
+        """
         xgb = _import_xgboost()
 
-        train_set = xgb.DMatrix(_to_matrix(rows), label=list(labels),
-                                feature_names=FEATURE_NAMES)
+        train_set = xgb.DMatrix(_to_matrix(self._project(rows)), label=list(labels),
+                                feature_names=self.feature_names)
         watchlist = [(train_set, "train")]
         if eval_rows is not None and eval_labels is not None:
-            valid = xgb.DMatrix(_to_matrix(eval_rows), label=list(eval_labels),
-                                feature_names=FEATURE_NAMES)
+            valid = xgb.DMatrix(_to_matrix(self._project(eval_rows)),
+                                label=list(eval_labels),
+                                feature_names=self.feature_names)
             watchlist.append((valid, "valid"))
 
         self._booster = xgb.train(
@@ -154,7 +165,7 @@ class DefectPredictor:
 
         target.with_suffix(".meta.json").write_text(
             json.dumps(
-                {"feature_names": FEATURE_NAMES, "params": DEFAULT_PARAMS},
+                {"feature_names": self.feature_names, "params": DEFAULT_PARAMS},
                 ensure_ascii=False,
                 indent=2,
             ),
@@ -194,16 +205,30 @@ class DefectPredictor:
         if not meta_path.exists():
             return
         saved = json.loads(meta_path.read_text(encoding="utf-8")).get("feature_names")
-        if saved and saved != FEATURE_NAMES:
+        if saved and saved != self.feature_names:
             raise RuntimeError(
                 "모델의 피처 순서가 현재 코드와 다릅니다. 모델을 다시 학습하세요.\n"
-                f"  저장됨: {saved}\n  현재:   {FEATURE_NAMES}"
+                f"  저장됨: {saved}\n  현재:   {self.feature_names}"
             )
 
-    @staticmethod
-    def _raw_predict(booster, rows: Sequence[Sequence[float]]) -> List[float]:
+    def _project(self, rows: Sequence[Sequence[float]]) -> Sequence[Sequence[float]]:
+        """전체 피처 행렬에서 이 모델이 쓰는 열만 남긴다."""
+        if self.feature_names == FEATURE_NAMES:
+            return rows
+        for row in rows:
+            if len(row) != len(FEATURE_NAMES):
+                raise ValueError(
+                    f"행의 열 수가 FEATURE_NAMES 와 다릅니다 "
+                    f"({len(row)} != {len(FEATURE_NAMES)}). "
+                    "부분집합 모델도 전체 피처 행을 받습니다."
+                )
+            break
+        return [select(list(row), self.feature_names) for row in rows]
+
+    def _raw_predict(self, booster, rows: Sequence[Sequence[float]]) -> List[float]:
         xgb = _import_xgboost()
-        matrix = xgb.DMatrix(_to_matrix(rows), feature_names=FEATURE_NAMES)
+        matrix = xgb.DMatrix(_to_matrix(self._project(rows)),
+                             feature_names=self.feature_names)
         return list(booster.predict(matrix))
 
 

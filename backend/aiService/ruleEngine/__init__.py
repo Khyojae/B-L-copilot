@@ -4,6 +4,12 @@
 """
 
 from .checks import REGISTRY, CheckOutcome
+from .cross_doc import (
+    CROSS_REGISTRY,
+    CrossDocumentEngine,
+    DocumentSet,
+    load_cross_rules,
+)
 from .engine import RuleCatalogError, RuleEngine, load_rules
 from .types import (
     DEFAULT_PRESENTATION_DAYS,
@@ -18,7 +24,11 @@ from .types import (
 )
 
 __all__ = [
+    "CROSS_REGISTRY",
     "CheckOutcome",
+    "CrossDocumentEngine",
+    "DocumentSet",
+    "load_cross_rules",
     "DEFAULT_PRESENTATION_DAYS",
     "DEFAULT_TOLERANCE_PCT",
     "LCTerms",

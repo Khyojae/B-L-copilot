@@ -157,6 +157,30 @@ def required(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     return violated(detail=name or "", bl=None)
 
 
+def required_if_lc(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """L/C 가 해당 조건을 지정한 경우에만 필수.
+
+    `required` 와 나누는 이유는 통지처 같은 항목 때문이다. B/L 번호나 수하인은
+    L/C 와 무관하게 없으면 하자지만, 통지처는 **L/C 가 지정했을 때만** 하자다.
+    지정이 없는데도 하자로 세면 정상 서류에 없는 하자를 만들어낸다.
+
+    지정이 없으면 `not_evaluated` 다. `passed` 가 아니다 — 검사한 결과 통과한
+    것과 검사 대상이 아니었던 것은 다르고, 그 차이가 리포트에 드러나야 한다.
+    """
+    names = _rule_fields(rule)
+    if not names:
+        return not_evaluated("룰에 검사 대상 필드가 없습니다")
+
+    lc_value = lc.get(rule.get("lc_field", ""))
+    name, value = _first_present(bl, names)
+
+    if not lc_value:
+        return not_evaluated("L/C 에 해당 조건이 명시되지 않았습니다", bl=value)
+    if value:
+        return passed(bl=value, lc=lc_value)
+    return violated(detail=name or "", bl=None, lc=lc_value)
+
+
 def match_place(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     """서류 값이 L/C 지정 값과 맞는지. 항구 이명과 법인격 표기를 흡수한다."""
     names = _rule_fields(rule)
@@ -240,6 +264,32 @@ def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     if elapsed > days:
         return violated(detail=str(elapsed), bl=bl_value, lc=str(days))
     return passed(bl=bl_value, lc=str(days))
+
+
+def date_not_in_future(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """서류 날짜가 제시 시점보다 미래인지 (ISBP 821 — 날짜).
+
+    서류는 제시일보다 늦은 날짜로 발행될 수 없다. 발행일이 미래라는 것은
+    오탈자이거나 선일자 발행이며, 어느 쪽이든 은행이 짚는다.
+
+    다른 날짜 룰과 달리 **L/C 를 보지 않는다.** 서류 하나만으로 판정되는
+    내부 정합성 검사라 L/C 가 없어도 평가된다 — L/C 없이 돌릴 때 대부분의
+    룰이 평가불가로 빠지는 상황에서, 이런 룰이 실제 검사 범위를 넓혀 준다.
+    """
+    names = _rule_fields(rule)
+    _, bl_value = _first_present(bl, names)
+    if not bl_value:
+        return not_evaluated("서류에 해당 날짜가 없습니다")
+
+    issued = parse_date(bl_value)
+    if issued is None:
+        return not_evaluated(f"서류 날짜를 해석할 수 없습니다: {bl_value}", bl=bl_value)
+
+    as_of = rule.get("_as_of") or datetime.now()
+    if issued > as_of:
+        ahead = (issued - as_of).days
+        return violated(detail=str(ahead), bl=bl_value, lc=as_of.strftime("%Y-%m-%d"))
+    return passed(bl=bl_value)
 
 
 def numeric_not_above(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
@@ -407,10 +457,12 @@ CheckFn = Callable[[object, LCTerms, dict], CheckOutcome]
 
 REGISTRY: Dict[str, CheckFn] = {
     "required": required,
+    "required_if_lc": required_if_lc,
     "match_place": match_place,
     "contains_keywords": contains_keywords,
     "date_not_after": date_not_after,
     "presentation_period": presentation_period,
+    "date_not_in_future": date_not_in_future,
     "numeric_not_above": numeric_not_above,
     "within_tolerance": within_tolerance,
     "forbidden_when_prohibited": forbidden_when_prohibited,

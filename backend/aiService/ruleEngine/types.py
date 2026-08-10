@@ -199,6 +199,10 @@ class LCTerms:
 
     # 대조 대상은 아니지만 룰이 참조하는 수치 조건.
     consignee: Optional[str] = None
+    # 통지처 지정. **비어 있는 것과 지정된 것은 의미가 다르다.**
+    # L/C 가 통지처를 지정하면 서류에 그 통지처가 있어야 하지만, 지정이
+    # 없으면 통지처 누락은 하자가 아니다(D010 이 이 구분을 쓴다).
+    notify_party: Optional[str] = None
     incoterms: Optional[str] = None
     max_gross_weight_kg: Optional[float] = None
     max_measurement_cbm: Optional[float] = None

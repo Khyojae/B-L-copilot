@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import zlib
 from datetime import datetime
 
 import pytest
@@ -209,3 +210,89 @@ class TestPDF:
         path.write_bytes(render_pdf(report))
         text = "".join(page.get_text() for page in fitz.open(str(path)))
         assert "검사하지 못한 항목" in text
+
+
+class TestShareToken:
+    """공유 토큰 자체의 계약. API 계층은 test_api.py 가 본다."""
+
+    PAYLOAD = {"bl": {"bl_no": "HG290309"}, "lc": None}
+    SECRET = b"test-secret"
+
+    def test_왕복한다(self):
+        from report import share
+
+        token = share.encode(self.PAYLOAD, secret=self.SECRET)
+
+        assert share.decode(token, secret=self.SECRET) == self.PAYLOAD
+
+    def test_다른_비밀키로는_열리지_않는다(self):
+        from report import share
+
+        token = share.encode(self.PAYLOAD, secret=self.SECRET)
+
+        with pytest.raises(share.ShareTokenError, match="서명"):
+            share.decode(token, secret=b"other-secret")
+
+    def test_버전이_다르면_거절한다(self):
+        # 서명 방식을 바꿨을 때 옛 링크가 조용히 오해되지 않아야 한다.
+        from report import share
+
+        token = share.encode(self.PAYLOAD, secret=self.SECRET)
+        _, packed, signature = token.split(".")
+
+        with pytest.raises(share.ShareTokenError, match="버전"):
+            share.decode(f"v0.{packed}.{signature}", secret=self.SECRET)
+
+    def test_서명을_압축_해제보다_먼저_본다(self):
+        # 반대 순서면 서명 없는 입력이 zlib 에 먼저 들어간다.
+        from report import share
+
+        bomb = share._b64encode(zlib.compress(b"\x00" * 10_000_000))
+
+        with pytest.raises(share.ShareTokenError, match="서명"):
+            share.decode(f"v1.{bomb}.{share._b64encode(b'x' * 32)}",
+                         secret=self.SECRET)
+
+    def test_너무_긴_입력은_발급하지_않는다(self):
+        # 프록시가 URL 을 잘라 조용히 깨지는 것보다 거절이 낫다.
+        from report import share
+
+        # 반복 문자열은 zlib 이 뭉개 버려 한계에 닿지 않는다. 해시로
+        # 압축되지 않는 내용을 만든다.
+        import hashlib
+
+        huge = {
+            "bl": {
+                f"field_{i}": hashlib.sha256(str(i).encode()).hexdigest()
+                for i in range(400)
+            }
+        }
+
+        with pytest.raises(share.ShareTokenTooLarge, match="너무 깁니다"):
+            share.encode(huge, secret=self.SECRET)
+
+    def test_비밀키가_없으면_프로세스마다_임시값을_쓴다(self, monkeypatch):
+        # 고정 기본값을 두면 소스를 읽은 누구나 토큰을 위조할 수 있다.
+        from report import share
+
+        monkeypatch.delenv(share.SECRET_ENV, raising=False)
+        monkeypatch.setattr(share, "_process_secret", None)
+
+        assert share.secret_is_ephemeral()
+        assert share.share_secret() == share.share_secret()
+
+    def test_환경변수를_주면_고정된다(self, monkeypatch):
+        from report import share
+
+        monkeypatch.setenv(share.SECRET_ENV, "고정키")
+
+        assert not share.secret_is_ephemeral()
+        assert share.share_secret() == "고정키".encode("utf-8")
+
+    def test_만료_시각을_읽을_수_있다(self):
+        from report import share
+
+        token = share.encode(self.PAYLOAD, ttl_seconds=3600, now=1000,
+                             secret=self.SECRET)
+
+        assert share.expires_at(token) == 4600

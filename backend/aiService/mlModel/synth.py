@@ -92,6 +92,16 @@ DEFECT_KINDS = (
     "stale_presentation",   # 제시기간 경과
 )
 
+# 같은 필드에 쓰는 하자 쌍. 함께 주입하면 나중 것이 앞의 것을 덮어쓰는데,
+# `injected` 에는 둘 다 남아 서류에 없는 하자를 라벨이 주장하게 된다.
+# 그 상태로 유형별 재현율을 재면 검출기가 아니라 생성기의 결함이 측정된다.
+#
+# late_shipment 는 선적일을 L/C 기한 뒤로(=최근), stale_presentation 은
+# 기준일 22~60일 전으로 민다. 둘 다 on_board_date 이고 방향이 반대다.
+CONFLICTING_KINDS = (
+    ("late_shipment", "stale_presentation"),
+)
+
 
 class SyntheticGenerator:
     """하자를 주입한 학습 데이터를 만든다."""
@@ -133,8 +143,10 @@ class SyntheticGenerator:
 
         if inject:
             # 실제 하자 건은 대개 한두 개가 겹친다. 3개 이상은 드물다.
-            kinds = self.rng.sample(
-                DEFECT_KINDS, k=self.rng.choices([1, 2, 3], weights=[6, 3, 1])[0]
+            kinds = _drop_conflicts(
+                self.rng.sample(
+                    DEFECT_KINDS, k=self.rng.choices([1, 2, 3], weights=[6, 3, 1])[0]
+                )
             )
             for kind in kinds:
                 self._inject(bl, lc, kind)
@@ -162,11 +174,17 @@ class SyntheticGenerator:
         weight = round(rng.uniform(200, 900), 2)
         freight = round(rng.uniform(800, 4000), 2)
 
+        # 통지처는 L/C 가 지정할 수도, 안 할 수도 있다. 실무에서 갈리는
+        # 지점이고, D010 이 그 구분에 따라 켜지고 꺼진다. 전건에 지정을 넣으면
+        # 조건부 룰을 만들어 놓고 조건이 항상 참인 데이터로 재는 셈이 된다.
+        notify_party = rng.choice(COMPANIES)
+        lc_notify = notify_party if rng.random() < 0.6 else None
+
         bl = BLFields(
             bl_no=f"{rng.choice(['HG', 'SEAU', 'MSCU', 'KRPU'])}{rng.randint(100000, 999999)}",
             shipper=shipper,
             consignee=consignee,
-            notify_party=rng.choice(COMPANIES),
+            notify_party=notify_party,
             vessel=rng.choice(VESSELS),
             voyage_no=f"V.{rng.randint(100, 999)}",
             port_of_loading=pol_full,
@@ -190,6 +208,7 @@ class SyntheticGenerator:
             port_of_loading=pol_short,
             port_of_discharge=pod_short,
             consignee=consignee,
+            notify_party=lc_notify,
             description_of_goods=goods,
             latest_shipment_date=_fmt(latest_shipment),
             expiry_date=_fmt(expiry),
@@ -235,6 +254,12 @@ class SyntheticGenerator:
         elif kind == "missing_field":
             target = rng.choice(["bl_no", "consignee", "vessel", "notify_party"])
             bl.set_field(target, None, 0.0, "region")
+            if target == "notify_party":
+                # 통지처 누락은 L/C 가 지정했을 때만 하자다. 지정이 없는 채로
+                # 비우고 label=1 을 붙이면 **하자가 아닌 서류를 하자라고 가르치는
+                # 것**이 된다. 그 라벨에 맞추려면 룰이 정상 서류를 하자로 잡아야
+                # 하므로, 재현율을 올리려는 시도가 정밀도를 무너뜨린다.
+                lc.notify_party = lc.notify_party or rng.choice(COMPANIES)
 
         elif kind == "freight_deviation":
             base = lc.freight_amount or 1000.0
@@ -275,6 +300,22 @@ class SyntheticGenerator:
 
 
 # ── 유틸 ─────────────────────────────────────────────────────────
+
+def _drop_conflicts(kinds: List[str]) -> List[str]:
+    """같은 필드를 두고 다투는 하자 중 뒤에 오는 것을 뺀다.
+
+    표본 순서를 그대로 존중해 앞의 것을 남긴다 — 어느 쪽을 살릴지는
+    무작위여야 특정 유형이 과소 표집되지 않는다.
+    """
+    kept: List[str] = []
+    for kind in kinds:
+        rivals = {b for a, b in CONFLICTING_KINDS if a == kind}
+        rivals |= {a for a, b in CONFLICTING_KINDS if b == kind}
+        if rivals & set(kept):
+            continue
+        kept.append(kind)
+    return kept
+
 
 def _fmt(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")

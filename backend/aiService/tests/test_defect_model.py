@@ -7,7 +7,14 @@ from datetime import datetime
 import pytest
 
 from mlModel.evaluate import Metrics, evaluate
-from mlModel.features import FEATURE_NAMES, NO_DEADLINE, extract_features
+from mlModel.features import (
+    FEATURE_NAMES,
+    NO_DEADLINE,
+    RAW_FEATURE_NAMES,
+    RULE_DERIVED_FEATURES,
+    extract_features,
+    select,
+)
 from mlModel.predictor import DefectPredictor
 from mlModel.synth import DEFECT_KINDS, SyntheticGenerator
 from ocr.types import BLFields
@@ -94,6 +101,45 @@ class TestFeatures:
         assert vector.as_dict()["field_missing_ratio"] < 1.0
 
 
+class TestFeatureGroups:
+    def test_원시_특징에는_룰_출력이_없다(self):
+        # 하나라도 새면 비교군이 '룰과 무관'하다고 말할 수 없게 된다.
+        assert not (set(RAW_FEATURE_NAMES) & RULE_DERIVED_FEATURES)
+
+    def test_두_그룹이_전체를_덮는다(self):
+        assert set(RAW_FEATURE_NAMES) | RULE_DERIVED_FEATURES == set(FEATURE_NAMES)
+        assert len(RAW_FEATURE_NAMES) + len(RULE_DERIVED_FEATURES) == len(FEATURE_NAMES)
+
+    def test_원시_특징이_비어_있지_않다(self):
+        assert len(RAW_FEATURE_NAMES) >= 5
+
+    def test_select가_이름에_맞는_열을_뽑는다(self):
+        row = [float(i) for i in range(len(FEATURE_NAMES))]
+        picked = select(row, ["mean_confidence", "critical_count"])
+
+        assert picked == [
+            float(FEATURE_NAMES.index("mean_confidence")),
+            float(FEATURE_NAMES.index("critical_count")),
+        ]
+
+    def test_룰_출력_전부가_verdict에서_온다(self, engine):
+        # 경계가 흐려지면 3열 비교의 의미가 사라진다. verdict 를 비우면
+        # 룰 출력 피처만 변해야 한다.
+        bl = BLFields(bl_no="A1234", consignee=None, port_of_loading="BUSAN")
+        lc = LCTerms(consignee="X CO., LTD.", port_of_loading="TOKYO")
+
+        vector, _ = features_of(engine, bl, lc)
+        full = vector.as_dict()
+        empty = extract_features(bl, lc, Verdict(model="rules-v1"), AS_OF).as_dict()
+
+        changed = {n for n in FEATURE_NAMES if full[n] != empty[n]}
+        assert changed, "위반이 나는 서류인데 룰 출력 피처가 하나도 안 변했습니다"
+        assert changed <= RULE_DERIVED_FEATURES, (
+            f"verdict 만 바꿨는데 원시 특징이 변했습니다: "
+            f"{changed - RULE_DERIVED_FEATURES}"
+        )
+
+
 class TestSyntheticData:
     def test_시드가_같으면_같은_데이터가_나온다(self):
         a = SyntheticGenerator(seed=7).generate(50)
@@ -148,6 +194,33 @@ class TestSyntheticData:
 
         assert seen == set(DEFECT_KINDS)
 
+    def test_충돌하는_하자를_함께_주입하지_않는다(self):
+        # late_shipment 와 stale_presentation 은 둘 다 on_board_date 를 쓴다.
+        # 함께 주입하면 나중 것이 앞의 것을 덮어쓰는데 injected 에는 둘 다
+        # 남아, 서류에 없는 하자를 라벨이 주장하게 된다.
+        samples = SyntheticGenerator(seed=13).generate(500, defect_ratio=1.0)
+
+        for sample in samples:
+            kinds = set(sample.injected)
+            assert not {"late_shipment", "stale_presentation"} <= kinds
+
+    def test_주입한_제시기간_경과는_빠짐없이_걸린다(self):
+        # 라벨과 서류가 어긋나면 유형별 재현율이 검출기가 아니라 생성기의
+        # 결함을 재게 된다.
+        engine = RuleEngine()
+        stale = [
+            s for s in SyntheticGenerator(seed=17).generate(600, defect_ratio=1.0)
+            if "stale_presentation" in s.injected
+        ]
+        assert stale, "표본에 제시기간 경과 건이 없습니다"
+
+        for sample in stale:
+            verdict = engine.verify(sample.bl, sample.lc, as_of=sample.as_of)
+            assert "D018" in {v.rule_id for v in verdict.violations}, (
+                f"제시기간 경과를 주입했는데 D018 이 걸리지 않았습니다: "
+                f"injected={sample.injected}, on_board={sample.bl.on_board_date}"
+            )
+
     def test_학습_검증을_나눈다(self):
         train, valid = SyntheticGenerator(seed=4).split(100, train_ratio=0.7)
 
@@ -196,6 +269,48 @@ class TestPredictor:
 
         assert saved.exists()
         assert saved.with_suffix(".meta.json").exists()
+
+    def test_부분집합_모델도_전체_피처_행을_받는다(self, engine, tmp_path):
+        # 호출부가 자르게 두면 학습과 추론에서 다르게 자를 수 있고,
+        # 그 오류는 예외 없이 조용히 틀린 확률로 나온다.
+        samples = SyntheticGenerator(seed=21).generate(200)
+        rows, labels = [], []
+        for s in samples:
+            v = engine.verify(s.bl, s.lc, as_of=s.as_of)
+            rows.append(extract_features(s.bl, s.lc, v, s.as_of).values)
+            labels.append(s.label)
+
+        predictor = DefectPredictor(
+            model_path=tmp_path / "raw.json", feature_names=RAW_FEATURE_NAMES
+        )
+        predictor.train(rows, labels, rounds=20)
+        probabilities = predictor.predict_batch(rows)
+
+        assert len(probabilities) == len(rows)
+        assert all(0.0 <= p <= 1.0 for p in probabilities)
+
+    def test_부분집합_모델은_룰_출력을_보지_않는다(self, engine, tmp_path):
+        samples = SyntheticGenerator(seed=23).generate(300)
+        rows, labels = [], []
+        for s in samples:
+            v = engine.verify(s.bl, s.lc, as_of=s.as_of)
+            rows.append(extract_features(s.bl, s.lc, v, s.as_of).values)
+            labels.append(s.label)
+
+        predictor = DefectPredictor(
+            model_path=tmp_path / "raw.json", feature_names=RAW_FEATURE_NAMES
+        )
+        predictor.train(rows, labels, rounds=20)
+
+        assert not (set(predictor.feature_importance()) & RULE_DERIVED_FEATURES)
+
+    def test_잘못된_열_수는_예외를_낸다(self, tmp_path):
+        predictor = DefectPredictor(
+            model_path=tmp_path / "raw.json", feature_names=RAW_FEATURE_NAMES
+        )
+
+        with pytest.raises(ValueError, match="열 수가"):
+            predictor.train([[0.0] * len(RAW_FEATURE_NAMES)], [1], rounds=5)
 
     def test_피처_순서가_바뀌면_로드를_거부한다(self, tmp_path):
         # 순서가 어긋나면 모델은 조용히 틀린 답을 낸다.
@@ -261,18 +376,65 @@ class TestEvaluationHarness:
         assert report.rules_plus_model is not None
         assert report.rules_plus_model.f1 > 0
 
+    def test_원시_특징만_학습한_비교군을_함께_낸다(self):
+        # 기획안 8.2 — "모델이 룰의 복제본인가"에 수치로 답하려면
+        # 룰 없이 어디까지 가는지가 나란히 있어야 한다.
+        report = evaluate(count=600, seed=42)
+
+        assert report.raw_features_only is not None
+        assert report.raw_features_only.f1 > 0
+        assert not (set(report.raw_feature_importance) & RULE_DERIVED_FEATURES)
+
+    def test_비교군은_목표_달성_판정에_끼지_않는다(self):
+        # 진단용 축이 기획안 목표 판정을 밀어 올리면 안 된다.
+        report = evaluate(count=600, seed=42)
+
+        assert report.best_f1 == max(
+            report.rules_only.f1, report.rules_plus_model.f1
+        )
+
+    def test_독립성_비교표가_렌더링된다(self):
+        text = evaluate(count=400, seed=42).to_text()
+
+        assert "룰·모델 독립성" in text
+        assert "원시 특징만" in text
+        assert "모델이 더한 F1" in text
+
     def test_모델을_끄면_룰만_평가한다(self):
         report = evaluate(count=200, seed=42, train_model=False)
 
         assert report.rules_plus_model is None
+        assert report.raw_features_only is None
         assert report.rules_only.total == 60
 
     def test_유형별_재현율이_유형을_구분한다(self):
-        # 전부 1.000 이면 진단 도구 구실을 못 한다.
-        report = evaluate(count=600, seed=42, train_model=False)
-        recalls = set(report.per_defect_recall.values())
+        """놓치는 유형이 생기면 그 유형만 떨어져야 한다.
 
-        assert len(recalls) > 1, "유형별 재현율이 전부 같아 진단에 쓸 수 없습니다"
+        이전 판은 "전 유형이 1.000 이면 진단 도구 구실을 못 한다"며 값이
+        서로 다를 것을 요구했다. 룰 보강으로 전 유형이 1.000 이 되면서 그
+        단언은 **검출력이 완성된 상태를 실패로 부르게** 됐다.
+
+        재고 싶은 것은 값의 다양성이 아니라 지표의 분해능이다. 룰 하나를
+        일부러 낮춰 그 유형만 떨어지는지 본다.
+        """
+        from mlModel.evaluate import _per_defect_recall
+        from ruleEngine.engine import load_rules
+
+        samples = SyntheticGenerator(seed=42).generate(600, defect_ratio=1.0)
+        full = _per_defect_recall(RuleEngine(), samples)
+
+        assert set(full) == set(DEFECT_KINDS)
+
+        # 제시기간 룰을 warning 으로 낮춘다. 판정이 has_critical 이므로
+        # 이 유형만 미검출로 잡혀야 한다.
+        rules = load_rules()
+        for rule in rules:
+            if rule["id"] == "D018":
+                rule["severity"] = "warning"
+        degraded = _per_defect_recall(RuleEngine(rules), samples)
+
+        assert degraded["stale_presentation"] < full["stale_presentation"]
+        assert degraded["port_mismatch"] == full["port_mismatch"]
 
     def test_텍스트_리포트가_렌더링된다(self):
         report = evaluate(count=200, seed=42, train_model=False)

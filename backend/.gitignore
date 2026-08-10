@@ -28,6 +28,20 @@ artifacts/
 cache/
 typechain-types/
 
+# 단, 학습된 하자 예측 모델은 커밋한다.
+# `artifacts/` 는 Hardhat 컴파일 산출물을 막으려는 규칙인데, 이름이 같아
+# aiService 의 모델까지 함께 막혔다.
+#
+# 커밋하는 이유: 이 파일이 없으면 DefectPredictor 가 룰 가중치 합산으로
+# 조용히 대체된다(`model="rules-v1"`). 에러가 아니라 값이 달라질 뿐이라
+# 알아채기 어렵고, 시연 직전에 학습을 잊으면 그대로 발표에 들어간다.
+# 325KB 이므로 저장소에 부담이 없다. 재학습은
+# `python -m mlModel.evaluate --save-model`.
+#
+# 디렉터리 제외를 먼저 풀어야 그 안의 파일 규칙이 적용된다.
+!aiService/mlModel/artifacts/
+!aiService/mlModel/artifacts/**
+
 # IDE / OS
 .DS_Store
 .vscode/

@@ -15,6 +15,18 @@
 #          치명 0.30~0.40 / 경고 0.08~0.15 / 참고 0.02 대역을 쓴다.
 #          치명 3건이면 1.0 에 닿도록 잡았다.
 # message: {bl} {lc} {detail} 이 실행 시 치환된다.
+#
+# verified: 이 룰의 `source` 조문 인용을 **무역 실무자가 실제 조문과 대조해
+#           확인했는지**. 생략하면 미검증이다.
+#
+#           기본값을 미검증으로 둔 이유는, 일부 룰에만 `verified: false` 를
+#           달면 나머지는 검증된 것처럼 읽히기 때문이다. 지금 확인을 거친
+#           룰은 하나도 없으므로 전건이 미검증이 맞다.
+#
+#           기획안 9절이 대응책으로 "멘토 기업 실무 검증"을 명시한다.
+#           발표에서 조문이 틀리면 시스템 전체의 신뢰가 무너지므로,
+#           확인이 끝난 룰부터 `verified: true` 를 달아 나가면 된다.
+#           `GET /rules` 와 기동 로그가 남은 건수를 보고한다.
 
 version: 1
 
@@ -70,20 +82,37 @@ rules:
     message: Shipper 정보가 없습니다.
     remedy: 수출자(송하인) 상호를 기재하세요.
 
+  # `required` → `required_if_lc` 로 바꿨다. 통지처는 다른 필수 항목과 성격이
+  # 다르다 — B/L 번호나 수하인은 L/C 와 무관하게 없으면 하자지만, 통지처는
+  # **L/C 46A 가 지정했을 때만** 하자다. 지정이 없으면 검사 대상이 아니며,
+  # 그 경우 결과는 `passed` 가 아니라 `not_evaluated` 다.
+  #
+  # 조건을 붙였으므로 severity 를 critical 로 올릴 수 있다. 이전에는 조건
+  # 없이 전건에 걸리는 룰이라 warning 이 아니면 정상 서류를 하자로 만들었다.
   - id: D010
     title: 통지처 누락
-    severity: warning
-    weight: 0.08
+    severity: critical
+    weight: 0.25
     fields: [notify_party]
-    check: required
-    source: 실무관행 — 통지처 누락 시 도착 통지가 지연되어 체선료가 발생할 수 있다.
-    message: Notify Party 정보가 없습니다.
-    remedy: L/C 에 통지처 지정이 있으면 그대로 기재하세요.
+    check: required_if_lc
+    lc_field: notify_party
+    source: UCP 600 Art.14(d) — 서류의 기재는 L/C 조건과 저촉되지 않아야 한다. L/C 가 통지처를 지정한 경우 그 기재가 누락되면 저촉이다.
+    message: L/C 가 지정한 Notify Party 가 서류에 없습니다.
+    remedy: L/C 46A 의 통지처를 그대로 기재하세요.
 
+  # severity 를 warning → critical 로 올렸다. 판정 기준이 `has_critical` 이라
+  # warning 은 검출로 세어지지 않고, 그래서 선박명 누락이 통째로 빠져나갔다
+  # (missing_field 재현율의 대부분이 이 한 건이었다).
+  #
+  # 올리는 근거는 일관성이 아니라 조문이다. Art.20(a)(ii) 는 본선적재를
+  # **지정 선박** 에의 적재로 표시할 것을 요구하므로, 선박명이 없으면 선적
+  # 사실 자체가 표시되지 않은 것이다. 이는 은행이 거절할 수 있는 하자다.
+  # 다른 필수 필드 누락(D001·D005·D012·D012B)이 모두 critical / 0.3 인 것과도
+  # 맞는다.
   - id: D011
     title: 선박명 누락
-    severity: warning
-    weight: 0.12
+    severity: critical
+    weight: 0.3
     fields: [vessel]
     check: required
     source: UCP 600 Art.20(a)(ii) — 선적 사실은 지정 선박에의 본선적재로 표시되어야 한다.
@@ -159,14 +188,46 @@ rules:
     remedy: L/C 유효기간 내 발행분으로 교체하거나 조건변경을 요청하세요.
 
   - id: D018
-    title: 서류제시기간 임박·경과
-    severity: warning
-    weight: 0.15
+    title: 서류제시기간 경과
+    severity: critical
+    weight: 0.30
     fields: [on_board_date, date_of_issue]
     check: presentation_period
     source: UCP 600 Art.14(c) — 서류는 선적일 후 21일 이내에, 그리고 유효기일 이내에 제시되어야 한다.
     message: 선적일로부터 {detail}일이 지났습니다. 제시기간은 {lc}일입니다.
     remedy: 즉시 은행에 제시하세요. 기간이 지나면 stale B/L 하자가 됩니다.
+
+  - id: D019
+    title: 발행일이 미래
+    severity: critical
+    weight: 0.35
+    fields: [date_of_issue]
+    check: date_not_in_future
+    source: ISBP 821 A — 서류는 제시일보다 늦은 날짜로 발행될 수 없다.
+    message: 발행일({bl})이 제시 시점({lc})보다 {detail}일 미래입니다.
+    remedy: 발행일 오기입인지 확인하세요. 선일자 발행이면 은행이 수리하지 않습니다.
+
+  # ── 당사자 표시 ───────────────────────────────────────────────
+  - id: D020
+    title: 통지처 불일치
+    severity: warning
+    weight: 0.12
+    fields: [notify_party]
+    check: match_place
+    lc_field: notify_party
+    source: ISBP 821 A.1 — 서류상 당사자 표시는 신용장 및 타 서류와 저촉되지 않아야 한다.
+    message: Notify Party 가 L/C 지정과 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 가 지정한 통지처 상호를 그대로 기재하세요.
+
+  - id: D021
+    title: 발행지 누락
+    severity: warning
+    weight: 0.08
+    fields: [place_of_issue]
+    check: required
+    source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
+    message: 발행지 정보가 없습니다.
+    remedy: 선하증권이 발행된 장소를 기재하세요.
 
   # ── 수량·금액 ─────────────────────────────────────────────────
   - id: D007

@@ -157,7 +157,7 @@ class TestSerialization:
         assert payload["is_ready_for_verification"] is True
         first = payload["fields"][0]
         assert set(first) == {
-            "name", "label", "value", "confidence", "is_critical",
+            "name", "label", "value", "confidence", "source", "is_critical",
             "needs_review", "review_reason", "review_message",
         }
 
@@ -215,3 +215,86 @@ class TestFieldValueContract:
 
         assert "bl_no" not in fields.confidence
         assert "bl_no" not in fields.provenance
+
+
+class TestLabelEcho:
+    """값에 서식 항목명이 섞인 경우 — remaining-work.md 3.3 절."""
+
+    def _draft(self, **values):
+        fields = BLFields()
+        for name, value in values.items():
+            fields.set_field(name, value, 1.0, "region")
+        return build_draft(fields)
+
+    def test_항목명을_품은_값은_확인_대상이다(self):
+        draft = self._draft(
+            description_of_goods="DESCRIPTION OF GOODS GROSS WEIGHT / SAW MACHINE"
+        )
+
+        assert draft.get("description_of_goods").review_reason is ReviewReason.LABEL_ECHOED
+
+    def test_항목명의_조각인_값도_확인_대상이다(self):
+        # "OCEAN VESSEL" 라벨에서 잘려 나온 값. 실제로 관측된 오추출이다.
+        draft = self._draft(vessel="OCEAN")
+
+        assert draft.get("vessel").review_reason is ReviewReason.LABEL_ECHOED
+
+    def test_신뢰도가_1이어도_잡는다(self):
+        # 텍스트 레이어 PDF 는 전 필드가 1.0 이라 저신뢰 판정이 영원히
+        # 안 걸린다. 그 경로에서 확인 대기열이 비는 것이 3.3 절의 결함이다.
+        draft = self._draft(place_of_issue="PLACE OF ISSUE PUSAN DATE OF ISSUE")
+        field = draft.get("place_of_issue")
+
+        assert field.confidence == 1.0
+        assert field.needs_review
+
+    def test_정상_값은_오탐하지_않는다(self):
+        draft = self._draft(
+            shipper="GAE WOON CO., LTD.",
+            consignee="DHHJ FRANCHISING CO., LTD.",
+            vessel="MSC BIANCA",
+            port_of_loading="BUSAN, KOREA",
+            gross_weight="884.00 KG",
+            measurement="349.64 CBM",
+            total_freight="$1,741.56",
+        )
+
+        flagged = [
+            f.name for f in draft.fields
+            if f.review_reason is ReviewReason.LABEL_ECHOED
+        ]
+        assert not flagged
+
+    def test_운임_값의_관용구는_항목명이_아니다(self):
+        # FREIGHT PREPAID 는 항목명처럼 보이지만 운임란의 값이다.
+        draft = self._draft(total_freight="FREIGHT PREPAID $1,741.56")
+
+        assert draft.get("total_freight").review_reason is not ReviewReason.LABEL_ECHOED
+
+    def test_항목명이_딸려온_PDF는_확인을_요구한다(self, tmp_path):
+        """3.3 절이 기록한 실패를 그대로 재현한다.
+
+        텍스트 레이어는 신뢰도가 전부 1.0 이라 저신뢰 판정이 걸리지 않는다.
+        그 상태에서 구역이 밀려 항목명이 값에 딸려오면, 예전에는 확인
+        대기열이 비어 사람이 아무것도 보지 않았다.
+        """
+        from conftest import write_bl_pdf
+
+        bboxes = [
+            b for b in complete_bl_bboxes()
+            if "CELL ASSEMBLY" not in (b.get("data") or "")
+        ]
+        bboxes.append(
+            region_bbox("DESCRIPTION OF GOODS 27 PKG CELL ASSEMBLY", "cargo",
+                        width_ratio=0.40)
+        )
+        path = write_bl_pdf(tmp_path, bboxes, name="misaligned.pdf")
+
+        draft = IntakePipeline().run_from_pdf(path)
+        goods = draft.get("description_of_goods")
+
+        assert draft.source == "pdf-text"
+        assert goods.confidence == 1.0
+        assert goods.review_reason is ReviewReason.LABEL_ECHOED, (
+            "신뢰도 1.0 인 오추출을 아무도 확인하지 않게 됩니다"
+        )

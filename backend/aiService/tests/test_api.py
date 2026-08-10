@@ -28,6 +28,7 @@ CLEAN_BL = {
     "description_of_goods": "SAW MACHINE",
     "gross_weight": "884 KG",
     "date_of_issue": "2026-06-01",
+    "place_of_issue": "PUSAN",
     "on_board_date": "2026-06-01",
     "total_freight": "$1,741.56",
 }
@@ -104,6 +105,72 @@ class TestExtract:
         assert response.status_code == 503
         # 무엇을 설치해야 하는지 응답에 담긴다.
         assert "pip install" in response.json()["detail"]
+
+
+class TestExtractPDF:
+    """F1 PDF 입력 — 기획안 5절 "이메일·엑셀·**PDF** 등 비정형 선적 서류"."""
+
+    def _upload(self, client, path, **params):
+        with open(path, "rb") as f:
+            return client.post(
+                "/extract/pdf",
+                files={"file": ("bl.pdf", f.read(), "application/pdf")},
+                params=params,
+            )
+
+    def test_PDF로_초안을_만든다(self, client, bl_pdf):
+        response = self._upload(client, bl_pdf)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["is_ready_for_verification"] is True
+        names = {f["name"]: f["value"] for f in body["fields"]}
+        assert names["bl_no"] == "HG290309"
+
+    def test_텍스트_레이어_경로임을_알린다(self, client, bl_pdf):
+        # 신뢰도 1.0 이 '원문 그대로'인지 'OCR 이 확신한 값'인지는
+        # 전혀 다른 이야기다. 화면이 구분할 수 있어야 한다.
+        assert self._upload(client, bl_pdf).json()["source"] == "pdf-text"
+
+    def test_이미지를_PDF로_올리면_400이다(self, client):
+        # 확장자가 아니라 내용으로 판정한다. PyMuPDF 오류를 그대로 흘리면
+        # 원인을 알 수 없는 500 이 된다.
+        response = client.post(
+            "/extract/pdf",
+            files={"file": ("fake.pdf", b"PNG_NOT_A_PDF", "application/pdf")},
+        )
+
+        assert response.status_code == 400
+        assert "PDF" in response.json()["detail"]
+
+    def test_빈_파일은_400이다(self, client):
+        response = client.post(
+            "/extract/pdf", files={"file": ("empty.pdf", b"", "application/pdf")}
+        )
+
+        assert response.status_code == 400
+
+    def test_없는_페이지는_400이다(self, client, bl_pdf):
+        response = self._upload(client, bl_pdf, page=7)
+
+        assert response.status_code == 400
+        assert "범위" in response.json()["detail"]
+
+    def test_라벨_경로와_같은_초안을_낸다(self, client, bl_pdf):
+        # 두 입력 경로가 갈리면 '편집 후 재검증'이 다른 코드 경로를 탄다.
+        from_pdf = self._upload(client, bl_pdf).json()
+        from_label = client.post(
+            "/extract/label",
+            json={
+                "Images": {"identifier": "bl", "width": 1654, "height": 2340},
+                "bbox": complete_bl_bboxes(),
+            },
+        ).json()
+
+        assert (
+            {f["name"]: f["value"] for f in from_pdf["fields"]}
+            == {f["name"]: f["value"] for f in from_label["fields"]}
+        )
 
 
 class TestVerify:
@@ -185,7 +252,32 @@ class TestReport:
         }
 
     def test_요약에_산출_주체가_남는다(self, client):
-        # 룰 가중치 합산을 학습된 모델의 확률로 표기하면 안 된다.
+        """표기가 실제 산출 주체와 일치해야 한다.
+
+        이전 판은 `== "rules-v1"` 을 단언했다. 모델이 파이프라인에 붙기 전의
+        상태를 굳힌 것이라, 모델을 연결하자 **정상 동작이 실패로 잡혔다.**
+        재고 싶은 것은 특정 값이 아니라 표기와 실제의 일치다.
+        """
+        body = {"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+        summary = client.post("/report", json=body).json()["summary"]
+        prediction = client.post("/verify", json=body).json()["prediction"]
+
+        assert summary["model"] in {"rules-v1", "xgboost-v1"}
+        # 같은 입력인데 두 응답의 산출 주체가 갈리면 어느 쪽이 참인지 알 수 없다.
+        assert summary["model"] == prediction["model"]
+        # Prediction.to_dict 는 4자리로 반올림하고 리포트는 원값을 담는다.
+        assert round(summary["defect_probability"], 4) == prediction["probability"]
+
+    def test_모델이_없으면_룰로_표기한다(self, client, tmp_path, monkeypatch):
+        # 조용히 룰 가중치로 떨어지면서 'AI 예측'으로 표기하면,
+        # 5절이 기록한 "리포트 출처 거짓 표기" 결함이 되풀이된다.
+        from mlModel.predictor import DefectPredictor
+
+        import api.main as main
+
+        monkeypatch.setattr(
+            main, "_predictor", DefectPredictor(model_path=tmp_path / "없음.json")
+        )
         summary = client.post(
             "/report", json={"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
         ).json()["summary"]
@@ -243,6 +335,99 @@ class TestReport:
         assert "선제 대응 서류 분석 리포트" in text
         hangul = sum(1 for ch in text if "가" <= ch <= "힣")
         assert hangul > 100
+
+
+class TestReportShare:
+    """F4 공유 — 기획안 5절 "PDF 출력·공유 가능"."""
+
+    BODY = {"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+
+    def test_링크를_발급한다(self, client):
+        response = client.post("/report/share", json=self.BODY)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["token"]
+        assert body["path"].endswith(body["token"])
+        assert body["pdf_path"].endswith("/pdf")
+
+    def test_공유_링크가_같은_리포트를_낸다(self, client):
+        # 저장하지 않으므로, 링크를 열 때마다 다시 조립한다. 원본과
+        # 어긋나면 공유받은 쪽이 다른 판정을 보게 된다.
+        direct = client.post("/report", json=self.BODY).json()
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+
+        shared = client.get(f"/report/shared/{token}")
+
+        assert shared.status_code == 200
+        assert shared.json() == direct
+
+    def test_공유_링크로_PDF를_연다(self, client):
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+
+        response = client.get(f"/report/shared/{token}/pdf")
+
+        assert response.status_code == 200
+        assert response.content.startswith(b"%PDF")
+        # 링크를 클릭하면 브라우저에서 바로 보여야 한다. attachment 면
+        # 받는 쪽이 파일을 내려받아 여는 한 단계를 더 거친다.
+        assert response.headers["content-disposition"].startswith("inline")
+
+    def test_위조된_토큰을_거절한다(self, client):
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+        head, packed, signature = token.split(".")
+        forged = f"{head}.{packed}.{'A' * len(signature)}"
+
+        assert client.get(f"/report/shared/{forged}").status_code == 404
+
+    def test_본문을_바꾸면_서명이_깨진다(self, client):
+        # 서명이 본문을 덮지 않으면 받은 쪽이 내용을 고쳐 열 수 있다.
+        import base64
+        import json
+        import zlib
+
+        from report import share
+
+        token = client.post("/report/share", json=self.BODY).json()["token"]
+        head, packed, signature = token.split(".")
+        body = json.loads(zlib.decompress(share._b64decode(packed)))
+        body["data"]["bl"]["bl_no"] = "위조됨"
+        tampered = base64.urlsafe_b64encode(
+            zlib.compress(json.dumps(body).encode())
+        ).decode().rstrip("=")
+
+        response = client.get(f"/report/shared/{head}.{tampered}.{signature}")
+
+        assert response.status_code == 404
+
+    def test_만료된_링크는_410_이다(self, client):
+        # 404 로 내면 받은 쪽이 '주소가 틀렸나'를 의심하게 된다.
+        from report import share
+
+        token = share.encode({"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF},
+                             ttl_seconds=60, now=0)
+
+        response = client.get(f"/report/shared/{token}")
+
+        assert response.status_code == 410
+        assert "만료" in response.json()["detail"]
+
+    def test_형식이_틀린_토큰을_거절한다(self, client):
+        assert client.get("/report/shared/아무거나").status_code == 404
+
+    def test_열리지_않을_링크는_발급하지_않는다(self, client):
+        # 발급은 되고 열면 400 이면, 공유받은 쪽에서 터지고 원인을 알 수 없다.
+        response = client.post("/report/share", json={"bl": {}})
+
+        assert response.status_code == 400
+
+    def test_만료를_지정할_수_있다(self, client):
+        short = client.post(
+            "/report/share", json={**self.BODY, "ttl_seconds": 3600}
+        ).json()
+        default = client.post("/report/share", json=self.BODY).json()
+
+        assert short["expires_at"] < default["expires_at"]
 
 
 class TestPipelineIntegration:

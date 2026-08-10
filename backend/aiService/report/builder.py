@@ -40,8 +40,23 @@ def build_report(
     lc: Optional[LCTerms] = None,
     submitted_documents: Optional[Sequence[str]] = None,
     as_of: Optional[datetime] = None,
+    prediction: Optional[Any] = None,
 ) -> Report:
-    """검증 결과와 서류 정보를 리포트로 조립한다."""
+    """검증 결과와 서류 정보를 리포트로 조립한다.
+
+    `prediction` 은 `DefectPredictor.predict()` 결과다. 주면 **위험 점수만**
+    그 값으로 바꾼다 — 하자 목록·체크리스트·기한은 그대로 룰엔진 결과다.
+
+    역할을 이렇게 가르는 근거는 측정값이다. 이진 판정(하자냐 아니냐)은
+    임계값을 어떻게 잡아도 룰이 모델을 이기고(F1 0.9210 vs 0.9158), 순위
+    품질은 모델이 이긴다(AUC 0.9315 vs 0.9285). 그래서 판정은 룰이 하고
+    모델은 순서만 매긴다. 룰은 조문을 인용할 수 있고 모델은 못 한다는
+    점도 같은 방향이다.
+
+    산출 출처는 `report.model` 에 남아 PDF 각주에 그대로 찍힌다. 5절이
+    기록한 "리포트 출처 거짓 표기" 결함과 같은 이유로 이 표기는 정확해야
+    한다 — 모델이 없어 룰 가중치로 떨어졌으면 `rules-v1` 이어야 한다.
+    """
     now = as_of or datetime.now()
     lc = lc or LCTerms()
 
@@ -49,9 +64,11 @@ def build_report(
         bl_no=_clean(bl.get("bl_no")),
         lc_no=lc.lc_no,
         generated_at=now.date(),
-        defect_probability=verdict.defect_probability,
+        defect_probability=(
+            prediction.probability if prediction else verdict.defect_probability
+        ),
         counts=verdict.counts,
-        model=verdict.model,
+        model=prediction.model if prediction else verdict.model,
     )
 
     report.risks = _risks(verdict)

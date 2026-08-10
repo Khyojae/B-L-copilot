@@ -41,9 +41,42 @@ FEATURE_NAMES: List[str] = [
     "lc_condition_count",
 ]
 
+# 룰엔진의 판정에서 나온 피처. `verdict` 를 읽는 것이 전부 여기 속한다.
+#
+# 이 경계를 코드로 박아 두는 이유는 "모델이 룰을 되학습하는가"라는 질문에
+# 수치로 답하기 위해서다. 이 집합을 뺀 나머지만으로 학습한 비교군이 있어야
+# 모델의 독립적 기여를 분리해 말할 수 있다 (`RAW_FEATURE_NAMES`).
+#
+# 판정 결과(위반 수·가중치)뿐 아니라 검사 범위(`skipped_ratio`,
+# `evaluated_count`)도 포함한다. 위반이 아니어도 룰엔진이 만든 값이므로,
+# 남겨 두면 비교군이 "룰과 무관"하다고 말할 수 없게 된다.
+RULE_DERIVED_FEATURES = frozenset({
+    "critical_count",
+    "warning_count",
+    "info_count",
+    "violation_weight_sum",
+    "skipped_ratio",
+    "evaluated_count",
+})
+
+# 서류 자체에서만 나온 피처. 룰엔진이 없어도 계산된다.
+RAW_FEATURE_NAMES: List[str] = [
+    n for n in FEATURE_NAMES if n not in RULE_DERIVED_FEATURES
+]
+
 # 기한 정보가 없을 때 쓰는 값. 0 을 쓰면 '오늘이 마감'으로 읽혀
 # 위험이 과대평가된다. 넉넉한 양수로 둔다.
 NO_DEADLINE = 999.0
+
+
+def select(values: List[float], names: List[str]) -> List[float]:
+    """전체 피처 행에서 `names` 에 해당하는 열만 뽑는다.
+
+    `FEATURE_NAMES` 순서를 기준으로 자르므로, 호출부가 열 위치를 직접
+    계산하지 않아도 된다. XGBoost 는 이름이 아니라 위치로 읽는다.
+    """
+    index = {name: i for i, name in enumerate(FEATURE_NAMES)}
+    return [values[index[n]] for n in names]
 
 
 @dataclass

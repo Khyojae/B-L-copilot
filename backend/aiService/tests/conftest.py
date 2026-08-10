@@ -120,6 +120,68 @@ def complete_bl_bboxes(
     ]
 
 
+# PDF 지면 크기(A4, 포인트). 라벨 좌표를 **비율로** 옮기므로 실제 값은
+# 중요하지 않다. 오히려 라벨 해상도(1654×2340)와 다른 값을 쓰는 편이,
+# 구역 판정이 절대 좌표가 아니라 비율로 도는지 함께 검증해 준다.
+PDF_PAGE_WIDTH = 595.0
+PDF_PAGE_HEIGHT = 842.0
+
+
+def write_bl_pdf(
+    tmp_path: Path,
+    bboxes: Sequence[dict],
+    name: str = "bl.pdf",
+    with_text_layer: bool = True,
+) -> str:
+    """bbox 목록 → 텍스트 레이어를 가진 PDF.
+
+    라벨 JSON 과 **같은 bbox 목록**으로 만든다. 두 입력이 같은 초안을 내는지
+    비교할 수 있어야, PDF 경로가 기존 파서를 제대로 재사용하는지 확인된다.
+
+    `with_text_layer=False` 면 글자를 그리지 않는다. 스캔본(텍스트 레이어
+    없음) 판정 경로를 타게 하는 데 쓴다.
+    """
+    pymupdf = pytest.importorskip("pymupdf", reason="PyMuPDF 미설치")
+
+    doc = pymupdf.open()
+    page = doc.new_page(width=PDF_PAGE_WIDTH, height=PDF_PAGE_HEIGHT)
+    if with_text_layer:
+        for item in bboxes:
+            text = (item.get("data") or "").strip()
+            xs, ys = item.get("x", []), item.get("y", [])
+            if not text or not xs or not ys:
+                continue
+            # 라벨 픽셀 좌표 → 지면 비율 → 포인트.
+            x = min(xs) / IMAGE_WIDTH * PDF_PAGE_WIDTH
+            # insert_text 는 베이스라인을 받는다. 상자 아래변에 맞춘다.
+            y = max(ys) / IMAGE_HEIGHT * PDF_PAGE_HEIGHT
+            height = (max(ys) - min(ys)) / IMAGE_HEIGHT * PDF_PAGE_HEIGHT
+            page.insert_text(
+                (x, y), text, fontsize=max(4.0, height * 0.8), fontname="helv"
+            )
+    else:
+        # 빈 지면이면 PyMuPDF 가 페이지를 만들어도 내용이 없다. 스캔본처럼
+        # 보이도록 사각형만 하나 그려 둔다 — 텍스트가 아닌 내용물이다.
+        page.draw_rect(pymupdf.Rect(50, 50, 545, 792))
+
+    path = tmp_path / name
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
+def bl_pdf(tmp_path: Path) -> str:
+    """모든 핵심 필드가 채워진 정상 B/L PDF (텍스트 레이어 있음)."""
+    return write_bl_pdf(tmp_path, complete_bl_bboxes())
+
+
+@pytest.fixture
+def scanned_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어가 없는 PDF. OCR 경로로 떨어져야 한다."""
+    return write_bl_pdf(tmp_path, [], name="scan.pdf", with_text_layer=False)
+
+
 @pytest.fixture
 def label_factory(tmp_path: Path):
     """bbox 목록 → 라벨 JSON 경로."""
@@ -155,3 +217,68 @@ def paddle_page(
     if scores is not None:
         page["rec_scores"] = list(scores)
     return page
+
+
+# ── 선하증권 외 서류 (6번 서류 세트 확장) ──────────────────────────
+#
+# 항목명과 값을 별개 bbox 로 둔다. 앵커 파서가 "항목명을 찾아 그 오른쪽·
+# 아래를 읽는" 방식이므로, 한 상자에 합쳐 넣으면 파서를 우회해 버린다.
+
+INVOICE_LINES = [
+    (0.35, 0.06, "COMMERCIAL INVOICE"),
+    (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+    (0.05, 0.18, "INVOICE DATE"), (0.30, 0.18, "2026-06-01"),
+    (0.05, 0.24, "SELLER"), (0.30, 0.24, "GAE WOON CO., LTD."),
+    (0.05, 0.30, "BUYER"), (0.30, 0.30, "DHHJ FRANCHISING CO., LTD."),
+    (0.05, 0.38, "L/C NO"), (0.30, 0.38, "LC-2026-001"),
+    (0.05, 0.46, "DESCRIPTION OF GOODS"), (0.40, 0.46, "SAW MACHINE"),
+    (0.05, 0.54, "QUANTITY"), (0.30, 0.54, "27 SET"),
+    (0.05, 0.60, "PRICE TERM"), (0.30, 0.60, "FOB BUSAN"),
+    (0.05, 0.70, "TOTAL AMOUNT"), (0.30, 0.70, "USD 41,250.00"),
+]
+
+PACKING_LINES = [
+    (0.38, 0.06, "PACKING LIST"),
+    (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+    (0.05, 0.18, "DATE"), (0.30, 0.18, "2026-06-01"),
+    (0.05, 0.24, "SELLER"), (0.30, 0.24, "GAE WOON CO., LTD."),
+    (0.05, 0.30, "BUYER"), (0.30, 0.30, "DHHJ FRANCHISING CO., LTD."),
+    (0.05, 0.40, "DESCRIPTION OF GOODS"), (0.40, 0.40, "SAW MACHINE"),
+    (0.05, 0.48, "NUMBER OF PACKAGES"), (0.40, 0.48, "27 CTNS"),
+    (0.05, 0.54, "GROSS WEIGHT"), (0.35, 0.54, "884.00 KGS"),
+    (0.05, 0.60, "NET WEIGHT"), (0.35, 0.60, "812.00 KGS"),
+    (0.05, 0.66, "MEASUREMENT"), (0.35, 0.66, "349.64 CBM"),
+    (0.05, 0.74, "MARKS AND NUMBERS"), (0.40, 0.74, "DHHJ / BUSAN / NO.1-27"),
+]
+
+
+def lines_to_bboxes(lines) -> List[dict]:
+    """(가로비, 세로비, 글자) 목록 → 라벨 JSON bbox 목록."""
+    boxes = []
+    for xr, yr, text in lines:
+        x0 = int(xr * IMAGE_WIDTH)
+        y0 = int(yr * IMAGE_HEIGHT)
+        width = int(len(text) * 0.011 * IMAGE_WIDTH)
+        height = int(0.014 * IMAGE_HEIGHT)
+        boxes.append({
+            "data": text,
+            "x": [x0, x0 + width, x0 + width, x0],
+            "y": [y0, y0, y0 + height, y0 + height],
+        })
+    return boxes
+
+
+def write_document_pdf(tmp_path: Path, lines, name: str) -> str:
+    return write_bl_pdf(tmp_path, lines_to_bboxes(lines), name=name)
+
+
+@pytest.fixture
+def invoice_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어를 가진 상업송장 PDF."""
+    return write_document_pdf(tmp_path, INVOICE_LINES, "invoice.pdf")
+
+
+@pytest.fixture
+def packing_list_pdf(tmp_path: Path) -> str:
+    """텍스트 레이어를 가진 포장명세서 PDF."""
+    return write_document_pdf(tmp_path, PACKING_LINES, "packing.pdf")
