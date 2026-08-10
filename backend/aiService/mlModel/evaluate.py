@@ -304,9 +304,14 @@ def evaluate(
     seed: int = 42,
     train_model: bool = True,
     target_f1: float = 0.85,
+    corpus_path: Optional[str] = None,
 ) -> EvaluationReport:
-    """합성 데이터로 룰 단독과 룰+모델 성능을 잰다."""
-    generator = SyntheticGenerator(seed=seed)
+    """합성 데이터로 룰 단독과 룰+모델 성능을 잰다.
+
+    `corpus_path` 를 주면 B/L 을 지어내지 않고 실물 말뭉치에서 뽑는다.
+    하자 라벨은 그래도 합성이다 — 바뀌는 것은 서류이지 정답이 아니다.
+    """
+    generator = SyntheticGenerator(seed=seed, corpus=_load_corpus(corpus_path))
     train_samples, eval_samples = generator.split(count, defect_ratio)
     engine = RuleEngine()
 
@@ -421,6 +426,11 @@ def main() -> None:
     parser.add_argument("--no-model", action="store_true", help="룰만 평가")
     parser.add_argument("--save-model", action="store_true", help="학습 모델 저장")
     parser.add_argument("--json", type=Path, help="결과를 JSON 으로 저장")
+    parser.add_argument(
+        "--corpus",
+        help="실물 B/L 말뭉치. 라벨 디렉토리 또는 캐시 JSON. "
+             "주면 B/L 을 지어내지 않고 실물에서 뽑는다 (하자 라벨은 그래도 합성)",
+    )
     args = parser.parse_args()
 
     report = evaluate(
@@ -429,6 +439,7 @@ def main() -> None:
         seed=args.seed,
         train_model=not args.no_model,
         target_f1=args.target_f1,
+        corpus_path=args.corpus,
     )
     print(report.to_text())
 
@@ -444,8 +455,32 @@ def main() -> None:
         _train_and_save(args)
 
 
+def _load_corpus(path: Optional[str]):
+    """말뭉치를 적재한다. 경로가 없으면 빈 목록 — 생성기가 기존 경로로 돈다.
+
+    캐시(.json) 와 라벨 디렉토리를 모두 받는다. 디렉토리를 주면 파싱해서
+    옆에 캐시를 남긴다 — 4,000건 파싱에 40초가 들고, 학습·평가를 반복하는
+    동안 매번 물면 실험 주기가 그만큼 느려진다.
+    """
+    if not path:
+        return []
+    from . import corpus as corpus_module
+
+    target = Path(path)
+    if target.is_dir():
+        records = corpus_module.load(
+            label_dir=str(target), cache_path=str(target.parent / "bl_corpus.json")
+        )
+    else:
+        records = corpus_module.load_cache(str(target))
+    print(f"실물 말뭉치 {len(records)}건 적재: {path}")
+    return records
+
+
 def _train_and_save(args) -> None:
-    generator = SyntheticGenerator(seed=args.seed)
+    generator = SyntheticGenerator(
+        seed=args.seed, corpus=_load_corpus(getattr(args, "corpus", None))
+    )
     train_samples, _ = generator.split(args.count, args.defect_ratio)
     engine = RuleEngine()
     rows, labels = _build_matrix(engine, train_samples)
