@@ -18,6 +18,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from dotenv import load_dotenv
+
 from report import apply_narrative, build_report, render_pdf
 from report.share import (
     DEFAULT_TTL_SECONDS,
@@ -27,6 +29,16 @@ from report.share import (
 )
 from report import share as share_tokens
 from ruleEngine import LCTerms, RuleEngine
+
+# `.env` 를 읽는다. 이 호출이 없으면 `.env.example` 이 설명하는 설정이 하나도
+# 적용되지 않으며, **그 실패는 조용하다.** GEMINI_API_KEY 가 없으면 리포트가
+# 템플릿으로 떨어지고, REPORT_SHARE_SECRET 가 없으면 프로세스마다 임시 키를
+# 만들어 재시작 시 발급한 공유 링크가 전부 죽는다. 둘 다 에러 없이 "동작하는
+# 것처럼" 보이므로 기동 시점에 확실히 읽어 둔다.
+#
+# 이미 설정된 환경변수는 덮지 않는다(python-dotenv 기본값). 컨테이너·CI 가
+# 주입한 값이 파일보다 우선해야 하기 때문이다.
+load_dotenv()
 
 # 룰 카탈로그는 프로세스 기동 시 1회만 읽는다. 요청마다 읽으면 YAML 파싱이
 # 응답 시간에 그대로 들어가고, 카탈로그 오류를 기동이 아니라 첫 요청에서
