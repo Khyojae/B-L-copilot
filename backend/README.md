@@ -39,3 +39,45 @@ Smart_e-BL_Backend/
 ## 관련 저장소
 - `Smart_e-BL_Frontend`: 프론트엔드 (화면 구현 단위 브랜치 전략)
 - `Smart_e-BL`: 배포/CI-CD/통합테스트/문서
+
+## 통합 저장소 동기화
+
+이 저장소의 작업 결과는 통합 저장소 [`SmartBLAI/Smart_e-BL`](https://github.com/SmartBLAI/Smart_e-BL)의
+`develop` 브랜치 `backend/` 폴더로 동기화됩니다.
+
+```bash
+# 전송 대상 확인 (PR 생성하지 않음)
+./scripts/sync-to-monorepo.sh --dry-run
+
+# 동기화 실행 → 통합 저장소에 PR 생성
+./scripts/sync-to-monorepo.sh
+```
+
+`main`에 push되면 `.github/workflows/sync-to-monorepo.yml`이 같은 스크립트를 자동 실행합니다.
+Actions 탭에서 `모노레포 동기화` → `Run workflow`로 수동 실행할 수도 있습니다.
+
+### 동기화 대상
+
+`git archive`로 **git이 추적 중인 파일만** 내보냅니다. 따라서 다음은 구조적으로 제외됩니다.
+
+| 제외 항목 | 사유 |
+|---|---|
+| `api/certs/` | `scripts/generate-dev-ca.js`로 로컬 생성되는 개발용 CA 개인키 (untracked) |
+| `.env` | 자격증명 (gitignore) |
+| `node_modules/`, `__pycache__/` | 빌드 산출물 (gitignore) |
+| `.github/` | 이 워크플로가 통합 저장소에서 중복 실행되는 것을 방지 |
+
+제외 목록을 사람이 관리하지 않아도 되도록 의도적으로 `rsync` 대신 `git archive`를 씁니다.
+`--dry-run`이 민감 항목 포함 여부를 매번 검사합니다.
+
+### 사전 준비 (최초 1회)
+
+GitHub Actions로 자동 동기화하려면 `MONOREPO_TOKEN` Secret 등록이 필요합니다.
+기본 `GITHUB_TOKEN`은 이 저장소에만 유효해서 통합 저장소에 push할 수 없습니다.
+
+1. `SmartBLAI/Smart_e-BL`에 대한 `contents:write` · `pull_requests:write` 권한을 가진
+   PAT(또는 GitHub App 토큰)을 발급
+2. Settings → Secrets and variables → Actions → New repository secret
+3. 이름 `MONOREPO_TOKEN`으로 등록
+
+등록 전에는 `workflow_dispatch`의 `dry_run` 옵션으로만 실행하세요.

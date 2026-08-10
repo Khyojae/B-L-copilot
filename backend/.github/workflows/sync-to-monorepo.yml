@@ -1,0 +1,60 @@
+name: 모노레포 동기화
+
+# 백엔드 저장소의 내용을 SmartBLAI/Smart_e-BL 의 develop 브랜치 backend/ 폴더로
+# 동기화하고 PR을 연다. 실제 로직은 scripts/sync-to-monorepo.sh 에 있으며
+# 로컬 실행과 CI 실행이 같은 코드를 타도록 여기서는 호출만 한다.
+#
+# 사전 준비: MONOREPO_TOKEN Secret 등록 필요.
+#   SmartBLAI/Smart_e-BL 에 대한 contents:write · pull_requests:write 권한을 가진
+#   PAT 또는 GitHub App 토큰. 기본 GITHUB_TOKEN 은 이 저장소에만 유효해서 쓸 수 없다.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '전송 대상만 출력하고 종료 (PR 생성하지 않음)'
+        type: boolean
+        default: false
+
+# 연속 push 시 동기화가 겹쳐 PR이 난립하는 것을 막는다.
+concurrency:
+  group: sync-to-monorepo
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 백엔드 저장소 체크아웃
+        uses: actions/checkout@v4
+        with:
+          # 동기화 커밋 메시지에 원본 SHA를 남기므로 얕은 클론으로 충분하다.
+          fetch-depth: 1
+
+      - name: 토큰 확인
+        if: ${{ !inputs.dry_run }}
+        env:
+          MONOREPO_TOKEN: ${{ secrets.MONOREPO_TOKEN }}
+        run: |
+          if [ -z "$MONOREPO_TOKEN" ]; then
+            echo "::error::MONOREPO_TOKEN Secret이 등록되지 않았습니다."
+            echo "Settings → Secrets and variables → Actions 에서 등록하세요."
+            echo "필요 권한: SmartBLAI/Smart_e-BL 의 contents:write, pull_requests:write"
+            exit 1
+          fi
+
+      - name: 동기화 실행
+        env:
+          # gh CLI 는 GH_TOKEN 을 본다. 통합 저장소에 쓸 수 있는 토큰을 넘긴다.
+          GH_TOKEN: ${{ secrets.MONOREPO_TOKEN }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          chmod +x scripts/sync-to-monorepo.sh
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ./scripts/sync-to-monorepo.sh --dry-run
+          else
+            ./scripts/sync-to-monorepo.sh
+          fi
