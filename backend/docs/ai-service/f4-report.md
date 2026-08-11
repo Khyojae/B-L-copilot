@@ -123,6 +123,423 @@ pathlib.Path("out.pdf").write_bytes(render_pdf(report))
       대상 필드: port_of_loading
 ```
 
+## API 명세
+
+공통 규약(Base URL·에러 형식·상태 코드)은 [api-spec.md](api-spec.md) 를 먼저 볼 것.
+
+| 메서드 | 경로 | 기능 |
+| --- | --- | --- |
+| POST | `/report` | 리포트 JSON |
+| POST | `/report/pdf` | 리포트 PDF (attachment) |
+| POST | `/report/share` | 공유 링크 발급 |
+| GET | `/report/shared/{token}` | 공유 리포트 JSON |
+| GET | `/report/shared/{token}/pdf` | 공유 리포트 PDF (inline) |
+
+요청 본문은 앞의 셋이 동일 계열이다 — `ReportRequest` = F3 `VerifyRequest` + `submitted_documents`, `ShareRequest` = `ReportRequest` + `ttl_seconds`.
+
+---
+
+### POST `/report`
+
+## **설명**
+
+선제 대응 리포트 JSON. 기획안 S7 미리보기가 이걸 그린다. 구성 5+1 절은 위 "구성" 참조.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**
+
+```json
+{
+  "bl": { "bl_no": "HG290309", "consignee": "DHHJ FRANCHISING CO., LTD." },
+  "lc": { "lc_no": "LC20260001", "documents_required": "COMMERCIAL INVOICE, PACKING LIST" },
+  "as_of": "2026-06-10T00:00:00",
+  "submitted_documents": ["BILL OF LADING", "COMMERCIAL INVOICE"]
+}
+```
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `bl` | object | **Y** | [f3-defect-prediction.md](f3-defect-prediction.md) `/verify` 와 동일 |
+| `lc` | object | N | 동일 |
+| `as_of` | datetime | N | 동일. 제출 기한 계산의 기준 시각이기도 하다 |
+| `submitted_documents` | array\<string> | N | 실제 제출한 서류명. **L/C 46A 와 대조해 누락을 찾는다** |
+
+## **Response**
+
+**Success (200)**
+
+```json
+{
+  "bl_no": "HG290309",
+  "lc_no": "LC20260001",
+  "generated_at": "2026-06-10",
+  "summary": {
+    "defect_probability": 1.0,
+    "risk_level": "높음",
+    "counts": { "critical": 6, "warning": 1, "info": 0 },
+    "model": "rules-v1",
+    "headline": "제출 전 정정이 필요한 치명 하자 6건이 발견되었습니다.",
+    "narrative": "선적항과 수하인이 신용장 지정과 다릅니다. ...",
+    "narrative_source": "template"
+  },
+  "risks": [
+    {
+      "rule_id": "D003",
+      "severity": "critical",
+      "severity_label": "치명",
+      "title": "선적항 불일치",
+      "message": "선적항이 L/C 지정 항구와 다릅니다.",
+      "source": "UCP 600 Art.20(a)(iii)",
+      "fields": ["port_of_loading"],
+      "observed": { "bl": "SHANGHAI, CHINA", "lc": "BUSAN" }
+    }
+  ],
+  "checklist": [
+    { "label": "요구 서류: COMMERCIAL INVOICE", "done": true, "detail": "" },
+    { "label": "요구 서류: PACKING LIST", "done": false, "detail": "미제출" }
+  ],
+  "deadline": {
+    "presentation_due": "2026-06-22",
+    "expiry": "2026-06-30",
+    "effective_due": "2026-06-22",
+    "days_left": 12,
+    "is_overdue": false,
+    "basis": "선적일 + 21일 (UCP 600 Art.14(c))"
+  },
+  "recommendations": [
+    {
+      "order": 1,
+      "severity_label": "치명",
+      "action": "운송인에게 선적항 정정 B/L 을 요청하십시오.",
+      "target_fields": ["port_of_loading"],
+      "source": "UCP 600 Art.20(a)(iii)"
+    }
+  ],
+  "outlook": {
+    "verdict": "하자 통보 및 재제출 요구 예상",
+    "detail": "치명 하자 6건이 남아 있어 은행이 지급을 보류할 가능성이 높습니다."
+  },
+  "unchecked": [
+    {
+      "rule_id": "D021",
+      "title": "운임 표기 일치",
+      "reason": "total_freight 가 비어 있어 판단할 수 없습니다."
+    }
+  ]
+}
+```
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `summary.risk_level` | string | `높음`(critical 있음) \| `보통`(warning 있음) \| `낮음` |
+| `summary.narrative_source` | string | `template` \| `llm`. **LLM 호출이 실패해 템플릿으로 떨어져도 정확히 `template`** (위 "골격은 결정론, LLM 은 산문만" 절) |
+| `deadline.effective_due` | date\|null | 제시기한과 유효기일 중 **이른 날** (위 "제출 기한 계산" 절) |
+| `deadline.basis` | string | 어떻게 계산했는지 |
+| `outlook` | object | 예상 심사 결과. **시나리오지 예언이 아니다** |
+| `unchecked` | array | 검사하지 못한 항목. 기획안에 없지만 의도적으로 추가한 절이다 |
+
+**Error**
+
+```json
+{
+  "detail": "bl 필드가 비어 있습니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | `bl` 이 비었거나 입력 형 오류 |
+| 422 | 스키마 불일치 |
+
+---
+
+### POST `/report/pdf`
+
+## **설명**
+
+리포트 PDF. 기획안 5.2 "PDF 로 저장·공유". 요청 본문은 `/report` 와 완전히 동일하다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**
+
+`POST /report` 와 동일.
+
+## **Response**
+
+**Success (200)**
+
+PDF 바이너리.
+
+```
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="BL_Copilot_Report_HG290309.pdf"
+```
+
+`bl_no` 가 없으면 파일명은 `BL_Copilot_Report_draft.pdf`.
+
+**Error**
+
+```json
+{
+  "detail": "bl 필드가 비어 있습니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | `bl` 이 비었거나 입력 형 오류 |
+| 422 | 스키마 불일치 |
+
+---
+
+### POST `/report/share`
+
+## **설명**
+
+공유 링크 발급. 기획안 5절 "PDF 출력·공유 가능".
+
+**저장하지 않는다.** 링크가 입력을 싣고 다니며, 열릴 때마다 서버가 같은 리포트를 다시 조립한다. 토큰은 `v1.<zlib+base64url(입력)>.<HMAC-SHA256>` 형식이고 전체 B/L + L/C 를 실어도 620자 안팎이다.
+
+발급 시 한 번 조립해 본다. 열어 봐야 400 이 나는 링크를 쥐여주면 받는 쪽에서 터지고, 그때는 원인을 알 방법이 없다.
+
+**한계 두 가지**
+
+1. **토큰은 암호문이 아니다.** 서명은 위조를 막을 뿐 내용을 가리지 않는다. 링크를 가진 사람은 base64 를 풀어 B/L 원문을 읽을 수 있다 — **링크가 새면 서류가 샌다.** 완화책은 짧은 만료뿐이다.
+2. **`REPORT_SHARE_SECRET` 미설정 시 프로세스마다 임시 키를 쓴다.** 재시작하면 발급한 링크가 전부 죽는다. 응답의 `ephemeral_secret` 과 `warning` 이 이 상태를 알린다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**
+
+```json
+{
+  "bl": { "bl_no": "HG290309", "consignee": "DHHJ FRANCHISING CO., LTD." },
+  "lc": { "lc_no": "LC20260001" },
+  "as_of": "2026-06-10T00:00:00",
+  "submitted_documents": ["BILL OF LADING"],
+  "ttl_seconds": 604800
+}
+```
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `bl` | object | **Y** | `/report` 와 동일 |
+| `lc` | object | N | `/report` 와 동일 |
+| `as_of` | datetime | N | `/report` 와 동일 |
+| `submitted_documents` | array\<string> | N | `/report` 와 동일 |
+| `ttl_seconds` | int | N | 링크 유효기간(초). **최소 60, 최대 7776000(90일)**. 생략 시 7일 |
+
+## **Response**
+
+**Success (200)**
+
+```json
+{
+  "token": "v1.eJyNkMFqwzAMhl_F6...Xg.7pQz3mKd1YrJ",
+  "path": "/report/shared/v1.eJyNkMFqwzAMhl_F6...Xg.7pQz3mKd1YrJ",
+  "pdf_path": "/report/shared/v1.eJyNkMFqwzAMhl_F6...Xg.7pQz3mKd1YrJ/pdf",
+  "expires_at": "2026-06-17T00:00:00",
+  "ephemeral_secret": false,
+  "warning": null
+}
+```
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `token` | string | 공유 토큰 |
+| `path` | string | 리포트 JSON 경로 |
+| `pdf_path` | string | 리포트 PDF 경로 |
+| `expires_at` | datetime | 만료 시각 |
+| `ephemeral_secret` | bool | **`true` 면 서버 재시작 시 링크가 무효가 된다** |
+| `warning` | string\|null | `ephemeral_secret` 이 `true` 일 때 안내 문구 |
+
+**Error**
+
+```json
+{
+  "detail": "공유 링크가 너무 깁니다 (7231 > 6000자). 서류 항목을 줄이거나 PDF 를 직접 내려받아 전달하세요."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | `bl` 이 비었거나 입력 형 오류 (발급 전 조립 실패) |
+| 413 | 토큰이 `MAX_TOKEN_BYTES`(6000자) 초과 |
+| 422 | `ttl_seconds` 가 60 미만 또는 7776000 초과 |
+
+---
+
+### GET `/report/shared/{token}`
+
+## **설명**
+
+공유된 리포트 JSON. 토큰에서 입력을 복원해 리포트를 다시 조립한다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `token` | string | `/report/share` 가 발급한 토큰 |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+}
+```
+
+**Body**
+
+```json
+{
+}
+```
+
+## **Response**
+
+**Success (200)**
+
+`POST /report` 와 동일한 리포트 구조.
+
+**Error**
+
+```json
+{
+  "detail": "공유 링크가 만료되었습니다. 새로 발급하세요."
+}
+```
+
+| 코드 | 조건 | `detail` |
+| --- | --- | --- |
+| 404 | 형식 오류 | `토큰 형식이 올바르지 않습니다.` |
+| 404 | 버전 불일치 | `지원하지 않는 토큰 버전입니다: <ver>` |
+| 404 | 서명 위조 | `서명이 일치하지 않습니다.` |
+| 404 | 본문 손상 | `토큰 본문을 해석할 수 없습니다.` |
+| 410 | 만료 | **404 로 내면 받은 쪽이 '주소가 틀렸나'를 의심한다** |
+
+---
+
+### GET `/report/shared/{token}/pdf`
+
+## **설명**
+
+공유된 리포트 PDF. 링크를 클릭하면 브라우저에서 바로 열린다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `token` | string | `/report/share` 가 발급한 토큰 |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+}
+```
+
+**Body**
+
+```json
+{
+}
+```
+
+## **Response**
+
+**Success (200)**
+
+PDF 바이너리.
+
+```
+Content-Type: application/pdf
+Content-Disposition: inline; filename="BL_Copilot_Report_HG290309.pdf"
+```
+
+`/report/pdf` 와 달리 **`inline`** 이다 — 공유 링크는 브라우저에서 바로 열려야 한다.
+
+**Error**
+
+`GET /report/shared/{token}` 과 동일 (404 / 410).
+
 ## 테스트
 
 ```bash
