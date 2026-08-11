@@ -219,14 +219,14 @@ for v in verdict.sorted_violations():
 ```json
 {
   "count": 29,
-  "unverified_source_count": 3,
+  "unverified_source_count": 29,
   "rules": [
     {
       "id": "D003",
       "title": "선적항 불일치",
       "severity": "critical",
       "source": "UCP 600 Art.20(a)(ii)",
-      "source_verified": true,
+      "source_verified": false,
       "check": "lc_match"
     }
   ]
@@ -234,6 +234,8 @@ for v in verdict.sorted_violations():
 ```
 
 `severity` — `critical`(치명) | `warning`(경고) | `info`(참고)
+
+> **현재 29건 중 29건이 미검증이다** (`source_verified: false`). 조문 인용이 아직 실무 검증을 거치지 않았다는 뜻이며, 위 "남은 것"의 멘토 기업 검증 항목이 이것이다. 기동 시에도 경고가 찍힌다. 화면에서 근거 조문을 인용할 때 **검증된 조문처럼 보이게 하면 안 된다.**
 
 **Error**
 
