@@ -163,6 +163,237 @@ for v in verdict.sorted_violations():
 
 `as_of` 는 제시기간 계산의 기준 시각이다. 주입하지 않으면 테스트가 실행 날짜에 따라 흔들린다.
 
+## API 명세
+
+공통 규약(Base URL·에러 형식·상태 코드)은 [api-spec.md](api-spec.md) 를 먼저 볼 것.
+
+| 메서드 | 경로 | 기능 |
+| --- | --- | --- |
+| GET | `/rules` | 룰 카탈로그 조회 |
+| POST | `/verify` | 하자 검증 |
+
+---
+
+### GET `/rules`
+
+## **설명**
+
+적재된 룰 카탈로그 목록. S11 설정 화면과 발표 시연에서 쓴다.
+
+`unverified_source_count` 는 **조문 인용이 실무 검증을 거치지 않은 룰 수**다. 화면이 이 값을 숨기면 미검증 조문이 검증된 것처럼 인용된다.
+
+카탈로그는 기동 시 1회만 읽는다(위 "로드 시점에 카탈로그를 전수 검증한다" 절).
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+}
+```
+
+**Body**
+
+```json
+{
+}
+```
+
+## **Response**
+
+**Success (200)**
+
+```json
+{
+  "count": 29,
+  "unverified_source_count": 3,
+  "rules": [
+    {
+      "id": "D003",
+      "title": "선적항 불일치",
+      "severity": "critical",
+      "source": "UCP 600 Art.20(a)(ii)",
+      "source_verified": true,
+      "check": "lc_match"
+    }
+  ]
+}
+```
+
+`severity` — `critical`(치명) | `warning`(경고) | `info`(참고)
+
+**Error**
+
+없음.
+
+---
+
+### POST `/verify`
+
+## **설명**
+
+하자 검증. 기획안 S4(검증 결과) 화면이 이 응답을 그대로 그린다.
+
+`bl` 은 F1 이 뽑은 값이든 S3 편집기에서 사람이 고친 값이든 **같은 형태로 받는다**(위 "입력 형태" 절). 두 경로를 가르면 '편집 후 재검증'이 다른 코드 경로를 탄다.
+
+**판정은 `verdict`(룰), 위험도 순위는 `prediction`(모델)** 이 담당한다. 이진 판정은 룰이, 순위는 모델이 낫다는 측정 결과에 따른 분리다(위 "성능" 절).
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**
+
+```json
+{
+  "bl": {
+    "bl_no": "HG290309",
+    "shipper": "HANJIN SHIPPING CO., LTD.",
+    "consignee": "DHHJ FRANCHISING CO., LTD.",
+    "port_of_loading": "BUSAN, KOREA",
+    "port_of_discharge": "LOS ANGELES, USA",
+    "description_of_goods": "SPARE PARTS",
+    "date_of_issue": "2026-06-10",
+    "on_board_date": "2026-06-08"
+  },
+  "lc": {
+    "lc_no": "LC20260001",
+    "expiry_date": "2026-06-30",
+    "latest_shipment_date": "2026-06-15",
+    "port_of_loading": "BUSAN",
+    "port_of_discharge": "LOS ANGELES",
+    "description_of_goods": "SPARE PARTS",
+    "documents_required": "COMMERCIAL INVOICE, PACKING LIST",
+    "partial_shipment": "PROHIBITED",
+    "transhipment": "ALLOWED"
+  },
+  "as_of": "2026-06-10T00:00:00"
+}
+```
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `bl` | object | **Y** | B/L 필드. 필드명은 [f1-intake.md](f1-intake.md) 의 15개. 비면 400 |
+| `lc` | object | N | 신용장 조건(MT700). 생략 시 **서류 내부 정합성만** 검사 |
+| `as_of` | datetime | N | 제시기간 계산 기준 시각. 생략 시 현재 시각. **테스트·시연에서는 넣어야 결과가 고정된다** |
+
+**`lc` 는 MT700 태그명 대신 내부 필드명을 쓴다** (`MT700_TAGS`)
+
+| MT700 | 필드명 |
+| --- | --- |
+| 31D | `expiry_date` |
+| 32B | `currency_amount` |
+| 39A | `tolerance_pct` |
+| 43P | `partial_shipment` (`ALLOWED` \| `PROHIBITED`) |
+| 43T | `transhipment` (`ALLOWED` \| `PROHIBITED`) |
+| 44C | `latest_shipment_date` |
+| 44E | `port_of_loading` |
+| 44F | `port_of_discharge` |
+| 45A | `description_of_goods` |
+| 46A | `documents_required` |
+| 50 | `applicant` |
+
+모르는 키는 조용히 버린다.
+
+## **Response**
+
+**Success (200)**
+
+```json
+{
+  "shipment_id": "HG290309",
+  "verdict": {
+    "model": "rules-v1",
+    "defect_probability": 1.0,
+    "evaluated_count": 18,
+    "skipped_count": 3,
+    "counts": { "critical": 6, "warning": 1, "info": 0 },
+    "has_critical": true,
+    "violations": [
+      {
+        "rule_id": "D003",
+        "severity": "critical",
+        "severity_label": "치명",
+        "title": "선적항 불일치",
+        "message": "선적항이 L/C 지정 항구와 다릅니다.",
+        "fields": ["port_of_loading"],
+        "source": "UCP 600 Art.20(a)(ii)",
+        "remedy": "운송인에게 정정 B/L 을 요청하십시오.",
+        "observed": { "bl": "SHANGHAI, CHINA", "lc": "BUSAN" }
+      }
+    ],
+    "skipped": [
+      {
+        "rule_id": "D021",
+        "title": "운임 표기 일치",
+        "reason": "total_freight 가 비어 있어 판단할 수 없습니다."
+      }
+    ]
+  },
+  "prediction": {
+    "probability": 0.8734,
+    "model": "xgboost-v1",
+    "is_defect": true,
+    "threshold": 0.5
+  }
+}
+```
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `shipment_id` | string\|null | `bl.bl_no` 를 그대로 반환 |
+| `verdict.model` | string | 확률 산출 주체. `rules-v1` = 룰 가중치 합산 |
+| `verdict.defect_probability` | float | 룰 가중치 합을 1.0 에서 자른 값. **확률보다 위험 점수에 가깝다** — `model` 을 함께 읽을 것 |
+| `verdict.skipped` | array | **평가하지 못한 룰**(3상태 중 `not_evaluated`). 화면에서 감추면 사용자가 '검사했고 문제없다'로 읽는다 |
+| `verdict.violations` | array | 심각도 내림차순 → 가중치 내림차순 정렬 |
+| `prediction.model` | string | `xgboost-v1`, 또는 모델 미적재·예측 실패 시 `rules-v1` |
+
+> **`prediction.model` 이 `rules-v1` 이면 학습된 모델이 아니라 룰 가중치다**(위 "모델이 없으면 룰 가중치로 대체한다" 절). 예측이 실패해도 검증 결과는 돌려주도록 설계돼 있어 200 으로 나간다. 화면에서 이걸 학습 모델의 확률로 표기하면 안 된다.
+
+**Error**
+
+```json
+{
+  "detail": "bl 필드가 비어 있습니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | `bl` 이 비었거나 입력 형 오류 |
+| 422 | `bl` 키 자체가 없음 |
+
 ## 테스트
 
 ```bash

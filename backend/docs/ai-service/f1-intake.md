@@ -98,6 +98,402 @@ fields.confidence_dict()  # → field_confidence 로 저장
 때문이다. 추출 로직이 저장소를 알게 되면 테스트에 DB 가 필요해지고, 스키마가 바뀔
 때마다 추출 로직까지 흔들린다. 저장은 호출부(FastAPI 레이어)가 결과를 받아서 한다.
 
+## API 명세
+
+공통 규약(Base URL·에러 형식·상태 코드)은 [api-spec.md](api-spec.md) 를 먼저 볼 것.
+
+F1 은 입력 5종에 엔드포인트 하나씩을 둔다. **응답은 5개가 모두 동일한 초안 구조**이므로 아래 "공통 응답"에 한 번만 적는다.
+
+| 메서드 | 경로 | 입력 | OCR |
+| --- | --- | --- | --- |
+| POST | `/extract/label` | 라벨 JSON | 불필요 |
+| POST | `/extract` | 이미지 | **필요** |
+| POST | `/extract/pdf` | PDF | 텍스트 레이어면 불필요 |
+| POST | `/extract/excel` | xlsx | 불필요 |
+| POST | `/extract/email` | .eml | 첨부에 따라 |
+
+---
+
+### POST `/extract/label`
+
+## **설명**
+
+라벨 JSON(OCR bbox 목록)에서 B/L 초안을 만든다. **OCR 엔진 없이 파서만 태우는 경로**로 PaddleOCR 설치 없이 동작한다. CI·시연에서 쓴다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**
+
+```json
+{
+  "Images": {
+    "identifier": "HG290309",
+    "width": 1654,
+    "height": 2340
+  },
+  "bbox": [
+    {
+      "data": "HG290309",
+      "x": [120, 340, 340, 120],
+      "y": [210, 210, 250, 250],
+      "confidence": 0.98
+    }
+  ]
+}
+```
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `Images` | object | N | 이미지 메타. 생략 시 `{}` |
+| `bbox` | array | **Y** | OCR bbox 목록. 비면 400 |
+
+## **Response**
+
+**Success (200)**
+
+아래 [공통 응답](#공통-응답--초안-구조) 참조. `source` 는 `json`.
+
+**Error**
+
+```json
+{
+  "detail": "bbox 가 비어 있습니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | `bbox` 가 비어 있음 |
+| 422 | 스키마 불일치 |
+
+---
+
+### POST `/extract`
+
+## **설명**
+
+이미지 업로드에서 B/L 초안을 만든다. **PaddleOCR 이 필요하다.** 스캔 서류 운영 경로.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "multipart/form-data"
+}
+```
+
+**Body**
+
+`multipart/form-data`
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `file` | file | **Y** | 이미지 파일. 확장자로 임시 파일명을 정하며 없으면 `.png` 로 본다 |
+
+## **Response**
+
+**Success (200)**
+
+[공통 응답](#공통-응답--초안-구조) 참조. `source` 는 `image`.
+
+**Error**
+
+```json
+{
+  "detail": "빈 파일입니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | 빈 파일 |
+| 503 | PaddleOCR 미설치 (`detail` 에 `pip install` 안내 포함) |
+
+---
+
+### POST `/extract/pdf`
+
+## **설명**
+
+PDF 에서 B/L 초안을 만든다.
+
+**텍스트 레이어가 있는 PDF 는 OCR 을 타지 않는다.** 텍스트 줄이 10개 미만이면 스캔본으로 보고 200dpi 로 구워 OCR 에 넘긴다. 어느 경로였는지는 `source` 에 `pdf-text` / `pdf-ocr` 로 남는다. 위 "두 가지 입력 경로" 절 참조.
+
+PDF 판정은 확장자가 아니라 `%PDF` 매직바이트로 한다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `page` | int | N | 읽을 페이지 (0-base). 기본 `0` |
+
+**Header**
+
+```json
+{
+  "Content-Type": "multipart/form-data"
+}
+```
+
+**Body**
+
+`multipart/form-data`
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `file` | file | **Y** | PDF 파일 |
+
+## **Response**
+
+**Success (200)**
+
+[공통 응답](#공통-응답--초안-구조) 참조. `source` 는 `pdf-text` 또는 `pdf-ocr`.
+
+**Error**
+
+```json
+{
+  "detail": "PDF 파일이 아닙니다. 이미지는 /extract 를 쓰세요."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | 빈 파일 / `%PDF` 아님 / 페이지 범위 초과 |
+| 503 | PyMuPDF 미설치, 또는 스캔본인데 PaddleOCR 미설치 |
+
+---
+
+### POST `/extract/excel`
+
+## **설명**
+
+Excel(xlsx)에서 B/L 초안을 만든다. **OCR 을 타지 않는다.**
+
+`sheet` 를 주지 않으면 **값이 가장 많은 시트**를 고른다. 첫 시트를 쓰면 표지·안내 시트가 앞에 있는 파일에서 빈 결과가 나온다.
+
+xlsx 는 zip 컨테이너이므로 `PK` 매직바이트로 판정한다. 구형 `.xls`(OLE2)나 CSV 는 400 이다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `sheet` | string | N | 시트명. 생략 시 값이 가장 많은 시트 |
+
+**Header**
+
+```json
+{
+  "Content-Type": "multipart/form-data"
+}
+```
+
+**Body**
+
+`multipart/form-data`
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `file` | file | **Y** | xlsx 파일 |
+
+## **Response**
+
+**Success (200)**
+
+[공통 응답](#공통-응답--초안-구조) 참조. `source` 는 `excel`.
+
+**Error**
+
+```json
+{
+  "detail": "xlsx 파일이 아닙니다. 구형 .xls 는 xlsx 로 변환해 주세요."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | 빈 파일 / `PK` 아님 / 없는 시트명 / 값이 없는 시트 |
+| 503 | openpyxl 미설치 |
+
+---
+
+### POST `/extract/email`
+
+## **설명**
+
+이메일(`.eml`)에서 B/L 초안을 만든다.
+
+**첨부를 먼저 본다.** 본문은 대개 안내문이고 첨부가 서류이므로, 본문부터 읽으면 선하증권 대신 인사말을 파싱한다. 지원 첨부가 없을 때만 본문을 읽는다.
+
+`source` 가 어느 경로였는지 알린다 — 본문에서 뽑은 값과 첨부 원본에서 뽑은 값은 신뢰 수준이 다르다.
+
+## **Request**
+
+**Path Parameter**
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| 없음 | | |
+
+**Query Parameter**
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| 없음 | | | |
+
+**Header**
+
+```json
+{
+  "Content-Type": "multipart/form-data"
+}
+```
+
+**Body**
+
+`multipart/form-data`
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `file` | file | **Y** | `.eml` 파일 |
+
+## **Response**
+
+**Success (200)**
+
+[공통 응답](#공통-응답--초안-구조) 참조. `source` 는 `email-pdf` / `email-excel` / `email-image` / `email-body`.
+
+**Error**
+
+```json
+{
+  "detail": "빈 파일입니다."
+}
+```
+
+| 코드 | 조건 |
+| --- | --- |
+| 400 | 빈 파일 / 본문도 비었고 읽을 첨부도 없음 |
+| 503 | 첨부가 스캔 이미지인데 PaddleOCR 미설치 등 |
+
+---
+
+### 공통 응답 — 초안 구조
+
+위 5개 엔드포인트가 모두 이 구조를 반환한다. `BLDraft.to_dict()` 다.
+
+```json
+{
+  "image_id": "HG290309",
+  "form_type": "선하증권",
+  "source": "json",
+  "ocr_mean_confidence": 0.9421,
+  "processing_time_ms": 12,
+  "completeness": 0.8,
+  "is_ready_for_verification": true,
+  "review_required_count": 2,
+  "fields": [
+    {
+      "name": "bl_no",
+      "label": "B/L 번호",
+      "value": "HG290309",
+      "confidence": 0.98,
+      "source": "region",
+      "is_critical": true,
+      "needs_review": false,
+      "review_reason": null,
+      "review_message": null
+    },
+    {
+      "name": "voyage_no",
+      "label": "항차",
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "is_critical": false,
+      "needs_review": true,
+      "review_reason": "missing",
+      "review_message": "추출하지 못했습니다. 원본을 확인해 주세요."
+    }
+  ]
+}
+```
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `form_type` | string | `선하증권` \| `상업송장` \| `포장명세서` \| `미상`. **종류가 달라도 응답 형태는 같다** |
+| `source` | string | `json` \| `image` \| `pdf-text` \| `pdf-ocr` \| `excel` \| `email-pdf` \| `email-excel` \| `email-image` \| `email-body` |
+| `completeness` | float | 값이 채워진 필드 비율 (0.0~1.0) |
+| `is_ready_for_verification` | bool | 핵심 필드가 모두 찼는지. false 면 F3 결과가 '값 없음' 하자로 도배된다 |
+| `review_required_count` | int | 사람 확인이 필요한 필드 수 |
+| `fields[].source` | string\|null | `region`(좌표) \| `anchor`(항목명 근접) \| `llm` \| `null`(값 없음) |
+| `fields[].review_reason` | string\|null | 아래 표 |
+
+**`review_reason` 값** — 위 "신뢰도" 절이 각각의 판정 근거를 설명한다.
+
+| 값 | 의미 |
+| --- | --- |
+| `missing_critical` | 핵심 필드인데 추출 실패 |
+| `missing` | 그 외 필드 추출 실패 |
+| `low_confidence` | 값은 있으나 OCR 신뢰도 미달 |
+| `anchor_derived` | 좌표가 아닌 항목명 근접으로 추정 |
+| `label_echoed` | 값에 서식의 항목명이 섞임 |
+| `uncalibrated_layout` | 구역 좌표를 보정하지 않은 형식 (`pdf-text`/`excel`/`email-body`) |
+
+**B/L 필드 15개** — `bl_no`, `shipper`, `consignee`, `notify_party`, `vessel`, `voyage_no`, `port_of_loading`, `port_of_discharge`, `description_of_goods`, `gross_weight`, `measurement`, `date_of_issue`, `place_of_issue`, `on_board_date`, `total_freight`
+
+이 중 **핵심 필드 5개**(`is_critical: true`)는 위 "초안" 절에 적은 것과 같다.
+
 ## 테스트
 
 ```bash
