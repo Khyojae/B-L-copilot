@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AlertCircle, AlertTriangle, HelpCircle, MinusCircle } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
 import { CONFIDENCE, toConfidenceGrade } from '../../constants/domain';
@@ -18,6 +19,23 @@ export function FieldRow({ field }: FieldRowProps) {
   const meta = CONFIDENCE[grade];
   const Icon = meta.icon !== null ? ICON_BY_NAME[meta.icon as keyof typeof ICON_BY_NAME] : null;
 
+  // 화면에서만 반영되는 값 — 서버 저장은 아직 없음
+  const [displayValue, setDisplayValue] = useState(field.value);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(field.value ?? '');
+  const isEdited = displayValue !== field.value;
+
+  function startEditing() {
+    setDraft(displayValue ?? '');
+    setIsEditing(true);
+  }
+
+  function commitEdit() {
+    const trimmed = draft.trim();
+    setDisplayValue(trimmed === '' ? null : trimmed);
+    setIsEditing(false);
+  }
+
   return (
     <div
       style={{
@@ -36,7 +54,35 @@ export function FieldRow({ field }: FieldRowProps) {
         {field.field_name}
       </span>
 
-      <span style={{ flex: 1, textAlign: 'left' }}>{field.value ?? '출처 없음'}</span>
+      {isEditing ? (
+        <input
+          type="text"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitEdit();
+            if (event.key === 'Escape') setIsEditing(false);
+          }}
+          autoFocus
+          style={{
+            flex: 1,
+            font: 'inherit',
+            color: 'inherit',
+            border: '1px solid var(--border)',
+            borderRadius: 4,
+            padding: '2px 6px',
+          }}
+        />
+      ) : (
+        <span onClick={startEditing} style={{ flex: 1, textAlign: 'left', cursor: 'text' }}>
+          {displayValue ?? '출처 없음'}
+        </span>
+      )}
+
+      {isEdited && (
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>수정됨</span>
+      )}
 
       {field.conflict_flag && (
         <AlertTriangle size={14} color="var(--severity-critical)" aria-hidden="true" />
