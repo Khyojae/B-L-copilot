@@ -70,6 +70,39 @@ VESSELS = ["MSC BIANCA", "HANJIN SEOUL", "EVER GIVEN", "COSCO PRIDE", "HMM ALGEC
 INCOTERMS_POOL = ["FOB", "CIF", "CFR", "EXW", "DAP"]
 
 
+# ── 개발셋 · 평가셋 (기획안 v2 10.3) ─────────────────────────────
+#
+# "룰 개발에 사용한 선적과 평가에 사용하는 선적을 분리하고, 평가셋은 개발
+# 기간 중 열람하지 않는다. 룰엔진은 정답을 보면서 만들면 성능이 자명하게
+# 부풀려지므로, 이 분리는 성능 수치의 의미를 지키는 최소 조건이다."
+DEV = "dev"
+EVAL = "eval"
+
+# 두 세트의 시드 간격.
+#
+# **1 을 더하면 안 된다.** `--seed 42` 의 평가셋이 `--seed 43` 의 개발셋과
+# 같아지고, 시드를 바꿔 가며 평균을 내는 순간(문서의 42~46 평균이 그렇다)
+# 분리가 조용히 무너진다. 간격이 시드 범위보다 크면 그 겹침이 생기지 않는다.
+_EVAL_SEED_OFFSET = 1_000_003
+
+
+def seed_for(seed: int, split: str) -> int:
+    return seed if split == DEV else seed + _EVAL_SEED_OFFSET
+
+
+def partition_corpus(
+    records: Sequence[BLRecord], split: str
+) -> List[BLRecord]:
+    """말뭉치도 나눈다. 같은 실물 B/L 이 양쪽에 나오면 분리가 반쪽이 된다.
+
+    2건 미만이면 나눌 수 없어 양쪽이 같은 것을 본다(테스트 픽스처가 그렇다).
+    조용히 넘어가지 않도록 `SyntheticGenerator.corpus_shared` 로 알린다.
+    """
+    if len(records) < 2:
+        return list(records)
+    return list(records[0::2] if split == DEV else records[1::2])
+
+
 @dataclass
 class Sample:
     """합성 서류 1건."""
@@ -79,6 +112,9 @@ class Sample:
     label: int                    # 1 = 은행이 하자로 잡음
     injected: List[str]           # 주입한 하자 유형 (평가·디버그용)
     as_of: datetime = BASE_DATE
+    # 어느 세트에서 나왔는지. 개발셋 표본이 평가 보고에 섞여도 수치는
+    # 그럴듯하게 나오므로, 표본 자신이 출처를 들고 다녀야 검사할 수 있다.
+    split: str = DEV
 
 
 # 주입 가능한 하자 유형. ICC 공개 하자 통계에서 빈도가 높은 것들이다.
@@ -134,9 +170,18 @@ class SyntheticGenerator:
         self,
         seed: int = 42,
         corpus: Optional[Sequence[BLRecord]] = None,
+        split: str = DEV,
     ) -> None:
-        self.rng = random.Random(seed)
-        self.sampler = CorpusSampler(corpus, self.rng) if corpus else None
+        if split not in (DEV, EVAL):
+            raise ValueError(f"split 은 {DEV!r} 또는 {EVAL!r} 여야 합니다: {split!r}")
+        self.split = split
+        self.rng = random.Random(seed_for(seed, split))
+
+        records = partition_corpus(corpus, split) if corpus else []
+        # 말뭉치가 작아 양쪽이 같은 서류를 보는 상태. 수치를 인용하기 전에
+        # 확인해야 한다.
+        self.corpus_shared = bool(corpus) and len(corpus) < 2
+        self.sampler = CorpusSampler(records, self.rng) if records else None
         # 실물이라 기준 서류로 못 쓴 건수. 0 이 아니면 말뭉치나 룰을 봐야 한다.
         self.corpus_rejects = 0
 
@@ -158,17 +203,9 @@ class SyntheticGenerator:
             samples.append(self._make_sample(inject))
         return samples
 
-    def split(
-        self,
-        count: int,
-        defect_ratio: float = 0.5,
-        train_ratio: float = 0.7,
-    ) -> Tuple[List[Sample], List[Sample]]:
-        """학습·검증 세트로 나눈다."""
-        samples = self.generate(count, defect_ratio)
-        self.rng.shuffle(samples)
-        cut = int(len(samples) * train_ratio)
-        return samples[:cut], samples[cut:]
+    # 예전에는 한 스트림을 학습·검증으로 잘라 쓰는 `split()` 이 있었다.
+    # 그 구조에서는 룰을 고칠 때 본 서류가 곧 평가셋이라 v2 10.3 의 분리
+    # 요건을 만족할 수 없다. 세트마다 생성기를 따로 만드는 쪽으로 바꿨다.
 
     # ── 내부 ─────────────────────────────────────────────────────
 
@@ -190,7 +227,9 @@ class SyntheticGenerator:
         label = 1 if injected else 0
         label = self._apply_label_noise(bl, label, injected)
 
-        return Sample(bl=bl, lc=lc, label=label, injected=injected)
+        return Sample(
+            bl=bl, lc=lc, label=label, injected=injected, split=self.split
+        )
 
     def _make_clean_pair(self) -> Tuple[BLFields, LCTerms]:
         """하자 없는 B/L 과 L/C 한 쌍."""
