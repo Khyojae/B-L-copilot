@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { S1Dashboard } from './pages/S1Dashboard'
 import { S2Upload } from './pages/S2Upload'
+import { S3Draft } from './pages/S3Draft'
 import { S4Verdicts } from './pages/S4Verdicts'
 import { ComingSoon } from './components/ComingSoon'
 
@@ -9,7 +10,7 @@ function App() {
     <Routes>
       <Route path="/" element={<S1Dashboard />} />
       <Route path="/shipments/new" element={<S2Upload />} />
-      <Route path="/shipments/:id/draft" element={<ComingSoon label="S3 초안 편집기" />} />
+      <Route path="/shipments/:id/draft" element={<S3Draft />} />
       <Route path="/shipments/:id/verdicts" element={<S4Verdicts />} />
       <Route path="/shipments/:id" element={<ComingSoon label="S5 선적 상세(타임라인)" />} />
       <Route path="/alerts" element={<ComingSoon label="S6 경보 센터" />} />
