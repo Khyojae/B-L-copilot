@@ -146,8 +146,12 @@ class Verdict:
 
 # ── L/C 조건 (MT700) ─────────────────────────────────────────────
 
-# MT700 전문 태그 → 내부 필드명.
-# 서류 대조 룰은 이 필드명을 참조한다.
+# MT700 전문 태그 → 내부 필드명. 서류 대조 룰은 이 필드명을 참조한다.
+#
+# **이 표는 참조용이고 실제 변환은 `mt700._HANDLERS` 가 한다.** 값 정규화
+# (YYMMDD→ISO, SWIFT 소수점 콤마, 46A 목록화)가 필요해 표 하나로는 부족하기
+# 때문이다. 둘이 어긋나면 태그가 조용히 무시되므로 테스트가 대조한다
+# (`test_mt700.py::test_참조표의_모든_태그에_처리기가_있다`).
 MT700_TAGS: Dict[str, str] = {
     "31D": "expiry_date",               # Date and Place of Expiry
     "32B": "currency_amount",
@@ -219,13 +223,18 @@ class LCTerms:
 
     @classmethod
     def from_tags(cls, tags: Dict[str, str], lc_no: Optional[str] = None) -> "LCTerms":
-        """MT700 태그 dict 에서 생성. 모르는 태그는 조용히 버린다."""
-        kwargs = {
-            MT700_TAGS[tag]: value
-            for tag, value in tags.items()
-            if tag in MT700_TAGS
-        }
-        return cls(lc_no=lc_no, **kwargs)
+        """MT700 태그 dict 에서 생성. 모르는 태그는 조용히 버린다.
+
+        정규화는 원문 파서(`mt700.terms_from_tags`)와 **같은 코드를 탄다.**
+        태그 값을 필드에 그대로 꽂으면 46A 가 문자열로 들어가 문자 단위로
+        순회되고, 44C 의 `260630` 은 날짜 룰이 못 읽는다. 문이 둘이면 한쪽만
+        고치게 되므로 뒤를 합쳐 둔다.
+
+        지역 import 는 순환을 피하기 위한 것이다 — `mt700` 이 이 모듈을 쓴다.
+        """
+        from .mt700 import terms_from_tags
+
+        return terms_from_tags(tags, lc_no=lc_no)
 
     @classmethod
     def from_dict(cls, data: dict) -> "LCTerms":

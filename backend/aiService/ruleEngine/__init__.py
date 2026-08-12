@@ -11,6 +11,7 @@ from .cross_doc import (
     load_cross_rules,
 )
 from .engine import RuleCatalogError, RuleEngine, load_rules
+from .mt700 import MT700Parse, MT700ParseError, parse_mt700
 from .types import (
     DEFAULT_PRESENTATION_DAYS,
     DEFAULT_TOLERANCE_PCT,
@@ -33,8 +34,11 @@ __all__ = [
     "DEFAULT_TOLERANCE_PCT",
     "LCTerms",
     "MT700_TAGS",
+    "MT700Parse",
+    "MT700ParseError",
     "Outcome",
     "REGISTRY",
+    "parse_mt700",
     "RuleCatalogError",
     "RuleEngine",
     "Severity",

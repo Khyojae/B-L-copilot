@@ -369,6 +369,42 @@ async def extract_from_email(file: UploadFile = File(...)) -> dict:
     return _draft_response(draft)
 
 
+# ── L/C 인테이크 ─────────────────────────────────────────────────
+
+class MT700Request(BaseModel):
+    """MT700 전문 원문.
+
+    파일 업로드가 아니라 텍스트로 받는다. SWIFT 전문은 텍스트이고, 파일로
+    받으면 인코딩 추측이 한 겹 더 붙는다 — 그 추측이 틀리면 태그는 읽히는데
+    상호·품명만 깨지고, 그 상태로도 검증이 돌아 버린다.
+    """
+
+    text: str = Field(..., description="MT700 전문 원문. 블록 구조({4:...-})가 있어도 된다.")
+
+
+@app.post("/lc/mt700")
+def parse_lc_mt700(req: MT700Request) -> dict:
+    """MT700 원문 → L/C 조건(기획안 v2 5.1 입력 사양).
+
+    `/verify` 의 `lc` 에 그대로 실을 수 있는 형태로 돌려준다. 이 경로를
+    `/extract/*` 에 두지 않은 이유는 응답이 다르기 때문이다 — 추출 경로는
+    전부 B/L 초안을 내는데 이건 L/C 조건을 낸다. 같은 접두어에 다른 응답을
+    섞으면 S3 편집기가 경로마다 분기해야 한다.
+
+    응답의 `notes` 와 `unmapped` 를 화면이 버리지 말 것. L/C 조건이 비면
+    그 조건을 쓰는 룰은 평가불가로 빠지고, **위반 0건은 '하자 없음'으로
+    읽힌다.** 무엇을 못 읽었는지가 결과만큼 중요하다.
+    """
+    from ruleEngine import MT700ParseError, parse_mt700
+
+    try:
+        parsed = parse_mt700(req.text)
+    except MT700ParseError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return parsed.to_dict()
+
+
 @app.post("/verify", response_model=VerifyResponse)
 def verify(req: VerifyRequest) -> VerifyResponse:
     """F3 하자 예측. 기획안 S4(검증 결과) 화면이 이 응답을 그대로 그린다."""

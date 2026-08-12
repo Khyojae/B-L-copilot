@@ -6,7 +6,12 @@ from datetime import datetime
 
 import pytest
 
-from mlModel.evaluate import Metrics, evaluate
+from mlModel.evaluate import (
+    REALISTIC_DEFECT_RATIO,
+    TARGET_CRITICAL_FALSE_ALARM,
+    Metrics,
+    evaluate,
+)
 from mlModel.features import (
     FEATURE_NAMES,
     NO_DEADLINE,
@@ -16,11 +21,21 @@ from mlModel.features import (
     select,
 )
 from mlModel.predictor import DefectPredictor
-from mlModel.synth import DEFECT_KINDS, SyntheticGenerator
+from mlModel.synth import DEFECT_KINDS, DEV, EVAL, SyntheticGenerator
 from ocr.types import BLFields
 from ruleEngine import LCTerms, RuleEngine, Verdict
 
 AS_OF = datetime(2026, 6, 10)
+
+
+def _fingerprints(samples) -> set:
+    """서류를 값으로 식별한다. 두 세트가 같은 선적을 쓰는지 보려는 것이다."""
+    return {
+        (s.bl.bl_no, s.bl.shipper, s.bl.consignee, s.bl.vessel,
+         s.bl.port_of_loading, s.bl.port_of_discharge, s.bl.on_board_date,
+         s.bl.description_of_goods, s.bl.gross_weight)
+        for s in samples
+    }
 
 xgboost = pytest.importorskip("xgboost", reason="XGBoost 미설치 시 건너뜀")
 
@@ -221,11 +236,31 @@ class TestSyntheticData:
                 f"injected={sample.injected}, on_board={sample.bl.on_board_date}"
             )
 
-    def test_학습_검증을_나눈다(self):
-        train, valid = SyntheticGenerator(seed=4).split(100, train_ratio=0.7)
+    def test_개발셋과_평가셋의_서류가_겹치지_않는다(self):
+        # v2 10.3. 예전에는 한 스트림을 잘라 학습·검증으로 썼는데, 그러면
+        # 룰을 고칠 때 본 서류가 곧 평가셋이라 분리 요건을 만족할 수 없다.
+        dev = SyntheticGenerator(seed=4, split=DEV).generate(100)
+        ev = SyntheticGenerator(seed=4, split=EVAL).generate(100)
 
-        assert len(train) == 70
-        assert len(valid) == 30
+        assert len(dev) == len(ev) == 100
+        assert not _fingerprints(dev) & _fingerprints(ev)
+
+    def test_표본이_자기_세트를_들고_다닌다(self):
+        # 개발셋 표본이 평가 보고에 섞여도 수치는 그럴듯하게 나온다.
+        assert SyntheticGenerator(seed=4, split=EVAL).generate(3)[0].split == EVAL
+
+    def test_다음_시드의_개발셋과도_겹치지_않는다(self):
+        # 평가셋 시드를 `seed+1` 로 잡으면 `--seed 42` 의 평가셋이
+        # `--seed 43` 의 개발셋과 같아진다. 시드를 바꿔 가며 평균을 내는
+        # 순간(문서의 42~46 평균) 분리가 조용히 무너진다.
+        ev = SyntheticGenerator(seed=42, split=EVAL).generate(60)
+        next_dev = SyntheticGenerator(seed=43, split=DEV).generate(60)
+
+        assert not _fingerprints(ev) & _fingerprints(next_dev)
+
+    def test_모르는_split_은_거부한다(self):
+        with pytest.raises(ValueError):
+            SyntheticGenerator(seed=4, split="test")
 
 
 class TestPredictor:
@@ -241,7 +276,7 @@ class TestPredictor:
         assert prediction.probability == verdict.defect_probability
 
     def test_학습후_예측하면_모델을_쓴다(self, engine, tmp_path):
-        train, _ = SyntheticGenerator(seed=13).split(300)
+        train = SyntheticGenerator(seed=13, split=DEV).generate(300)
         rows, labels = [], []
         for sample in train:
             verdict = engine.verify(sample.bl, sample.lc, as_of=sample.as_of)
@@ -399,6 +434,96 @@ class TestEvaluationHarness:
         assert "룰·모델 독립성" in text
         assert "원시 특징만" in text
         assert "모델이 더한 F1" in text
+
+
+class Test비율_이중_보고:
+    """v2 10.3 — 한쪽 비율만으로 산출한 수치는 해석을 왜곡한다."""
+
+    def test_두_비율_조건을_함께_낸다(self):
+        report = evaluate(count=600, seed=42)
+
+        assert report.defect_ratio == 0.5
+        assert report.realistic is not None
+        assert report.realistic.defect_ratio == REALISTIC_DEFECT_RATIO
+        assert report.realistic.rules_only.f1 > 0
+
+    def test_실제_비율_조건이_실제로_더_하자가_많다(self):
+        # 비율 인자가 흘러가지 않으면 두 줄이 같은 표본이 되고, 표는
+        # 그럴듯한데 아무것도 비교하지 않게 된다.
+        report = evaluate(count=600, seed=42, train_model=False)
+        balanced_defects = report.rules_only.true_positive + report.rules_only.false_negative
+        realistic_defects = (
+            report.realistic.rules_only.true_positive
+            + report.realistic.rules_only.false_negative
+        )
+
+        assert realistic_defects > balanced_defects
+
+    def test_두_조건에_같은_모델을_쓴다(self):
+        # 조건마다 다시 학습하면 비율 효과와 학습 편차가 섞인다.
+        report = evaluate(count=600, seed=42)
+
+        assert report.realistic.rules_plus_model is not None
+        assert report.realistic.raw_features_only is not None
+
+    def test_한쪽만_넘으면_목표_달성이_아니다(self):
+        # 성능이 아니라 판정 논리를 잰다. 실제 수치로 재면 표본 크기에
+        # 따라 통과 여부가 흔들려, 무엇을 검사하는 테스트인지 흐려진다.
+        report = evaluate(count=400, seed=42, train_model=False)
+        report.rules_only = Metrics(
+            true_positive=95, false_positive=5, true_negative=95, false_negative=5
+        )
+        report.realistic.rules_only = Metrics(
+            true_positive=1, false_positive=99, true_negative=0, false_negative=99
+        )
+
+        assert report.meets_target_balanced
+        assert not report.meets_target
+
+    def test_표가_렌더링된다(self):
+        text = evaluate(count=400, seed=42, train_model=False).to_text()
+
+        assert "정상/하자 비율 이중 보고" in text
+        assert "균형 50%" in text
+        assert "실제 70%" in text
+
+    def test_비율_조건을_끌_수_있다(self):
+        report = evaluate(count=400, seed=42, train_model=False, realistic_ratio=None)
+
+        assert report.realistic is None
+        assert "정상/하자 비율 이중 보고" not in report.to_text()
+
+
+class TestCritical_오탐률:
+    """v2 5.3 수용 기준 — Critical 등급의 오탐률 5% 이하."""
+
+    def test_주입하지_않은_서류_기준으로_잰다(self):
+        report = evaluate(count=600, seed=42, train_model=False)
+
+        assert report.clean_count > 0
+        assert 0.0 <= report.critical_false_alarm_rate <= 1.0
+        assert report.critical_false_alarms <= report.clean_count
+
+    def test_정밀도와_다른_지표다(self):
+        # 정밀도는 라벨 잡음이 섞인 `label` 로 재고, 이쪽은 주입 여부로 잰다.
+        # 두 분모가 같아지면 어느 하나가 다른 것을 베낀 것이다.
+        report = evaluate(count=600, seed=42, train_model=False)
+        precision_negatives = (
+            report.rules_only.false_positive + report.rules_only.true_negative
+        )
+
+        assert report.clean_count != precision_negatives
+
+    def test_목표_판정을_따로_낸다(self):
+        report = evaluate(count=600, seed=42, train_model=False)
+
+        assert isinstance(report.meets_false_alarm_target, bool)
+        assert "Critical 오탐률" in report.to_text()
+
+    def test_실제_비율_조건에서도_잰다(self):
+        report = evaluate(count=600, seed=42, train_model=False)
+
+        assert report.realistic.clean_count > 0
 
     def test_모델을_끄면_룰만_평가한다(self):
         report = evaluate(count=200, seed=42, train_model=False)

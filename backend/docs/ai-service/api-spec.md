@@ -7,7 +7,7 @@
 | 기능 | 엔드포인트 | 문서 |
 | --- | --- | --- |
 | F1 인테이크 | `/extract/label` `/extract` `/extract/pdf` `/extract/excel` `/extract/email` | [f1-intake.md](f1-intake.md#api-명세) |
-| F3 하자 예측 | `/rules` `/verify` | [f3-defect-prediction.md](f3-defect-prediction.md#api-명세) |
+| F3 하자 예측 | `/rules` `/lc/mt700` `/verify` | [f3-defect-prediction.md](f3-defect-prediction.md#api-명세) |
 | F4 리포트 | `/report` `/report/pdf` `/report/share` `/report/shared/{token}` `/report/shared/{token}/pdf` | [f4-report.md](f4-report.md#api-명세) |
 | 공통 | `/health` | 이 문서 |
 
