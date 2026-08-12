@@ -25,6 +25,14 @@
   --severity-info: #2563eb;
   --severity-info-bg: rgba(37, 99, 235, 0.1);
 
+  /* 선적 상태 6단계 색상 — constants/domain.ts의 SHIPMENT_STATUS가 참조함. 여기서만 정의 */
+  --status-draft: #71717a;
+  --status-reviewing: #d97706;
+  --status-verified: #16a34a;
+  --status-submitted: #2563eb;
+  --status-monitoring: #7c3aed;
+  --status-closed: #52525b;
+
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
@@ -62,6 +70,13 @@
     --severity-warning-bg: rgba(251, 191, 36, 0.15);
     --severity-info: #60a5fa;
     --severity-info-bg: rgba(96, 165, 250, 0.15);
+
+    --status-draft: #a1a1aa;
+    --status-reviewing: #fbbf24;
+    --status-verified: #4ade80;
+    --status-submitted: #60a5fa;
+    --status-monitoring: #c084fc;
+    --status-closed: #71717a;
   }
 
   #social .button-icon {
