@@ -10,10 +10,16 @@ Express 게이트웨이(`:4000`)가 이 서비스(`:5000`)를 호출한다. 코�
 |---|---|
 | 공통 규약 (Base URL·에러 형식·상태 코드) · `/health` | [api-spec.md](api-spec.md) |
 | F1 인테이크 — 추출 5건 | [f1-intake.md](f1-intake.md#api-명세) |
-| F3 하자 예측 — `/rules` `/verify` | [f3-defect-prediction.md](f3-defect-prediction.md#api-명세) |
+| F3 하자 예측 — `/rules` `/lc/mt700` `/verify` | [f3-defect-prediction.md](f3-defect-prediction.md#api-명세) |
 | F4 리포트 — 리포트·공유 5건 | [f4-report.md](f4-report.md#api-명세) |
 
-엔드포인트는 13건이다. 목록의 정본은 `app.openapi()` 이며, 문서와 어긋나면 그쪽이 정답이다.
+엔드포인트는 14건이다. 목록의 정본은 `app.openapi()` 이며, 문서와 어긋나면 그쪽이 정답이다.
+
+### L/C 원문은 `/extract/*` 가 아니다
+
+`POST /lc/mt700`(MT700 전문 → L/C 조건)은 기획안 v2 5.1 이 **F1 입력 경로**로 적은 것이지만 추출 접두어 아래 두지 않았다. 위 "다섯 개의 추출 경로"가 성립하는 이유가 **응답 형태가 전부 같다**는 데 있기 때문이다 — 여섯 번째로 L/C 조건을 내는 경로를 끼우면 그 불변이 깨지고, S3 편집기가 경로마다 분기하게 된다.
+
+구현도 `ocr/` 가 아니라 `ruleEngine/mt700.py` 에 있다. 산출물이 `LCTerms` 이고, 그걸 소유한 쪽이 룰엔진이다.
 
 ## 기획안 v2 의 API 경로와 다르다 (2026-08-11)
 

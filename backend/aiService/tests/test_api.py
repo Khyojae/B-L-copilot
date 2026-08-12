@@ -173,6 +173,59 @@ class TestExtractPDF:
         )
 
 
+class TestMT700:
+    """POST /lc/mt700 — 기획안 v2 5.1 의 L/C 원문 입력 경로."""
+
+    MESSAGE = (
+        ":20:LC-2026-101\n"
+        ":31D:261231SEOUL\n"
+        ":32B:USD123456,78\n"
+        ":43P:NOT ALLOWED\n"
+        ":44C:260630\n"
+        ":44E:BUSAN, KOREA\n"
+        ":44F:TOKYO, JAPAN\n"
+        ":47A:ALL DOCUMENTS MUST BEAR THE CREDIT NUMBER\n"
+    )
+
+    def test_전문을_LC조건으로_바꾼다(self, client):
+        response = client.post("/lc/mt700", json={"text": self.MESSAGE})
+        body = response.json()
+
+        assert response.status_code == 200
+        assert body["lc"]["port_of_loading"] == "BUSAN, KOREA"
+        assert body["lc"]["latest_shipment_date"] == "2026-06-30"
+        assert body["lc"]["partial_shipment"] == "PROHIBITED"
+
+    def test_못_읽은_것을_응답에_싣는다(self, client):
+        # 화면이 이걸 못 받으면 검사하지 않은 조건이 검사된 것처럼 보인다.
+        body = client.post("/lc/mt700", json={"text": self.MESSAGE}).json()
+
+        assert "47A" in body["unmapped"]
+        assert body["notes"]
+
+    def test_응답을_그대로_verify_에_실을_수_있다(self, client):
+        # 이 왕복이 깨지면 파서는 돌지만 쓸 데가 없다.
+        lc = client.post("/lc/mt700", json={"text": self.MESSAGE}).json()["lc"]
+
+        verdict = client.post(
+            "/verify", json={"bl": CLEAN_BL, "lc": lc, "as_of": AS_OF}
+        ).json()["verdict"]
+
+        assert verdict["counts"]["critical"] == 0
+        # L/C 를 실었으므로 대조 룰이 실제로 평가돼야 한다.
+        assert verdict["evaluated_count"] > 0
+
+    def test_태그가_없으면_400이다(self, client):
+        # 빈 L/C 로 검증을 돌리면 위반 0건이 나오고 화면은 '하자 없음'으로
+        # 읽는다. 200 으로 흘리지 않는다.
+        response = client.post("/lc/mt700", json={"text": "첨부 참조 바랍니다."})
+
+        assert response.status_code == 400
+
+    def test_text가_없으면_422다(self, client):
+        assert client.post("/lc/mt700", json={}).status_code == 422
+
+
 class TestVerify:
     def test_정상_서류는_위반이_없다(self, client):
         response = client.post(

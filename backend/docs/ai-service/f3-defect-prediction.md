@@ -174,7 +174,10 @@ for v in verdict.sorted_violations():
 | 메서드 | 경로 | 기능 |
 | --- | --- | --- |
 | GET | `/rules` | 룰 카탈로그 조회 |
+| POST | `/lc/mt700` | MT700 원문 → L/C 조건 |
 | POST | `/verify` | 하자 검증 |
+
+`/lc/mt700` 은 기획안 v2 5.1 이 F1 입력 경로로 적은 것이지만 여기 둔다 — 응답이 B/L 초안이 아니라 **L/C 조건**이고, 구현도 `ruleEngine/mt700.py` 에 있다. `/extract/*` 는 전부 초안을 내므로 같은 접두어에 다른 응답을 섞지 않았다.
 
 ---
 
@@ -244,6 +247,85 @@ for v in verdict.sorted_violations():
 **Error**
 
 없음.
+
+---
+
+### POST `/lc/mt700`
+
+## **설명**
+
+MT700 전문 원문을 L/C 조건으로 바꾼다. 응답의 `lc` 를 그대로 `/verify` 의 `lc` 에 실으면 된다.
+
+**지금까지는 사람이 L/C 를 손으로 JSON 에 옮겨야 검증이 돌았다.** `LCTerms.from_tags` 는 이미 잘린 태그 dict 를 받기 때문이다. 이 경로가 그 사이를 메운다.
+
+파일 업로드가 아니라 **텍스트**로 받는다. SWIFT 전문은 텍스트이고, 파일로 받으면 인코딩 추측이 한 겹 더 붙는다 — 그 추측이 틀리면 태그는 읽히는데 상호·품명만 깨지고, 그 상태로도 검증이 돌아 버린다.
+
+## **Request**
+
+**Body**
+
+```json
+{
+  "text": ":20:LC-2026-101\n:31D:261231SEOUL\n:32B:USD123456,78\n:43P:NOT ALLOWED\n:44C:260630\n:44E:BUSAN, KOREA\n:44F:TOKYO, JAPAN\n:46A:+SIGNED COMMERCIAL INVOICE\n+FULL SET OF CLEAN ON BOARD B/L\n:48:21/DAYS AFTER SHIPMENT DATE\n"
+}
+```
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `text` | string | ✅ | MT700 전문 원문. 블록 구조(`{1:}{2:}{4:...-}`)가 있어도 되고, CRLF 도 받는다 |
+
+## **Response**
+
+**Success (200)**
+
+```json
+{
+  "lc": {
+    "lc_no": "LC-2026-101",
+    "expiry_date": "2026-12-31",
+    "latest_shipment_date": "2026-06-30",
+    "currency": "USD",
+    "currency_amount": "USD 123,456.78",
+    "port_of_loading": "BUSAN, KOREA",
+    "port_of_discharge": "TOKYO, JAPAN",
+    "partial_shipment": "PROHIBITED",
+    "transhipment": "ALLOWED",
+    "documents_required": ["SIGNED COMMERCIAL INVOICE", "FULL SET OF CLEAN ON BOARD B/L"],
+    "presentation_days": 21
+  },
+  "tags": { "20": "LC-2026-101", "32B": "USD123456,78" },
+  "unmapped": { "47A": "ALL DOCUMENTS MUST BEAR THE CREDIT NUMBER" },
+  "notes": [
+    ":31D: 유효장소 'SEOUL' 는 검증에 쓰지 않습니다.",
+    ":47A: 추가 조건은 자유서식이라 판정하지 않습니다 — 기획안 v2 5.3 R-LC-47A(LLM 보조 판정)는 미구현입니다."
+  ]
+}
+```
+
+| 이름 | 타입 | 설명 |
+| --- | --- | --- |
+| `lc` | object | `LCTerms`. `/verify` 의 `lc` 에 그대로 넣는다 |
+| `tags` | object | 원문에서 잘라낸 태그. **정규화 전** 값이라 결과가 이상할 때 대조용이다 |
+| `unmapped` | object | 태그로 인식했으나 L/C 조건에 자리가 없는 것 (47A·44A·44B 등) |
+| `notes` | array | 정규화하며 버렸거나 해석하지 못한 것 |
+
+> **`notes` 와 `unmapped` 를 화면이 버리지 말 것.** L/C 조건이 비면 그 조건을 쓰는 룰은 평가불가로 빠지고, **위반 0건은 화면에서 '하자 없음'으로 읽힌다.** 즉 파서가 조용히 실패하면 시스템은 더 안전해 보인다. 무엇을 못 읽었는지가 결과만큼 중요하다.
+
+**정규화에서 정한 것 넷**
+
+| 항목 | 처리 | 왜 |
+| --- | --- | --- |
+| 날짜 (`31D`·`44C`) | `YYMMDD` → ISO. 세기는 2000년대로 읽는다 | 룰의 `parse_date` 는 YYMMDD 를 모른다. 그대로 넘기면 날짜 룰이 전부 '해석 실패'로 빠진다 |
+| 금액 (`32B`) | **SWIFT 의 콤마는 소수점이다.** `USD123456,78` → `USD 123,456.78` | 그대로 두면 `parse_amount` 가 콤마를 천단위로 보고 지워 **금액이 100배**가 된다. 송장 금액 초과(X009)가 통과해 버린다 |
+| 금지조건 (`43P`·`43T`) | 부정형을 먼저 본다 | `NOT ALLOWED` 는 `ALLOWED` 를 품는다. 순서를 바꾸면 분할선적 금지가 허용으로 뒤집혀 D013 이 잠든다 |
+| 거래조건 | **채우지 않는다** | MT700 에 Incoterms 전용 태그가 없다. 45A 자유서식에서 뽑으면 송장의 `FOB BUSAN` 과 문자열이 어긋나 X010 이 정상 서류를 하자로 잡는다. 대신 `notes` 로 알리고 사람이 지정하게 한다 |
+
+**Error**
+
+| 코드 | 언제 |
+| --- | --- |
+| 400 | 태그를 하나도 찾지 못함. **빈 `LCTerms` 를 200 으로 돌려주지 않는다** — 그 응답으로 검증을 돌리면 L/C 룰이 전부 평가불가로 빠지고 위반 0건이 나온다 |
+| 422 | `text` 누락 |
 
 ---
 
