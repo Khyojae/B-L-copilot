@@ -7,10 +7,19 @@ authors = [
     { name = "yang6408", email = "redblue6408@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "alembic>=1.19.1",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
+    "psycopg[binary]>=3.3.4",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy[asyncio]>=2.0",
+    "uvicorn[standard]>=0.52.1",
+]
 
 [project.scripts]
-smart-e-bl = "smart_e_bl:main"
+smart-ebl-worker = "smart_e_bl.worker.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
