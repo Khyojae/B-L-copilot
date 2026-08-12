@@ -74,16 +74,7 @@ def parse_mt700(text: str) -> MT700Parse:
             "MT700 태그를 찾지 못했습니다. 줄 앞에 ':20:' 같은 필드 태그가 있어야 합니다."
         )
 
-    fields: Dict[str, object] = {}
-    unmapped: Dict[str, str] = {}
-
-    for tag, raw in tags.items():
-        handler = _HANDLERS.get(tag)
-        if handler is None:
-            unmapped[tag] = raw
-            continue
-        handler(raw, fields, notes)
-
+    fields, unmapped = _apply_tags(tags, notes)
     for tag in unmapped:
         notes.append(_UNMAPPED_NOTES.get(tag, f":{tag}: 는 L/C 조건으로 옮기지 않았습니다."))
 
@@ -93,6 +84,37 @@ def parse_mt700(text: str) -> MT700Parse:
         unmapped=unmapped,
         notes=notes,
     )
+
+
+def terms_from_tags(tags: Dict[str, str], lc_no: Optional[str] = None) -> LCTerms:
+    """이미 잘린 태그 dict → `LCTerms`. `LCTerms.from_tags` 가 이 함수다.
+
+    **원문 파서와 같은 정규화를 탄다.** 태그 값을 필드에 그대로 꽂던 예전
+    구현은 두 가지로 틀렸다 — 46A 를 문자열로 넣어 `documents_required` 가
+    문자 단위로 순회됐고(정상 L/C 에 D016 을 날조한다), 44C 의 `260630` 을
+    그대로 두어 날짜 룰이 통째로 '해석 실패'로 빠졌다.
+
+    진단(`notes`·`unmapped`)은 버린다. 돌려줄 자리가 없는 진입점이므로,
+    무엇을 못 읽었는지 알아야 하면 `parse_mt700` 을 쓸 것.
+    """
+    fields, _ = _apply_tags({k: str(v) for k, v in tags.items()}, [])
+    if lc_no is not None:
+        fields["lc_no"] = lc_no
+    return LCTerms(**fields)  # type: ignore[arg-type]
+
+
+def _apply_tags(
+    tags: Dict[str, str], notes: List[str]
+) -> tuple[Dict[str, object], Dict[str, str]]:
+    fields: Dict[str, object] = {}
+    unmapped: Dict[str, str] = {}
+    for tag, raw in tags.items():
+        handler = _HANDLERS.get(tag)
+        if handler is None:
+            unmapped[tag] = raw
+            continue
+        handler(raw, fields, notes)
+    return fields, unmapped
 
 
 def _split_tags(text: str) -> tuple[Dict[str, str], List[str]]:
@@ -371,4 +393,4 @@ _UNMAPPED_NOTES: Dict[str, str] = {
 }
 
 
-__all__ = ["MT700Parse", "MT700ParseError", "parse_mt700"]
+__all__ = ["MT700Parse", "MT700ParseError", "parse_mt700", "terms_from_tags"]

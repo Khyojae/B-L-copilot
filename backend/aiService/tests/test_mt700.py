@@ -239,3 +239,51 @@ class Test룰엔진_연결:
         assert parsed.lc_no == tagged.lc_no
         assert parsed.port_of_loading == tagged.port_of_loading
         assert parsed.port_of_discharge == tagged.port_of_discharge
+
+
+class Testfrom_tags_도_같은_정규화를_탄다:
+    """문이 둘인데 한쪽만 정규화하면, 그쪽으로 들어온 L/C 는 조용히 다르게 판정된다."""
+
+    def test_46A_를_목록으로_만든다(self):
+        # 회귀: 문자열로 두면 `bl_in_documents_required` 가 **문자 단위로**
+        # 순회해 선하증권 요구를 못 찾고, 정상 L/C 에 D016 을 날조했다.
+        lc = LCTerms.from_tags({"46A": "FULL SET OF CLEAN ON BOARD B/L"})
+
+        assert lc.documents_required == ["FULL SET OF CLEAN ON BOARD B/L"]
+
+    def test_46A_날조를_직접_잡는다(self):
+        bl = BLFields(
+            bl_no="HG290309",
+            shipper="GAE WOON CO., LTD.",
+            consignee="DHHJ FRANCHISING CO., LTD.",
+            notify_party="TRY ENERGY CO., LTD.",
+            vessel="MSC BIANCA",
+            port_of_loading="BUSAN",
+            port_of_discharge="TOKYO",
+            description_of_goods="SAW MACHINE",
+            gross_weight="884 KG",
+            date_of_issue="2026-06-01",
+            place_of_issue="PUSAN",
+            on_board_date="2026-06-01",
+        )
+        lc = LCTerms.from_tags({"46A": "FULL SET OF CLEAN ON BOARD B/L"})
+
+        verdict = RuleEngine().verify(bl, lc, as_of=datetime(2026, 6, 10))
+
+        assert "D016" not in {v.rule_id for v in verdict.violations}
+
+    def test_YYMMDD_를_읽는다(self):
+        # 회귀: 원값을 그대로 두면 날짜 룰이 '해석 실패'로 빠지는데, 화면에서
+        # 그것은 위반 없음과 구분되지 않는다.
+        lc = LCTerms.from_tags({"44C": "260630", "31D": "261231SEOUL"})
+
+        assert lc.latest_shipment_date == "2026-06-30"
+        assert lc.expiry_date == "2026-12-31"
+
+    def test_참조표의_모든_태그에_처리기가_있다(self):
+        # `MT700_TAGS` 는 참조용이고 변환은 `_HANDLERS` 가 한다. 둘이 어긋나면
+        # 표에만 있는 태그가 조용히 무시된다.
+        from ruleEngine.mt700 import _HANDLERS
+        from ruleEngine.types import MT700_TAGS
+
+        assert not set(MT700_TAGS) - set(_HANDLERS)
