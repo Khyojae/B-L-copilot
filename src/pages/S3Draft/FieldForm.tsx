@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { mockFields } from '../../mocks/shipment.fixture';
-import { CONFIDENCE, toConfidenceGrade } from '../../constants/domain';
 import type { FieldValue } from '../../types/domain';
 import { FieldRow } from './FieldRow';
+import { countRequiredFields, displayValueOf, isEditedField } from './fieldEditing';
 
 interface FieldFormProps {
   /** 지금 문서 뷰어에서 하이라이트되고 있는 필드 이름 */
@@ -32,16 +32,8 @@ export function FieldForm({
   // 편집 중인 입력창에 지금 타이핑된 텍스트
   const [draft, setDraft] = useState('');
 
-  function displayValueOf(field: FieldValue): string | null {
-    return field.field_name in editedValues ? editedValues[field.field_name] : field.value;
-  }
-
-  function isEditedField(field: FieldValue): boolean {
-    return field.field_name in editedValues && editedValues[field.field_name] !== field.value;
-  }
-
   function startEditing(field: FieldValue) {
-    setDraft(displayValueOf(field) ?? '');
+    setDraft(displayValueOf(field, editedValues) ?? '');
     setEditingFieldName(field.field_name);
   }
 
@@ -55,13 +47,7 @@ export function FieldForm({
     setEditingFieldName(null);
   }
 
-  // ⚠ M-2 미결: 직접 고친 필드는 사람이 이미 확인한 것으로 보고 "확정" 등급으로
-  //   쳐서 건수에서 뺍니다 (FieldRow가 배지를 그릴 때 쓰는 규칙과 동일 — 등급
-  //   문구와 이 숫자가 항상 같이 움직여야 함). 팀 확정 대기 중 — CLAUDE.md M-2 참고.
-  const requiredCount = mockFields.filter((field) => {
-    const grade = isEditedField(field) ? 'CONFIRMED' : toConfidenceGrade(field);
-    return CONFIDENCE[grade].blocksVerify;
-  }).length;
+  const requiredCount = countRequiredFields(mockFields, editedValues);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 16 }}>
@@ -73,8 +59,8 @@ export function FieldForm({
         <FieldRow
           key={field.field_name}
           field={field}
-          displayValue={displayValueOf(field)}
-          isEdited={isEditedField(field)}
+          displayValue={displayValueOf(field, editedValues)}
+          isEdited={isEditedField(field, editedValues)}
           isEditing={editingFieldName === field.field_name}
           draft={draft}
           onDraftChange={setDraft}

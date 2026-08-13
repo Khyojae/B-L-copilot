@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FieldForm } from './FieldForm';
 import { DocumentViewer } from './DocumentViewer';
 import { SuggestionCard } from './SuggestionCard';
+import { VerifyBar } from './VerifyBar';
 import { mockSuggestions } from '../../mocks/shipment.fixture';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
@@ -63,6 +64,10 @@ export function S3Draft() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <VerifyBar editedValues={editedValues} />
       </div>
     </div>
   );

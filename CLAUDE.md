@@ -58,32 +58,34 @@
 
 S1·S2·S4 구현 완료.
 
-**S3Draft 완성**: 필드 폼 + 뷰어(DocumentViewer, bbox 하이라이트) + 클릭연동
-(FieldRow 클릭 → 뷰어 하이라이트) + 교정제안 승인(SuggestionCard)까지
-전부 연결됨. VerifyBar(M-1)와 ImpactPanel(Phase 3)만 남음.
+**S3Draft 완전체**: 필드폼 + 뷰어 + 클릭연동 + 교정제안 + VerifyBar까지
+전부 연결됨. VerifyBar는 M-1 미결 상태로 임시안 표시하고 진행 중, 팀
+확정 대기 중. ImpactPanel(Phase 3)만 남음.
 
 필드 수정 상태(`editedValues`)는 FieldForm이 아니라 그 부모인 S3Draft가
 들고 있습니다(상태 끌어올리기). FieldRow에서 직접 타이핑해서 고치는 것과
 SuggestionCard에서 교정 제안을 승인하는 것이 같은 상태를 공유해서, 값이
-바뀌면 "필수 확인 건수" 요약도 실시간으로 같이 갱신됩니다. 이때 "직접
-고친 값·승인한 제안값은 무조건 CONFIRMED로 친다"는 임시 결정이
-들어갔습니다. 자세한 내용과 미확정 사유는 아래 M-2 참고.
+바뀌면 "필수 확인 건수" 요약도, VerifyBar의 "검증 실행" 버튼 활성 여부도
+실시간으로 같이 갱신됩니다. 이때 "직접 고친 값·승인한 제안값은 무조건
+CONFIRMED로 친다"는 임시 결정이 들어갔습니다(`fieldEditing.ts`에 모아둠).
+자세한 내용과 미확정 사유는 아래 M-2 참고.
 
-**남은 것**: VerifyBar — "검증 실행" 버튼 활성 조건(M-1)이 팀에서 아직
-확정 안 됨. ImpactPanel(S8, Phase 3) — 아직 착수 전. VerifyBar를 만들어야
-하는 상황이 오면 먼저 사용자에게 M-1, M-2 확정 여부를 물어보세요.
+**남은 것**: ImpactPanel(S8, Phase 3) — 아직 착수 전.
 
 ## 아직 팀에서 결정 안 된 것 (M-1)
 
-"검증 실행" 버튼의 활성/비활성 조건이 아직 팀 확정 전입니다.
-`VerifyBar` 컴포넌트를 만들어야 하는 상황이 오면, 코드부터 짜지 말고
-먼저 사용자에게 "이 버튼 규칙이 아직 팀에서 확정 안 됐는데, 확인했는지" 물어보세요.
+"검증 실행" 버튼의 활성/비활성 조건이 아직 팀 확정 전입니다. `VerifyBar`
+(`VerifyBar.tsx`)는 이미 만들어져 있지만, 그 안의 규칙(`canTransitionToVerified`)은
+잠정 제안일 뿐이고 화면에도 "M-1 미결" 배너로 표시해뒀습니다. M-1이
+확정되면 `canTransitionToVerified`와 VerifyBar를 그에 맞게 다시 손볼 것 —
+지금은 "검증 실행"·"강제 실행" 모두 실제 상태 전이 없이 콘솔 로그만 남깁니다.
 
 ## 아직 팀에서 결정 안 된 것 (M-2)
 
-사용자가 필드 값을 직접 수정하면 현재는 무조건 `CONFIRMED`로 취급합니다
-(`FieldForm.tsx`, `FieldRow.tsx`). 이게 맞는지 (예: 사용자 수정값도 별도
-검증이 필요한지) 팀 확정 필요. VerifyBar 만들 때 이 부분도 같이 재검토할 것.
+사용자가 필드 값을 직접 수정하거나 교정 제안을 승인하면 현재는 무조건
+`CONFIRMED`로 취급합니다 (`fieldEditing.ts`의 `effectiveGrade` — FieldForm·
+FieldRow·VerifyBar가 전부 이 함수를 통해 이 규칙을 공유함). 이게 맞는지
+(예: 사용자 수정값도 별도 검증이 필요한지) 팀 확정 필요.
 
 ## 톤
 
