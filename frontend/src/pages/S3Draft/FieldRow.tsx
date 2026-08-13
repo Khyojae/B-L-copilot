@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { AlertCircle, AlertTriangle, HelpCircle, MinusCircle } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
 import { CONFIDENCE, toConfidenceGrade } from '../../constants/domain';
@@ -12,33 +11,43 @@ const ICON_BY_NAME = {
 
 interface FieldRowProps {
   field: FieldValue;
+  /** 지금 화면에 보여줄 값 (수정한 적 있으면 수정한 값, 없으면 원본 값) — FieldForm이 계산해서 내려줌 */
+  displayValue: string | null;
+  /** 원본 값에서 바뀌었는지 — FieldForm이 계산해서 내려줌 */
+  isEdited: boolean;
+  /** 지금 이 행이 인라인 입력창을 보여주고 있는지 */
+  isEditing: boolean;
+  /** 입력창에 지금 타이핑 중인 텍스트 (isEditing일 때만 의미 있음) */
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onStartEdit: () => void;
+  onCommitEdit: () => void;
+  onCancelEdit: () => void;
   /** 이 행이 지금 문서 뷰어에서 하이라이트되고 있는 필드인지 */
   isFocused?: boolean;
   /** 행을 클릭했을 때 (문서 뷰어에서 이 필드를 하이라이트하기 위해 부모에게 알려줌) */
   onClick?: () => void;
 }
 
-export function FieldRow({ field, isFocused = false, onClick }: FieldRowProps) {
-  const grade = toConfidenceGrade(field);
+export function FieldRow({
+  field,
+  displayValue,
+  isEdited,
+  isEditing,
+  draft,
+  onDraftChange,
+  onStartEdit,
+  onCommitEdit,
+  onCancelEdit,
+  isFocused = false,
+  onClick,
+}: FieldRowProps) {
+  // ⚠ M-2 미결: 사람이 직접 타이핑으로 고친 값은 일단 이미 확인된 것으로 보고
+  //   "확정"으로 취급합니다 (원래 등급이 "필수 확인"이었어도 수정하는 순간 요약
+  //   건수에서 빠짐). 이게 맞는 규칙인지 팀 확정 대기 중 — CLAUDE.md M-2 참고.
+  const grade = isEdited ? 'CONFIRMED' : toConfidenceGrade(field);
   const meta = CONFIDENCE[grade];
   const Icon = meta.icon !== null ? ICON_BY_NAME[meta.icon as keyof typeof ICON_BY_NAME] : null;
-
-  // 화면에서만 반영되는 값 — 서버 저장은 아직 없음
-  const [displayValue, setDisplayValue] = useState(field.value);
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(field.value ?? '');
-  const isEdited = displayValue !== field.value;
-
-  function startEditing() {
-    setDraft(displayValue ?? '');
-    setIsEditing(true);
-  }
-
-  function commitEdit() {
-    const trimmed = draft.trim();
-    setDisplayValue(trimmed === '' ? null : trimmed);
-    setIsEditing(false);
-  }
 
   return (
     <div
@@ -65,11 +74,11 @@ export function FieldRow({ field, isFocused = false, onClick }: FieldRowProps) {
         <input
           type="text"
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={commitEdit}
+          onChange={(event) => onDraftChange(event.target.value)}
+          onBlur={onCommitEdit}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') commitEdit();
-            if (event.key === 'Escape') setIsEditing(false);
+            if (event.key === 'Enter') onCommitEdit();
+            if (event.key === 'Escape') onCancelEdit();
           }}
           autoFocus
           style={{
@@ -82,7 +91,7 @@ export function FieldRow({ field, isFocused = false, onClick }: FieldRowProps) {
           }}
         />
       ) : (
-        <span onClick={startEditing} style={{ flex: 1, textAlign: 'left', cursor: 'text' }}>
+        <span onClick={onStartEdit} style={{ flex: 1, textAlign: 'left', cursor: 'text' }}>
           {displayValue ?? '출처 없음'}
         </span>
       )}
