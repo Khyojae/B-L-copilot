@@ -6,7 +6,7 @@ import { bySeverity } from '../../constants/domain';
 
 export function S4Verdicts() {
   return (
-    <PageContainer>
+    <PageContainer narrow>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         <VerdictSummary verdicts={mockVerdicts} />
         {[...mockVerdicts].sort(bySeverity).map((verdict) => (

@@ -41,6 +41,11 @@
   --radius-card: 8px;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
 
+  /* 페이지 폭. max-width는 화면(#root) 전체가, narrow-width는 목록형 화면의
+     카드 텍스트가 너무 길어져서 읽기 불편해지지 않도록 PageContainer가 씀 */
+  --content-max-width: 1280px;
+  --content-narrow-width: 840px;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -126,7 +131,7 @@
 
 #root {
   /* 페이지 콘텐츠 최대 폭. 개별 화면은 PageContainer로 안쪽 여백만 더함 */
-  width: 1080px;
+  width: var(--content-max-width);
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
@@ -215,6 +220,26 @@ button:disabled {
   opacity: 0.5;
 }
 
+/* <a>(Link)를 버튼처럼 보이게 할 때 씀 (예: ShipmentCard의 이동 버튼).
+   <button>은 위 button{} 기본 스타일을 이미 받으니 이 클래스가 필요 없음 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover {
+  border-color: var(--brand-primary);
+}
+
 /* 주요 동작(승인·검증 실행 등) — 채워진 남색 버튼 */
 .btn-primary {
   background: var(--brand-primary);
@@ -235,4 +260,20 @@ button:disabled {
   background: var(--brand-primary-light);
   border-color: var(--brand-primary);
   color: var(--brand-primary);
+}
+
+/* 상단 네비게이션 링크 (NavBar) — 지금 있는 화면은 밑줄+색으로, 나머지는 hover로만 반응 */
+.nav-link {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.nav-link:hover {
+  color: var(--brand-primary);
+}
+.nav-link.active {
+  color: var(--brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--brand-primary);
 }

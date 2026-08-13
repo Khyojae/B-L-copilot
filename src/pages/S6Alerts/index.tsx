@@ -12,7 +12,7 @@ function byUnacknowledgedThenSeverity(a: Alert, b: Alert): number {
 
 export function S6Alerts() {
   return (
-    <PageContainer>
+    <PageContainer narrow>
       <h1>경보 센터</h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

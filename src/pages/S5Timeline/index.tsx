@@ -33,7 +33,7 @@ export function S5Timeline() {
   );
 
   return (
-    <PageContainer>
+    <PageContainer narrow>
       <div style={{ textAlign: 'left' }}>
         <h1 style={{ textAlign: 'left' }}>선적 상세</h1>
 
