@@ -56,11 +56,12 @@
 
 ## 진행 상황 (2026-08-13 기준)
 
-S1·S2·S4 구현 완료.
+**S1~S6 전체 완성** (S3는 VerifyBar까지 완전체, M-1 임시안). S7(리포트),
+S8(영향분석)은 축소 구현 대상, 아직 미착수. S9~S11은 설계만, 코드 없음.
 
 **S3Draft 완전체**: 필드폼 + 뷰어 + 클릭연동 + 교정제안 + VerifyBar까지
 전부 연결됨. VerifyBar는 M-1 미결 상태로 임시안 표시하고 진행 중, 팀
-확정 대기 중. ImpactPanel(Phase 3)만 남음.
+확정 대기 중.
 
 필드 수정 상태(`editedValues`)는 FieldForm이 아니라 그 부모인 S3Draft가
 들고 있습니다(상태 끌어올리기). FieldRow에서 직접 타이핑해서 고치는 것과
@@ -70,7 +71,12 @@ SuggestionCard에서 교정 제안을 승인하는 것이 같은 상태를 공�
 CONFIRMED로 친다"는 임시 결정이 들어갔습니다(`fieldEditing.ts`에 모아둠).
 자세한 내용과 미확정 사유는 아래 M-2 참고.
 
-**남은 것**: ImpactPanel(S8, Phase 3) — 아직 착수 전.
+**S5·S6**: F6 현실 대조(`mockRealityEvents`)·경보(`Alert` 타입, `mockAlerts`)
+목데이터 기반으로 구현 완료. S6 경보 카드 클릭 → S5로 이동 → `?event=`
+쿼리로 해당 이벤트 강조·스크롤까지 연결됨.
+
+**남은 것**: S7 리포트(축소 구현), S8 ImpactPanel(축소 구현, Phase 3) —
+둘 다 아직 착수 전.
 
 ## 아직 팀에서 결정 안 된 것 (M-1)
 
