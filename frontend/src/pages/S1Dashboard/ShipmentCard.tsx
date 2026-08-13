@@ -8,8 +8,7 @@ interface ShipmentCardProps {
 
 export function ShipmentCard({ shipment }: ShipmentCardProps) {
   return (
-    <Link
-      to={`/shipments/${shipment.shipment_id}/verdicts`}
+    <div
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -20,8 +19,6 @@ export function ShipmentCard({ shipment }: ShipmentCardProps) {
         boxShadow: 'var(--shadow-card)',
         backgroundColor: 'var(--bg-card)',
         textAlign: 'left',
-        textDecoration: 'none',
-        color: 'inherit',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -34,6 +31,19 @@ export function ShipmentCard({ shipment }: ShipmentCardProps) {
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
         마지막 수정: {new Date(shipment.updated_at).toLocaleString('ko-KR')}
       </span>
-    </Link>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <Link to={`/shipments/${shipment.shipment_id}/draft`} className="btn btn-secondary" style={{ flex: 1 }}>
+          초안 편집
+        </Link>
+        <Link
+          to={`/shipments/${shipment.shipment_id}/verdicts`}
+          className="btn btn-secondary"
+          style={{ flex: 1 }}
+        >
+          검증 결과 보기
+        </Link>
+      </div>
+    </div>
   );
 }

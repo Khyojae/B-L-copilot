@@ -5,7 +5,7 @@ import { ShipmentCard } from './ShipmentCard';
 
 export function S1Dashboard() {
   return (
-    <PageContainer>
+    <PageContainer narrow>
       <div
         style={{
           display: 'flex',
