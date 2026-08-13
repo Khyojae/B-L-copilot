@@ -210,10 +210,12 @@ button {
   border: 1px solid var(--border-default);
   background: var(--bg-card);
   color: var(--text-primary);
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.15s ease;
 }
 button:hover:not(:disabled) {
   border-color: var(--brand-primary);
+  transform: translateY(-1px);
 }
 button:disabled {
   cursor: not-allowed;
@@ -234,10 +236,12 @@ button:disabled {
   background: var(--bg-card);
   color: var(--text-primary);
   text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.15s ease;
 }
 .btn:hover {
   border-color: var(--brand-primary);
+  transform: translateY(-1px);
 }
 
 /* 주요 동작(승인·검증 실행 등) — 채워진 남색 버튼 */

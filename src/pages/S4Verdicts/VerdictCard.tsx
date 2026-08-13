@@ -1,11 +1,14 @@
 import type { Verdict } from '../../types/domain';
 import { SeverityBadge } from '../../components/SeverityBadge';
+import { SEVERITY } from '../../constants/domain';
 
 interface VerdictCardProps {
   verdict: Verdict;
 }
 
 export function VerdictCard({ verdict }: VerdictCardProps) {
+  const meta = SEVERITY[verdict.severity];
+
   return (
     <div
       style={{
@@ -13,10 +16,13 @@ export function VerdictCard({ verdict }: VerdictCardProps) {
         flexDirection: 'column',
         gap: 8,
         padding: 'var(--space-3)',
-        border: '1px solid var(--border-default)',
+        borderTop: '1px solid var(--border-default)',
+        borderRight: '1px solid var(--border-default)',
+        borderBottom: '1px solid var(--border-default)',
+        borderLeft: `4px solid var(${meta.colorVar})`,
         borderRadius: 'var(--radius-card)',
         boxShadow: 'var(--shadow-card)',
-        backgroundColor: 'var(--bg-card)',
+        backgroundColor: `var(${meta.bgVar})`,
         textAlign: 'left',
       }}
     >
