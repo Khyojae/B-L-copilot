@@ -19,10 +19,11 @@ export function AlertCard({ alert }: AlertCardProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        padding: 16,
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        backgroundColor: 'var(--card-bg)',
+        padding: 'var(--space-3)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--bg-card)',
         textAlign: 'left',
         textDecoration: 'none',
         color: 'inherit',
@@ -35,7 +36,7 @@ export function AlertCard({ alert }: AlertCardProps) {
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: alert.acknowledged ? 'var(--text-muted)' : 'var(--accent)',
+            color: alert.acknowledged ? 'var(--text-muted)' : 'var(--brand-primary)',
           }}
         >
           {alert.acknowledged ? '확인됨' : '미확인'}

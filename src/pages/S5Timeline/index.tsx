@@ -40,10 +40,11 @@ export function S5Timeline() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: 16,
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          backgroundColor: 'var(--card-bg)',
+          padding: 'var(--space-3)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-card)',
+          boxShadow: 'var(--shadow-card)',
+          backgroundColor: 'var(--bg-card)',
           marginBottom: 16,
         }}
       >
@@ -91,9 +92,12 @@ export function S5Timeline() {
                 flexDirection: 'column',
                 gap: 4,
                 padding: 12,
-                border: isHighlighted ? '1.5px solid var(--accent)' : '1px solid var(--border)',
-                borderRadius: 8,
-                backgroundColor: isHighlighted ? 'var(--accent-bg)' : 'var(--card-bg)',
+                border: isHighlighted
+                  ? '1.5px solid var(--brand-primary)'
+                  : '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-card)',
+                boxShadow: 'var(--shadow-card)',
+                backgroundColor: isHighlighted ? 'var(--brand-primary-light)' : 'var(--bg-card)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

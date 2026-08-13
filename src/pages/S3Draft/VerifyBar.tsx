@@ -54,10 +54,11 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
-        padding: 16,
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        backgroundColor: 'var(--card-bg)',
+        padding: 'var(--space-3)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--bg-card)',
         textAlign: 'left',
       }}
     >
@@ -89,7 +90,7 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <button type="button" disabled={!gate.allowed} onClick={handleVerifyClick}>
+        <button type="button" className="btn-primary" disabled={!gate.allowed} onClick={handleVerifyClick}>
           검증 실행
         </button>
 
@@ -104,7 +105,7 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
       {!gate.allowed && gate.overridable && overrideRecorded === null && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {!showOverrideForm ? (
-            <button type="button" onClick={() => setShowOverrideForm(true)}>
+            <button type="button" className="btn-secondary" onClick={() => setShowOverrideForm(true)}>
               사유 기록 후 강제 실행
             </button>
           ) : (
@@ -120,16 +121,16 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
                 style={{
                   font: 'inherit',
                   color: 'inherit',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--border-default)',
                   borderRadius: 4,
                   padding: '4px 8px',
                 }}
               />
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={handleOverrideSubmit}>
+                <button type="button" className="btn-primary" onClick={handleOverrideSubmit}>
                   확인
                 </button>
-                <button type="button" onClick={() => setShowOverrideForm(false)}>
+                <button type="button" className="btn-secondary" onClick={() => setShowOverrideForm(false)}>
                   취소
                 </button>
               </div>
@@ -139,7 +140,7 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
       )}
 
       {overrideRecorded !== null && (
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--accent)' }}>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--brand-primary)' }}>
           사유 기록됨: {overrideRecorded}
         </p>
       )}

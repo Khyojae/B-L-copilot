@@ -63,7 +63,7 @@ export function FieldRow({
         border: field.conflict_flag
           ? '1px solid var(--severity-critical)'
           : '1px solid transparent',
-        boxShadow: isFocused ? 'inset 0 0 0 1.5px var(--accent)' : 'none',
+        boxShadow: isFocused ? 'inset 0 0 0 1.5px var(--brand-primary)' : 'none',
       }}
     >
       <span style={{ flex: '0 0 180px', fontSize: 13, color: 'var(--text-muted)' }}>
@@ -85,7 +85,7 @@ export function FieldRow({
             flex: 1,
             font: 'inherit',
             color: 'inherit',
-            border: '1px solid var(--border)',
+            border: '1px solid var(--border-default)',
             borderRadius: 4,
             padding: '2px 6px',
           }}
@@ -97,7 +97,7 @@ export function FieldRow({
       )}
 
       {isEdited && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>수정됨</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brand-primary)' }}>수정됨</span>
       )}
 
       {field.conflict_flag && (

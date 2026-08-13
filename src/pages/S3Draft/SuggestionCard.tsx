@@ -57,10 +57,11 @@ export function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCar
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        padding: 16,
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        backgroundColor: 'var(--card-bg)',
+        padding: 'var(--space-3)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--bg-card)',
         textAlign: 'left',
       }}
     >
@@ -99,10 +100,10 @@ export function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCar
 
       {isDeciding && (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={handleAccept}>
+          <button type="button" className="btn-primary" onClick={handleAccept}>
             승인
           </button>
-          <button type="button" onClick={handleRejectClick}>
+          <button type="button" className="btn-secondary" onClick={handleRejectClick}>
             거절
           </button>
         </div>
@@ -116,6 +117,7 @@ export function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCar
               <button
                 key={reason}
                 type="button"
+                className="btn-secondary"
                 onClick={() => handleSelectReason(reason as RejectReason)}
               >
                 {label}
@@ -126,7 +128,7 @@ export function SuggestionCard({ suggestion, onAccept, onReject }: SuggestionCar
       )}
 
       {status === 'accepted' && (
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-primary)' }}>
           ✓ 적용됨
           {applyToAllInScope && hasMultipleScope ? ` · ${suggestion.scope.length}곳 전체` : ''}
         </span>
