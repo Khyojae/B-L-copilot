@@ -12,9 +12,13 @@ const ICON_BY_NAME = {
 
 interface FieldRowProps {
   field: FieldValue;
+  /** 이 행이 지금 문서 뷰어에서 하이라이트되고 있는 필드인지 */
+  isFocused?: boolean;
+  /** 행을 클릭했을 때 (문서 뷰어에서 이 필드를 하이라이트하기 위해 부모에게 알려줌) */
+  onClick?: () => void;
 }
 
-export function FieldRow({ field }: FieldRowProps) {
+export function FieldRow({ field, isFocused = false, onClick }: FieldRowProps) {
   const grade = toConfidenceGrade(field);
   const meta = CONFIDENCE[grade];
   const Icon = meta.icon !== null ? ICON_BY_NAME[meta.icon as keyof typeof ICON_BY_NAME] : null;
@@ -38,16 +42,19 @@ export function FieldRow({ field }: FieldRowProps) {
 
   return (
     <div
+      onClick={onClick}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 12,
         padding: '8px 12px',
         borderRadius: 6,
+        cursor: onClick ? 'pointer' : undefined,
         backgroundColor: meta.bgVar !== null ? `var(${meta.bgVar})` : 'transparent',
         border: field.conflict_flag
           ? '1px solid var(--severity-critical)'
           : '1px solid transparent',
+        boxShadow: isFocused ? 'inset 0 0 0 1.5px var(--accent)' : 'none',
       }}
     >
       <span style={{ flex: '0 0 180px', fontSize: 13, color: 'var(--text-muted)' }}>
