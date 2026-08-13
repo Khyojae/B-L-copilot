@@ -1,8 +1,8 @@
 /**
  * B/L Copilot — 목 픽스처 (선적 1건)
  *
- * 백엔드 없이 S2·S3·S4를 개발하기 위한 고정 데이터.
- * 신뢰도 4등급·충돌 필드·판정 3심각도·교정 제안을 모두 포함합니다.
+ * 백엔드 없이 S2·S3·S4·S5·S6을 개발하기 위한 고정 데이터.
+ * 신뢰도 4등급·충돌 필드·판정 3심각도·교정 제안·현실 대조 이벤트를 모두 포함합니다.
  *
  * 규약: FE 개발규약 v0.2 §6.1
  */
@@ -15,6 +15,8 @@ import type {
   Suggestion,
   Verdict,
   DefectPrediction,
+  RealityEvent,
+  Alert,
 } from '../types/domain';
 
 // ─────────────────────────────────────────────
@@ -319,3 +321,122 @@ export const mockDraft: ShipmentDraft = {
   fields: mockFields,
   suggestions: mockSuggestions,
 };
+
+// ─────────────────────────────────────────────
+// F6 현실 대조 이벤트 5건 — S5 타임라인 · S6 경보 센터용 (§5.6)
+//
+// 수출신고 수리 → 게이트 반입 → 본선적재 → 출항 → 도착 예정 순서의
+// 타임라인입니다. 전부 shipment_id는 mockShipment 것과 같습니다.
+//
+// ⚠ 모순 사례(EVT-003): 서류(mockFields의 container_no)는 컨테이너
+//   1대(MSKU1234565)만 기재하는데, 실제 본선적재 이벤트는 quantity: 2로
+//   컨테이너가 2대 실린 것으로 기록되어 있습니다. F6이 잡아내야 하는
+//   서류·현실 불일치 사례입니다.
+// ─────────────────────────────────────────────
+
+export const mockRealityEvents: RealityEvent[] = [
+  {
+    event_id: 'EVT-001',
+    shipment_id: mockShipment.shipment_id,
+    source: 'UNIPASS',
+    source_event_code: 'EXPORT-ACCEPT',
+    event_type: '수출신고 수리',
+    occurred_at: '2026-07-12T05:40:00Z',
+    recorded_at: '2026-07-12T05:41:00Z',
+    location: 'KRPUS',
+    quantity: null,
+    container_no: null,
+    trust_grade: 'A',
+    precision: 'DATETIME',
+  },
+  {
+    event_id: 'EVT-002',
+    shipment_id: mockShipment.shipment_id,
+    source: 'DCSA',
+    source_event_code: 'GTIN',
+    event_type: '컨테이너 게이트 반입',
+    occurred_at: '2026-07-13T14:20:00Z',
+    recorded_at: '2026-07-13T14:25:00Z',
+    location: 'KRPUS',
+    quantity: 1,
+    container_no: 'MSKU1234565',
+    trust_grade: 'A',
+    precision: 'DATETIME',
+  },
+  // ⚠ 모순 사례 — quantity: 2가 서류상 컨테이너 1대(container_no 필드)와 다름
+  {
+    event_id: 'EVT-003',
+    shipment_id: mockShipment.shipment_id,
+    source: 'DCSA',
+    source_event_code: 'LOAD',
+    event_type: '본선적재 (Loaded on Board)',
+    occurred_at: '2026-07-14T08:15:00Z',
+    recorded_at: '2026-07-14T09:00:00Z',
+    location: 'KRPUS',
+    quantity: 2,
+    container_no: 'MSKU1234565',
+    trust_grade: 'A',
+    precision: 'DATETIME',
+  },
+  {
+    event_id: 'EVT-004',
+    shipment_id: mockShipment.shipment_id,
+    source: 'DCSA',
+    source_event_code: 'DEPA',
+    event_type: '선박 출항 (Vessel Departure)',
+    occurred_at: '2026-07-15T22:00:00Z',
+    recorded_at: '2026-07-15T22:10:00Z',
+    location: 'KRPUS',
+    quantity: null,
+    container_no: null,
+    trust_grade: 'A',
+    precision: 'DATETIME',
+  },
+  // 아직 일어나지 않은 예측 이벤트라 trust_grade가 A보다 낮고, 날짜만 의미가 있습니다
+  {
+    event_id: 'EVT-005',
+    shipment_id: mockShipment.shipment_id,
+    source: 'DCSA',
+    source_event_code: 'ARRI',
+    event_type: '도착 예정 (Estimated Arrival)',
+    occurred_at: '2026-08-20T00:00:00Z',
+    recorded_at: '2026-08-13T03:00:00Z',
+    location: 'DEHAM',
+    quantity: null,
+    container_no: null,
+    trust_grade: 'B',
+    precision: 'DATE',
+  },
+];
+
+// ─────────────────────────────────────────────
+// F6 모순 경보 2건 — S6 경보 센터용. mockRealityEvents와 연결됨 (§5.6)
+// ─────────────────────────────────────────────
+
+export const mockAlerts: Alert[] = [
+  {
+    alert_id: 'ALT-001',
+    shipment_id: mockShipment.shipment_id,
+    severity: 'Critical',
+    message:
+      '실제 본선적재 컨테이너가 2대인데 서류에는 1대(MSKU1234565)만 기재되어 있습니다.',
+    bl_no: mockShipment.bl_no ?? '',
+    document_event_ids: ['container_no'],
+    // 게이트 반입(1대 확인) + 본선적재(2대 기록) — 둘을 같이 봐야 불일치가 보임
+    reality_event_ids: ['EVT-002', 'EVT-003'],
+    acknowledged: false,
+    created_at: '2026-07-14T09:05:00Z',
+  },
+  {
+    alert_id: 'ALT-002',
+    shipment_id: mockShipment.shipment_id,
+    severity: 'Warning',
+    message: 'SI의 선적항 기재(INCHEON)가 실제 수출신고·본선적재 위치(BUSAN)와 다릅니다.',
+    bl_no: mockShipment.bl_no ?? '',
+    document_event_ids: ['port_of_loading'],
+    reality_event_ids: ['EVT-001', 'EVT-003'],
+    // 이미 mockFields에서 conflict_flag로 알려진 충돌이라, 담당자가 인지는 하고 있는 상태로 설정
+    acknowledged: true,
+    created_at: '2026-07-14T09:10:00Z',
+  },
+];

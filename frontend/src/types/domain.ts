@@ -227,6 +227,27 @@ export interface AdapterStatus {
   consecutive_failures: number;
 }
 
+/**
+ * F6 모순 경보 — S6 경보 센터(전역, 여러 선적을 한 화면에 모아 보여줌)에서 사용 (§5.6)
+ *
+ * ⚠ 서류측·현실측 근거 이벤트를 각각 1건 이상 가져야 합니다.
+ *   document_event_ids·reality_event_ids 둘 다 비어 있는 경보는 만들지 않습니다.
+ */
+export interface Alert {
+  alert_id: string;
+  shipment_id: string;
+  severity: Severity;
+  message: string;
+  /** 목록에서 선적을 바로 식별할 수 있도록. S6은 여러 선적의 경보를 한 화면에서 다룸 */
+  bl_no: string;
+  /** 서류측 근거 — 관련 FieldValue.field_name 참조. 최소 1건 */
+  document_event_ids: string[];
+  /** 현실측 근거 — RealityEvent.event_id 참조. 최소 1건 */
+  reality_event_ids: string[];
+  acknowledged: boolean;
+  created_at: UtcTimestamp;
+}
+
 // ─────────────────────────────────────────────
 // 선적 (전 기능 공통 키)
 // ─────────────────────────────────────────────
