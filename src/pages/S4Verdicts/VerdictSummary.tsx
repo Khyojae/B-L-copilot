@@ -21,6 +21,19 @@ function toSummaryText(verdicts: Verdict[]): string {
 
 export function VerdictSummary({ verdicts }: VerdictSummaryProps) {
   return (
-    <p style={{ margin: '0 0 8px', fontWeight: 600 }}>{toSummaryText(verdicts)}</p>
+    <p
+      style={{
+        margin: 0,
+        padding: 'var(--space-3)',
+        fontSize: 20,
+        fontWeight: 700,
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--brand-primary-light)',
+      }}
+    >
+      {toSummaryText(verdicts)}
+    </p>
   );
 }

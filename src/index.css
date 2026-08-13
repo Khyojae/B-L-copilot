@@ -125,7 +125,8 @@
 }
 
 #root {
-  width: 1126px;
+  /* 페이지 콘텐츠 최대 폭. 개별 화면은 PageContainer로 안쪽 여백만 더함 */
+  width: 1080px;
   max-width: 100%;
   margin: 0 auto;
   text-align: center;

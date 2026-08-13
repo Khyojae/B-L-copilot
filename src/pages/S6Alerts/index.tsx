@@ -1,6 +1,7 @@
 import { mockAlerts } from '../../mocks/shipment.fixture';
 import { bySeverity } from '../../constants/domain';
 import type { Alert } from '../../types/domain';
+import { PageContainer } from '../../components/PageContainer';
 import { AlertCard } from './AlertCard';
 
 /** 미확인(acknowledged: false)이 먼저, 그 안에서는 심각도 순(위반 → 주의 → 참고) */
@@ -11,7 +12,7 @@ function byUnacknowledgedThenSeverity(a: Alert, b: Alert): number {
 
 export function S6Alerts() {
   return (
-    <div style={{ padding: 32 }}>
+    <PageContainer>
       <h1>경보 센터</h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -19,6 +20,6 @@ export function S6Alerts() {
           <AlertCard key={alert.alert_id} alert={alert} />
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }

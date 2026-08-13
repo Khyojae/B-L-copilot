@@ -3,6 +3,7 @@ import { FieldForm } from './FieldForm';
 import { DocumentViewer } from './DocumentViewer';
 import { SuggestionCard } from './SuggestionCard';
 import { VerifyBar } from './VerifyBar';
+import { PageContainer } from '../../components/PageContainer';
 import { mockSuggestions } from '../../mocks/shipment.fixture';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
@@ -39,7 +40,7 @@ export function S3Draft() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageContainer>
       <h1>초안 편집기</h1>
 
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
@@ -69,6 +70,6 @@ export function S3Draft() {
       <div style={{ marginTop: 24 }}>
         <VerifyBar editedValues={editedValues} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
