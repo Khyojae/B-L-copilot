@@ -13,6 +13,34 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* 브랜드 색상 — 진한 남색/인디고. 버튼·링크·선택 상태에 씀.
+     ⚠ --severity-info(파랑)와는 다른 색조라 서로 안 겹침. 심각도/신뢰도/상태
+     색상(SEVERITY·CONFIDENCE·SHIPMENT_STATUS)은 절대 이 색으로 바꾸지 않음 */
+  --brand-primary: #1e3a5f;
+  --brand-primary-hover: #16293f;
+  --brand-primary-light: rgba(30, 58, 95, 0.08);
+
+  /* 중립 색상 — 기존 --text/--text-h/--bg/--card-bg/--border의 별칭.
+     원본 값은 그대로 두고 이름만 의미 단위로 하나 더 붙인 것이라, 다크모드
+     오버라이드도 원본 쪽에서 자동으로 따라옴 */
+  --text-primary: var(--text-h);
+  --text-secondary: var(--text);
+  --bg-page: var(--bg);
+  --bg-card: var(--card-bg);
+  --border-default: var(--border);
+
+  /* 여백 체계 — 8px 기준 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* 카드 기본 스타일 — 그림자는 은은하게 1단계만, 그라데이션·글로우 없음 */
+  --radius-card: 8px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -67,6 +95,11 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    --brand-primary: #5b84ac;
+    --brand-primary-hover: #75a0c4;
+    --brand-primary-light: rgba(91, 132, 172, 0.15);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
 
     --severity-critical: #f87171;
     --severity-critical-bg: rgba(248, 113, 113, 0.15);
@@ -149,4 +182,56 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+/* 링크 기본 스타일. 카드 전체를 감싸는 Link는 inline style로 color/textDecoration을
+   직접 지정하므로 이 규칙에 안 덮임 (인라인 스타일이 항상 우선함) */
+a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--brand-primary-hover);
+  text-decoration: underline;
+}
+
+/* 버튼 기본 스타일 — 그라데이션·그림자·애니메이션 없이 배경색 전환만 */
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 주요 동작(승인·검증 실행 등) — 채워진 남색 버튼 */
+.btn-primary {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+}
+
+/* 보조 동작(거절·취소 등) — 테두리만 있는 버튼 */
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--brand-primary-light);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }

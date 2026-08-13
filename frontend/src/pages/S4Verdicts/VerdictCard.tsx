@@ -12,10 +12,11 @@ export function VerdictCard({ verdict }: VerdictCardProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        padding: 16,
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        backgroundColor: 'var(--card-bg)',
+        padding: 'var(--space-3)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        backgroundColor: 'var(--bg-card)',
         textAlign: 'left',
       }}
     >

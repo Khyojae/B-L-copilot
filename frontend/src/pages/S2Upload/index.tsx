@@ -68,7 +68,12 @@ export function S2Upload() {
       <h1>서류 업로드</h1>
 
       <input ref={inputRef} type="file" onChange={handleFileChange} style={{ display: 'none' }} />
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={job !== null}>
+      <button
+        type="button"
+        className="btn-primary"
+        onClick={() => inputRef.current?.click()}
+        disabled={job !== null}
+      >
         파일 선택
       </button>
 
