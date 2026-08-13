@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { mockShipment } from '../../mocks/shipment.fixture';
+import { PageContainer } from '../../components/PageContainer';
 import { ShipmentCard } from './ShipmentCard';
 
 export function S1Dashboard() {
   return (
-    <div style={{ padding: 32 }}>
+    <PageContainer>
       <div
         style={{
           display: 'flex',
@@ -18,6 +19,6 @@ export function S1Dashboard() {
       </div>
 
       <ShipmentCard shipment={mockShipment} />
-    </div>
+    </PageContainer>
   );
 }
