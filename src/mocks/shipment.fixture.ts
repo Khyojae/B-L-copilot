@@ -34,6 +34,52 @@ export const mockShipment: Shipment = {
   lc_expiry_date: '2026-09-05',
 };
 
+// S1 대시보드에서 여러 건이 동시에 보일 때 StatusBadge 색이 섞여 보이도록
+// 상태를 다르게 준 선적 3건. mockVerdicts/mockFields 등 나머지 픽스처는
+// mockShipment 것 하나뿐이라, 이 3건의 카드에서 "초안 편집"/"검증 결과 보기"를
+// 눌러도 전부 같은 mockDraft·mockVerdicts로 이동합니다 — 지금은 카드 레이아웃
+// 확인이 목적이라 데이터 자체는 아직 안 늘렸습니다.
+export const mockShipmentDraft: Shipment = {
+  shipment_id: 'SHP-2026-0813-002',
+  status: 'DRAFT',
+  bl_no: null,
+  cargo_control_no: null,
+  lc_no: 'LC26081300456',
+  created_at: '2026-08-13T06:20:00Z',
+  updated_at: '2026-08-13T06:20:00Z',
+  lc_expiry_date: '2026-09-20',
+};
+
+export const mockShipmentVerified: Shipment = {
+  shipment_id: 'SHP-2026-0809-003',
+  status: 'VERIFIED',
+  bl_no: 'MSCUBUS2608077',
+  cargo_control_no: '26KRPUS0009981',
+  lc_no: 'LC26080900789',
+  created_at: '2026-08-05T01:10:00Z',
+  updated_at: '2026-08-09T09:45:00Z',
+  lc_expiry_date: '2026-08-30',
+};
+
+export const mockShipmentSubmitted: Shipment = {
+  shipment_id: 'SHP-2026-0801-004',
+  status: 'SUBMITTED',
+  bl_no: 'ONEYBUS2607512',
+  cargo_control_no: '26KRPUS0007765',
+  lc_no: 'LC26072800321',
+  created_at: '2026-07-28T03:40:00Z',
+  updated_at: '2026-08-01T07:15:00Z',
+  lc_expiry_date: '2026-08-15',
+};
+
+/** S1 대시보드 목록용 — 상태가 섞인 선적 4건 */
+export const mockShipments: Shipment[] = [
+  mockShipment,
+  mockShipmentDraft,
+  mockShipmentVerified,
+  mockShipmentSubmitted,
+];
+
 // ─────────────────────────────────────────────
 // 업로드 서류
 // ─────────────────────────────────────────────
