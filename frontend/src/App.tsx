@@ -5,6 +5,7 @@ import { S3Draft } from './pages/S3Draft'
 import { S4Verdicts } from './pages/S4Verdicts'
 import { S5Timeline } from './pages/S5Timeline'
 import { S6Alerts } from './pages/S6Alerts'
+import { S7Report } from './pages/S7Report'
 import { ComingSoon } from './components/ComingSoon'
 import { NavBar } from './components/NavBar'
 
@@ -19,7 +20,7 @@ function App() {
         <Route path="/shipments/:id/verdicts" element={<S4Verdicts />} />
         <Route path="/shipments/:id" element={<S5Timeline />} />
         <Route path="/alerts" element={<S6Alerts />} />
-        <Route path="/shipments/:id/report" element={<ComingSoon label="S7 선제 대응 리포트" />} />
+        <Route path="/shipments/:id/report" element={<S7Report />} />
         <Route path="/shipments/:id/outcome" element={<ComingSoon label="S10 결과 기록" />} />
         <Route path="/settings" element={<ComingSoon label="S11 설정" />} />
       </Routes>

@@ -22,7 +22,13 @@ export function ShipmentCard({ shipment }: ShipmentCardProps) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <strong>{shipment.bl_no ?? '-'}</strong>
+        {shipment.bl_no !== null ? (
+          <strong>{shipment.bl_no}</strong>
+        ) : (
+          // B/L 번호는 서류 추출 후에 채워지는 값이라, DRAFT 단계엔 없는 게
+          // 정상입니다. "-"로 두면 빈 값(오류)처럼 보여서 이유를 문구로 밝힘
+          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>B/L 번호 미발급</span>
+        )}
         <StatusBadge status={shipment.status} />
       </div>
 
