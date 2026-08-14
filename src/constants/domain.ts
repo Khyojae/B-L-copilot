@@ -134,7 +134,7 @@ export const CONFIDENCE: Record<ConfidenceGrade, ConfidenceMeta> = {
   },
   NOT_FOUND: {
     label: '출처 없음',
-    bgVar: null,
+    bgVar: '--confidence-not-found-bg',
     icon: 'minus-circle',
     blocksVerify: false,
     hint: '원문에서 근거를 찾지 못했습니다. 직접 입력하세요',

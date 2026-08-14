@@ -46,8 +46,8 @@
   --content-max-width: 1280px;
   --content-narrow-width: 840px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Noto Sans KR', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Noto Sans KR', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   /* 심각도 3단계 색상 — constants/domain.ts의 SEVERITY가 참조함. 여기서만 정의 */
@@ -66,9 +66,11 @@
   --status-monitoring: #7c3aed;
   --status-closed: #52525b;
 
-  /* 신뢰도 4등급 배경색 — constants/domain.ts의 CONFIDENCE가 참조함. CONFIRMED/NOT_FOUND는 배경 없음(null) */
+  /* 신뢰도 4등급 배경색 — constants/domain.ts의 CONFIDENCE가 참조함. CONFIRMED는 배경 없음(null) */
   --confidence-advisory-bg: rgba(217, 119, 6, 0.08);
   --confidence-required-bg: rgba(220, 38, 38, 0.08);
+  /* NOT_FOUND(출처 없음) — 경고성 색조 없이 아주 옅은 중립 회색으로만 구분 */
+  --confidence-not-found-bg: rgba(0, 0, 0, 0.035);
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -122,6 +124,7 @@
 
     --confidence-advisory-bg: rgba(251, 191, 36, 0.12);
     --confidence-required-bg: rgba(248, 113, 113, 0.12);
+    --confidence-not-found-bg: rgba(255, 255, 255, 0.06);
   }
 
   #social .button-icon {
@@ -144,6 +147,7 @@
 
 body {
   margin: 0;
+  font-family: var(--sans);
 }
 
 h1,
