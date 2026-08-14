@@ -28,12 +28,17 @@ interface ImpactPanelProps {
 // 여백이라 1280px 콘텐츠 폭에서 필드폼에 남는 자리가 너무 좁아짐). 그래서
 // 패널은 flex 줄에서 완전히 빼고, 화면 오른쪽에 떠 있는 고정(fixed) 패널로
 // 둡니다 — 뷰어·필드폼은 패널이 열려도 원래 폭을 그대로 씁니다.
+//
+// top과 bottom을 둘 다 고정하면 내용이 짧을 때(아직 필드를 안 고친 빈
+// 상태)도 카드가 화면 세로 전체로 늘어나서 텍스트 밑에 텅 빈 카드 영역이
+// 남습니다. 그래서 bottom 대신 maxHeight를 써서 내용만큼만 커지게 하고,
+// 내용이 길어지면 그때만 스크롤(overflowY)이 생기게 했습니다.
 const panelBaseStyle: CSSProperties = {
   position: 'fixed',
   top: 'var(--space-5)',
-  right: 'var(--space-4)',
-  bottom: 'var(--space-4)',
+  right: 'var(--space-3)',
   width: 320,
+  maxHeight: 'calc(100vh - var(--space-5) - var(--space-4))',
   overflowY: 'auto',
   zIndex: 20,
   display: 'flex',
