@@ -8,7 +8,9 @@ import {
 
 // 문서를 화면에 얼마나 크게 그릴지. 612:792 비율을 유지한 채 폭만 480px로 고정.
 // 나중에 실제 PDF 뷰어로 바꿀 때도 이 크기를 그대로 두고, 안쪽 내용만 바꾸면 됩니다.
-const DISPLAY_SIZE: DocumentDisplaySize = {
+// export하는 이유: S3Draft가 영향 패널을 여는 동안 뷰어 대신 보여주는 "숨김
+// 안내" 박스 높이를 여기 맞춰서, 뷰어가 있던 자리 크기가 느껴지게 합니다.
+export const DISPLAY_SIZE: DocumentDisplaySize = {
   width: 480,
   height: Math.round(
     480 * (MOCK_DOCUMENT_ORIGINAL_SIZE.height / MOCK_DOCUMENT_ORIGINAL_SIZE.width),
@@ -37,10 +39,15 @@ export function DocumentViewer({ focusedField }: DocumentViewerProps) {
   const highlightRect =
     bbox !== null ? bboxToScreenRect(bbox, MOCK_DOCUMENT_ORIGINAL_SIZE, DISPLAY_SIZE) : null;
 
+  // 폭·높이는 이제 인라인이 아니라 index.css의 .s3-viewer-box가 정합니다 —
+  // 1024px 이하에서는 미디어쿼리로 width:100%(최대 480px)가 되고, 높이는
+  // aspect-ratio가 비율대로 따라갑니다. highlightRect는 여전히 DISPLAY_SIZE
+  // (480x621) 기준으로 계산하므로, 실제 렌더 폭이 480px보다 작아지는 아주
+  // 좁은 화면(480px 미만 컨테이너)에서는 하이라이트 위치가 살짝 어긋날 수
+  // 있습니다 — 지금 확인 대상인 1024·768px에서는 뷰어가 항상 480px로
+  // 렌더되니 문제 없습니다.
   const documentAreaStyle: CSSProperties = {
     position: 'relative',
-    width: DISPLAY_SIZE.width,
-    height: DISPLAY_SIZE.height,
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-default)',
     borderRadius: 'var(--radius-card)',
@@ -65,7 +72,7 @@ export function DocumentViewer({ focusedField }: DocumentViewerProps) {
       }}
     >
       {/* 실제 문서를 대신하는 회색 사각형 자리. 나중에 여기를 PDF 렌더링으로 교체 */}
-      <div style={documentAreaStyle}>
+      <div className="s3-viewer-box" style={documentAreaStyle}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>문서 미리보기 (목업)</span>
 
         {highlightRect !== null && (

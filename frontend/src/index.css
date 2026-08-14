@@ -285,3 +285,32 @@ button:disabled {
   font-weight: 600;
   border-bottom-color: var(--brand-primary);
 }
+
+/* S3 초안 편집기 — 뷰어+필드폼 두 칸 배치. 인라인 스타일로는 미디어쿼리를
+   못 쓰기 때문에 이 두 규칙만 CSS 클래스로 뺐습니다. 1024px 이하에서는
+   가로 배치 대신 세로로 쌓아서(뷰어 위, 필드폼 아래) 필드폼이 눌려
+   줄바꿈되는 걸 막습니다. */
+.s3-content-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+/* 뷰어 안쪽 문서 박스 — 기본은 480px 고정, 폭·높이 비율(612:792)은
+   aspect-ratio로 항상 유지. 좁은 화면에서 폭이 100%로 바뀌어도 비율은
+   그대로라 찌그러지지 않습니다. */
+.s3-viewer-box {
+  width: 480px;
+  aspect-ratio: 612 / 792;
+}
+
+@media (max-width: 1024px) {
+  .s3-content-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .s3-viewer-box {
+    width: 100%;
+    max-width: 480px;
+  }
+}

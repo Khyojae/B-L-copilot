@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FieldForm } from './FieldForm';
-import { DocumentViewer } from './DocumentViewer';
+import { DocumentViewer, DISPLAY_SIZE } from './DocumentViewer';
 import { SuggestionCard } from './SuggestionCard';
 import { VerifyBar } from './VerifyBar';
 import { ImpactPanel } from './ImpactPanel';
@@ -62,9 +62,11 @@ export function S3Draft() {
   // 폭 규칙을 이 화면만 깨는 셈이라 피했습니다. 대신 영향 패널을 보는
   // 동안에는 문서 뷰어를 잠깐 숨겨서 필드폼에 자리를 돌려줍니다 — 패널이
   // 화면에 고정(fixed)으로 뜨는 동안 밑에 깔린 내용과 겹치지 않도록, 그
-  // 자리만큼(패널 폭 320px + 여백) 본문 오른쪽에 미리 여백을 비워둡니다.
+  // 자리만큼(패널 폭 320px + ImpactPanel의 right 여백 16px + 약간의 틈)만큼
+  // 본문 오른쪽에 미리 여백을 비워둡니다. 여백을 너무 넉넉하게 주면 패널이
+  // 본문과 멀찍이 떨어져 보여서, 딱 붙지도 겹치지도 않을 만큼만 좁게 잡았습니다.
   const contentStyle = {
-    paddingRight: isImpactOpen ? 360 : 0,
+    paddingRight: isImpactOpen ? 344 : 0,
   };
 
   return (
@@ -83,19 +85,35 @@ export function S3Draft() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+        {/* 가로 배치(뷰어+필드폼)는 index.css의 .s3-content-row가 맡습니다 —
+            1024px 이하에서는 미디어쿼리로 세로 쌓기로 바뀝니다. 인라인
+            style로는 미디어쿼리를 못 써서 이 div만 className을 씁니다. */}
+        <div className="s3-content-row">
           {isImpactOpen ? (
-            <p
+            // 뷰어 자리를 완전히 비워두면 "그냥 없어진 것"처럼 보여서, 실제
+            // 뷰어 박스(DocumentViewer의 documentAreaStyle)와 같은 톤의 회색
+            // 박스를 폭만 좁혀서 그대로 둡니다 — 높이는 뷰어와 맞춰서
+            // "여기 뷰어 있었다"는 느낌을 유지합니다.
+            <div
               style={{
-                margin: 0,
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                width: 120,
                 flexShrink: 0,
+                width: 140,
+                height: DISPLAY_SIZE.height,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-2)',
+                textAlign: 'center',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-card)',
+                boxShadow: 'var(--shadow-card)',
               }}
             >
-              영향 패널을 보는 동안 문서 미리보기를 숨겼습니다. 패널을 닫으면 다시 보입니다.
-            </p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
+                영향 패널을 보는 동안 문서 미리보기를 숨겼습니다. 패널을 닫으면 다시 보입니다.
+              </p>
+            </div>
           ) : (
             <DocumentViewer focusedField={focusedField ?? undefined} />
           )}
