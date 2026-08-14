@@ -15,6 +15,8 @@ import type {
   Suggestion,
   Verdict,
   DefectPrediction,
+  ImpactItem,
+  ImpactResult,
   RealityEvent,
   Alert,
 } from '../types/domain';
@@ -355,6 +357,64 @@ export const mockPrediction: DefectPrediction = {
     { factor: '컨테이너 번호 형식 오류', contribution: 0.05 },
   ],
   deferred_count: 1,
+};
+
+// ─────────────────────────────────────────────
+// F5 정정 영향분석 — S8 ImpactPanel용 (§5.5)
+//
+// 축소 구현이라 실제 제약 그래프 탐색은 없고, "port_of_loading을 고치면
+// 이 항목들을 다시 봐야 한다"는 결과값만 고정 mock으로 둡니다. mockVerdicts의
+// VD-002(port_of_loading L/C 충돌)·VD-003(no_of_packages 교차검사 보류)과
+// 같은 필드를 가리키게 해서, S4에서 본 판정과 S8의 영향 목록이 서로
+// 이어지는 것처럼 보이게 했습니다.
+//
+// 이번 기간 렌더 대상은 제약 3종(EQ·SUM·REF)뿐이라 그 세 개만 만들었습니다.
+// 깊이 2 원칙: 직접 영향(indirect: false) 2건 + 깊이 초과라 접어서 건수만
+// 보여줄 간접 영향(indirect: true) 1건.
+// ─────────────────────────────────────────────
+
+export const mockImpactItems: ImpactItem[] = [
+  {
+    affected_doc: 'DOC-001',
+    affected_field: 'port_of_loading',
+    action: 'SI(선적지시서)의 선적항 표기를 확정값과 같게 다시 맞춰야 합니다.',
+    party: '포워더',
+    urgency: 'Critical',
+    requires_recheck: true,
+    rule_id: 'R-LC-44EF',
+    constraint_type: 'REF',
+    indirect: false,
+  },
+  {
+    affected_doc: 'DOC-002',
+    affected_field: 'port_of_loading',
+    action: 'L/C 44E 지정 선적항(KRPUS)과 값이 같은지 재대사가 필요합니다.',
+    party: '은행',
+    urgency: 'Critical',
+    requires_recheck: true,
+    rule_id: 'R-LC-44EF',
+    constraint_type: 'EQ',
+    indirect: false,
+  },
+  {
+    affected_doc: 'DOC-004',
+    affected_field: 'no_of_packages',
+    action: '포장 수량 교차 검사(DEFERRED)가 선적항 확정 이후 재개됩니다.',
+    party: '화주',
+    urgency: 'Warning',
+    requires_recheck: true,
+    rule_id: 'R-XREF-QTY',
+    constraint_type: 'SUM',
+    indirect: true,
+  },
+];
+
+export const mockImpactResult: ImpactResult = {
+  items: mockImpactItems,
+  indirect_count: mockImpactItems.filter((item) => item.indirect).length,
+  // 아직 REVIEWING 단계(제출 전)라 재발행이 아니라 초안 수정으로 충분함
+  reissue_path: 'DRAFT_EDIT',
+  requires_amendment: false,
 };
 
 // ─────────────────────────────────────────────

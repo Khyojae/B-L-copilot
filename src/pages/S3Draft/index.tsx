@@ -1,13 +1,30 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FieldForm } from './FieldForm';
 import { DocumentViewer } from './DocumentViewer';
 import { SuggestionCard } from './SuggestionCard';
 import { VerifyBar } from './VerifyBar';
+import { ImpactPanel } from './ImpactPanel';
 import { PageContainer } from '../../components/PageContainer';
 import { mockSuggestions } from '../../mocks/shipment.fixture';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
 export function S3Draft() {
+  // S8 영향분석 패널의 열림/닫힘은 ImpactPanel 스스로 이 값을 읽어서 결정합니다
+  // (화면전이_정의.md §1: "?impact=1" URL 상태). 여기서는 토글 버튼만 둡니다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isImpactOpen = searchParams.get('impact') === '1';
+
+  function toggleImpactPanel() {
+    const next = new URLSearchParams(searchParams);
+    if (isImpactOpen) {
+      next.delete('impact');
+    } else {
+      next.set('impact', '1');
+    }
+    setSearchParams(next);
+  }
+
   // 지금 문서 뷰어에서 하이라이트할 필드. FieldRow를 클릭하면 여기로 들어옴
   const [focusedField, setFocusedField] = useState<FieldValue | null>(null);
 
@@ -41,11 +58,24 @@ export function S3Draft() {
 
   return (
     <PageContainer>
-      <h1>초안 편집기</h1>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <h1>초안 편집기</h1>
+        <button type="button" className="btn-secondary" onClick={toggleImpactPanel}>
+          {isImpactOpen ? '영향 패널 닫기' : '영향 확인'}
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
         <DocumentViewer focusedField={focusedField ?? undefined} />
-        <div style={{ flex: 1 }}>
+        {/* minWidth: 0 없으면 flex 자식은 기본적으로 안쪽 내용 너비보다 안 줄어들어서
+            영향분석 패널을 열었을 때 페이지가 가로로 넘칩니다 (flexbox 기본 함정) */}
+        <div style={{ flex: 1, minWidth: 0 }}>
           <FieldForm
             focusedFieldName={focusedField?.field_name ?? null}
             onFieldFocus={setFocusedField}
@@ -65,6 +95,8 @@ export function S3Draft() {
             ))}
           </div>
         </div>
+
+        <ImpactPanel editedValues={editedValues} />
       </div>
 
       <div style={{ marginTop: 24 }}>
