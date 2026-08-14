@@ -23,10 +23,19 @@ interface ImpactPanelProps {
   editedValues: Record<string, string | null>;
 }
 
+// 뷰어(480px 고정)+필드폼(가변)+패널을 한 flex 줄에 같이 넣으면 셋이 폭을
+// 나눠 가지면서 필드폼이 눌려 줄바꿈이 심해집니다 (뷰어+패널 고정폭만 780px+
+// 여백이라 1280px 콘텐츠 폭에서 필드폼에 남는 자리가 너무 좁아짐). 그래서
+// 패널은 flex 줄에서 완전히 빼고, 화면 오른쪽에 떠 있는 고정(fixed) 패널로
+// 둡니다 — 뷰어·필드폼은 패널이 열려도 원래 폭을 그대로 씁니다.
 const panelBaseStyle: CSSProperties = {
-  flex: '0 0 300px',
-  position: 'sticky',
+  position: 'fixed',
   top: 'var(--space-5)',
+  right: 'var(--space-4)',
+  bottom: 'var(--space-4)',
+  width: 320,
+  overflowY: 'auto',
+  zIndex: 20,
   display: 'flex',
   flexDirection: 'column',
   gap: 12,
