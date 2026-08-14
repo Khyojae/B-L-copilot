@@ -14,6 +14,7 @@ import type {
   ConfidenceGrade,
   VerdictResult,
   JobStatus,
+  ReissuePath,
 } from '../types/domain';
 
 // ─────────────────────────────────────────────
@@ -240,3 +241,11 @@ export const REJECT_REASON_LABEL = {
   COUNTERPARTY: '거래처 요구',
   WRONG_SUGGESTION: '잘못된 제안',
 } as const;
+
+/** B/L 발행 후 정정 시 재발행 경로 표시 (§5.5) */
+export const REISSUE_PATH_LABEL: Record<ReissuePath, string> = {
+  DRAFT_EDIT: '초안 수정',
+  ENDORSEMENT: '배서',
+  REISSUE: '재발행',
+  SWITCH_BL: '스위치 B/L',
+};
