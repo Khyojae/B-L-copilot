@@ -56,52 +56,77 @@ export function S3Draft() {
     console.log('[SuggestionCard] 거절:', suggestion.suggestion_id, { reason });
   }
 
+  // 뷰어(480px 고정) + 필드폼 + 영향패널을 한 줄에 다 넣으면 콘텐츠 최대폭
+  // (1280px)을 넘어서 필드폼이 심하게 눌려 줄바꿈됩니다. 페이지 폭 자체를
+  // 늘리는 방법도 있지만, 그건 이 프로젝트가 화면마다 통일하기로 한 레이아웃
+  // 폭 규칙을 이 화면만 깨는 셈이라 피했습니다. 대신 영향 패널을 보는
+  // 동안에는 문서 뷰어를 잠깐 숨겨서 필드폼에 자리를 돌려줍니다 — 패널이
+  // 화면에 고정(fixed)으로 뜨는 동안 밑에 깔린 내용과 겹치지 않도록, 그
+  // 자리만큼(패널 폭 320px + 여백) 본문 오른쪽에 미리 여백을 비워둡니다.
+  const contentStyle = {
+    paddingRight: isImpactOpen ? 360 : 0,
+  };
+
   return (
     <PageContainer>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <h1>초안 편집기</h1>
-        <button type="button" className="btn-secondary" onClick={toggleImpactPanel}>
-          {isImpactOpen ? '영향 패널 닫기' : '영향 확인'}
-        </button>
-      </div>
+      <div style={contentStyle}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <h1>초안 편집기</h1>
+          <button type="button" className="btn-secondary" onClick={toggleImpactPanel}>
+            {isImpactOpen ? '영향 패널 닫기' : '영향 확인'}
+          </button>
+        </div>
 
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-        <DocumentViewer focusedField={focusedField ?? undefined} />
-        {/* minWidth: 0 없으면 flex 자식은 기본적으로 안쪽 내용 너비보다 안 줄어들어서
-            영향분석 패널을 열었을 때 페이지가 가로로 넘칩니다 (flexbox 기본 함정) */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <FieldForm
-            focusedFieldName={focusedField?.field_name ?? null}
-            onFieldFocus={setFocusedField}
-            editedValues={editedValues}
-            onFieldEdit={handleFieldEdit}
-          />
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          {isImpactOpen ? (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                width: 120,
+                flexShrink: 0,
+              }}
+            >
+              영향 패널을 보는 동안 문서 미리보기를 숨겼습니다. 패널을 닫으면 다시 보입니다.
+            </p>
+          ) : (
+            <DocumentViewer focusedField={focusedField ?? undefined} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <FieldForm
+              focusedFieldName={focusedField?.field_name ?? null}
+              onFieldFocus={setFocusedField}
+              editedValues={editedValues}
+              onFieldEdit={handleFieldEdit}
+            />
 
-          <h2 style={{ textAlign: 'left', padding: '0 16px' }}>교정 제안</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-            {mockSuggestions.map((suggestion) => (
-              <SuggestionCard
-                key={suggestion.suggestion_id}
-                suggestion={suggestion}
-                onAccept={handleSuggestionAccept}
-                onReject={handleSuggestionReject}
-              />
-            ))}
+            <h2 style={{ textAlign: 'left', padding: '0 16px' }}>교정 제안</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
+              {mockSuggestions.map((suggestion) => (
+                <SuggestionCard
+                  key={suggestion.suggestion_id}
+                  suggestion={suggestion}
+                  onAccept={handleSuggestionAccept}
+                  onReject={handleSuggestionReject}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
-        <ImpactPanel editedValues={editedValues} />
+        <div style={{ marginTop: 24 }}>
+          <VerifyBar editedValues={editedValues} />
+        </div>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <VerifyBar editedValues={editedValues} />
-      </div>
+      <ImpactPanel editedValues={editedValues} />
     </PageContainer>
   );
 }
