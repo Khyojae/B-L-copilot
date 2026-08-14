@@ -21,8 +21,9 @@ export function S7Report() {
   const deferredVerdicts = mockVerdicts.filter((verdict) => verdict.result === 'DEFERRED');
 
   function handleExportPdf() {
-    // 설계만 — 실제 PDF 렌더링(§10.5 REPORT_PDF 목표 30s)은 이번 기간 범위 밖
-    console.log('[S7Report] PDF로 내보내기 클릭 — 아직 동작 없음');
+    // 설계만 — 실제 PDF 렌더링(§10.5 REPORT_PDF 목표 30s)은 이번 기간 범위 밖.
+    // 버튼은 남겨두되 클릭해도 아무 일도 안 일어나면 헷갈리니 짧게 안내만 띄움
+    window.alert('PDF 내보내기는 준비 중입니다');
   }
 
   return (
@@ -36,7 +37,7 @@ export function S7Report() {
         }}
       >
         <h1 style={{ margin: 0 }}>선제 대응 리포트</h1>
-        <button type="button" className="btn-primary" onClick={handleExportPdf}>
+        <button type="button" className="btn-secondary" onClick={handleExportPdf}>
           PDF로 내보내기
         </button>
       </div>
