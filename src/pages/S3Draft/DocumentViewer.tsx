@@ -6,12 +6,12 @@ import {
   type DocumentDisplaySize,
 } from './documentGeometry';
 
-// 문서를 화면에 얼마나 크게 그릴지. 612:792 비율을 유지한 채 폭만 360px로 고정.
+// 문서를 화면에 얼마나 크게 그릴지. 612:792 비율을 유지한 채 폭만 480px로 고정.
 // 나중에 실제 PDF 뷰어로 바꿀 때도 이 크기를 그대로 두고, 안쪽 내용만 바꾸면 됩니다.
 const DISPLAY_SIZE: DocumentDisplaySize = {
-  width: 360,
+  width: 480,
   height: Math.round(
-    360 * (MOCK_DOCUMENT_ORIGINAL_SIZE.height / MOCK_DOCUMENT_ORIGINAL_SIZE.width),
+    480 * (MOCK_DOCUMENT_ORIGINAL_SIZE.height / MOCK_DOCUMENT_ORIGINAL_SIZE.width),
   ),
 };
 
@@ -52,7 +52,18 @@ export function DocumentViewer({ focusedField }: DocumentViewerProps) {
   };
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+    <div
+      style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 6,
+        // 오른쪽 필드 목록을 스크롤해도 문서 뷰어는 화면에 계속 보이도록 고정.
+        // NavBar가 sticky/fixed가 아니라 페이지 상단과 안 겹치므로 top은 여백값만 주면 됨.
+        position: 'sticky',
+        top: 'var(--space-5)',
+      }}
+    >
       {/* 실제 문서를 대신하는 회색 사각형 자리. 나중에 여기를 PDF 렌더링으로 교체 */}
       <div style={documentAreaStyle}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>문서 미리보기 (목업)</span>
