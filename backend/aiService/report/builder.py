@@ -11,15 +11,11 @@ Verdict → Report 변환 (F4 본체).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
-from ruleEngine.checks import parse_date
-from ruleEngine.types import (
-    DEFAULT_PRESENTATION_DAYS,
-    LCTerms,
-    Verdict,
-)
+from ruleEngine import deadline as deadline_rules
+from ruleEngine.types import LCTerms, Verdict
 
 from .model import (
     ChecklistItem,
@@ -111,38 +107,16 @@ def _risks(verdict: Verdict) -> List[RiskItem]:
 def _deadline(
     bl: Dict[str, Optional[str]], lc: LCTerms, now: datetime
 ) -> Optional[Deadline]:
-    """제시기한을 계산한다.
+    """제시기한. **계산은 룰엔진이 한다.**
 
-    UCP 600 Art.14(c): 선적일로부터 제시기간(기본 21일) 이내, 그리고 어떤
-    경우에도 신용장 유효기일 이내. 둘 중 이른 날이 실질 기한이다.
+    리포트가 직접 계산하던 것을 `ruleEngine.deadline` 으로 옮겼다. 같은 조문
+    (UCP 600 Art.14(c))에서 나온 같은 날짜를 룰과 리포트가 각자 계산하고
+    있었고, 실제로 어긋나 있었다 — 룰은 선적일을 `on_board_date` →
+    `date_of_issue` 순으로 찾는데 여기는 `on_board_date` 만 봤다. 본선적재일
+    없이 발행일만 있는 서류에서 **룰은 하자로 잡고 리포트는 "기한을 계산하지
+    못했습니다"** 를 띄웠다.
     """
-    shipped = parse_date(_clean(bl.get("on_board_date")) or "")
-    expiry = parse_date(lc.expiry_date or "") if lc.expiry_date else None
-
-    presentation_due: Optional[date] = None
-    basis_parts: List[str] = []
-
-    if shipped:
-        days = lc.presentation_days or DEFAULT_PRESENTATION_DAYS
-        presentation_due = (shipped + timedelta(days=days)).date()
-        basis_parts.append(f"선적일 + {days}일(UCP 600 Art.14(c))")
-
-    expiry_date = expiry.date() if expiry else None
-    if expiry_date:
-        basis_parts.append("신용장 유효기일(31D)")
-
-    candidates = [d for d in (presentation_due, expiry_date) if d]
-    if not candidates:
-        return None
-
-    effective = min(candidates)
-    return Deadline(
-        presentation_due=presentation_due,
-        expiry=expiry_date,
-        effective_due=effective,
-        days_left=(effective - now.date()).days,
-        basis=" / ".join(basis_parts) + " 중 이른 날",
-    )
+    return deadline_rules.compute(bl, lc, as_of=now)
 
 
 # ── ③ 체크리스트 ─────────────────────────────────────────────────

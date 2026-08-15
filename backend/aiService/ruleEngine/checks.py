@@ -245,7 +245,17 @@ def date_not_after(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
 
 
 def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
-    """선적일로부터 제시기간이 지났는지 (UCP 600 Art.14(c))."""
+    """선적일로부터 제시기간이 지났는지 (UCP 600 Art.14(c)).
+
+    기한의 정의는 `deadline.due_from` 하나뿐이다. F4 리포트가 같은 날짜를
+    따로 계산하다 어긋난 적이 있어 한 곳으로 모았다.
+
+    **유효기일(31D)은 여기서 보지 않는다.** 그쪽은 별도 룰이 잡으므로 함께
+    판정하면 같은 하자가 두 번 계상된다. 사용자에게 "언제까지"를 하나로
+    답해야 하는 리포트만 둘을 합친다.
+    """
+    from .deadline import due_from, presentation_days
+
     names = _rule_fields(rule)
     _, bl_value = _first_present(bl, names)
     if not bl_value:
@@ -255,13 +265,15 @@ def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     if shipped is None:
         return not_evaluated(f"선적일을 해석할 수 없습니다: {bl_value}", bl=bl_value)
 
-    days = lc.presentation_days
+    days = presentation_days(lc)
     # 기준 시각을 인자로 받지 않고 now() 를 쓰면 테스트가 날짜에 따라 흔들린다.
     # 엔진이 as_of 를 주입한다.
     as_of = rule.get("_as_of") or datetime.now()
-    elapsed = (as_of - shipped).days
 
-    if elapsed > days:
+    if as_of.date() > due_from(shipped, lc):
+        # 메시지는 "며칠 지났는지"를 말한다. 기한 날짜보다 경과 일수가
+        # 사용자에게 바로 읽힌다.
+        elapsed = (as_of - shipped).days
         return violated(detail=str(elapsed), bl=bl_value, lc=str(days))
     return passed(bl=bl_value, lc=str(days))
 
