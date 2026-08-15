@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { mockAlerts, mockRealityEvents, mockShipment } from '../../mocks/shipment.fixture';
+import { FileQuestion, SatelliteDish } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { findShipmentData } from '../../mocks/shipmentData';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SeverityBadge } from '../../components/SeverityBadge';
+import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import type { RealityEvent } from '../../types/domain';
 
@@ -13,6 +15,9 @@ function formatEventTime(event: RealityEvent): string {
 }
 
 export function S5Timeline() {
+  const { id } = useParams();
+  const data = findShipmentData(id);
+
   // 화면전이_정의.md: "경보 카드 클릭 → /shipments/:id?event=<event_id> →
   // 타임라인에서 해당 마커로 스크롤". 이 페이지가 그 "스크롤"을 담당함
   const [searchParams] = useSearchParams();
@@ -25,10 +30,18 @@ export function S5Timeline() {
     }
   }, [highlightedEventId]);
 
-  const shipmentAlerts = mockAlerts.filter(
-    (alert) => alert.shipment_id === mockShipment.shipment_id,
-  );
-  const sortedEvents = [...mockRealityEvents].sort(
+  // 훅(useSearchParams·useRef·useEffect)을 전부 부른 다음에 "선적 없음"을
+  // 처리합니다 — 훅 위에서 return하면 호출 순서가 깨져 React가 에러를 냅니다
+  if (data === null) {
+    return (
+      <PageContainer narrow>
+        <EmptyState icon={FileQuestion} message={`선적 ${id ?? ''}을(를) 찾을 수 없습니다.`} />
+      </PageContainer>
+    );
+  }
+
+  const { shipment, realityEvents, alerts } = data;
+  const sortedEvents = [...realityEvents].sort(
     (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime(),
   );
 
@@ -51,24 +64,24 @@ export function S5Timeline() {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong>{mockShipment.bl_no ?? '-'}</strong>
+            <strong>{shipment.bl_no ?? 'B/L 번호 미발급'}</strong>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              L/C {mockShipment.lc_no ?? '-'} · 화물관리번호 {mockShipment.cargo_control_no ?? '-'}
+              L/C {shipment.lc_no ?? '-'} · 화물관리번호 {shipment.cargo_control_no ?? '-'}
             </span>
-            {mockShipment.lc_expiry_date !== null && (
+            {shipment.lc_expiry_date !== null && (
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                L/C 유효기일 {mockShipment.lc_expiry_date}
+                L/C 유효기일 {shipment.lc_expiry_date}
               </span>
             )}
           </div>
-          <StatusBadge status={mockShipment.status} />
+          <StatusBadge status={shipment.status} />
         </div>
 
-        {shipmentAlerts.length > 0 && (
+        {alerts.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <p style={{ margin: '0 0 8px', fontWeight: 600 }}>경보 {shipmentAlerts.length}건</p>
+            <p style={{ margin: '0 0 8px', fontWeight: 600 }}>경보 {alerts.length}건</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {shipmentAlerts.map((alert) => (
+              {alerts.map((alert) => (
                 <div
                   key={alert.alert_id}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
@@ -82,6 +95,13 @@ export function S5Timeline() {
         )}
 
         <h2 style={{ textAlign: 'left' }}>타임라인</h2>
+        {sortedEvents.length === 0 ? (
+          // 픽스처에 이 선적의 이벤트가 없습니다. 이벤트를 지어내지 않고 없다고
+          // 씁니다. 다만 §5.6이 "데이터 없음을 정상으로 판단하지 않는다"고 정해둔
+          // 만큼, "이상 없음"이 아니라 "아직 안 들어왔다"로 읽히게 문구를 잡았습니다.
+          // (어댑터 연결 상태 표시(AdapterStatus)는 아직 안 만들었습니다)
+          <EmptyState icon={SatelliteDish} message="아직 현실 대조 데이터가 없습니다." />
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedEvents.map((event) => {
             const isHighlighted = event.event_id === highlightedEventId;
@@ -115,6 +135,7 @@ export function S5Timeline() {
             );
           })}
         </div>
+        )}
       </div>
     </PageContainer>
   );
