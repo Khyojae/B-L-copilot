@@ -42,7 +42,7 @@ from typing import Any, Dict, List, Optional
 
 from . import checks
 from .checks import CheckOutcome, not_evaluated, passed, violated
-from .engine import RuleCatalogError
+from .engine import RuleCatalogError, UNDECLARED_VERSION, fingerprint_of
 from .types import LCTerms, Severity, SkippedRule, Verdict, Violation
 
 DEFAULT_CROSS_RULES_PATH = Path(__file__).with_name("cross_rules.yaml")
@@ -247,9 +247,21 @@ def _alnum(value: str) -> str:
 class CrossDocumentEngine:
     """서류 간 정합성 룰을 실행한다."""
 
-    def __init__(self, rules: Optional[List[dict]] = None) -> None:
-        self.rules = rules if rules is not None else load_cross_rules()
+    def __init__(
+        self,
+        rules: Optional[List[dict]] = None,
+        version: Optional[str] = None,
+        path: Optional[Path] = None,
+    ) -> None:
+        if rules is None:
+            rules, declared = read_cross_catalog(path)
+            version = version if version is not None else declared
+        self.rules = rules
         _validate_cross_catalog(self.rules)
+        # 서류 간 카탈로그는 rules.yaml 과 별도 파일이라 신원도 따로 잡는다.
+        # 하나로 합치면 어느 쪽을 고쳐도 같은 다이제스트가 나와, 무엇이
+        # 바뀌었는지 되짚을 수 없다.
+        self.fingerprint = fingerprint_of(self.rules, version)
 
     def __len__(self) -> int:
         return len(self.rules)
@@ -259,7 +271,9 @@ class CrossDocumentEngine:
 
         비교 대상 서류가 없으면 **평가불가**로 남긴다. 위반이 아니다.
         """
-        verdict = Verdict(model="cross-rules-v1")
+        verdict = Verdict(
+            model="cross-rules-v1", catalog=self.fingerprint.to_dict()
+        )
 
         for rule in self.rules:
             left_ref, right_ref = rule["left"], rule["right"]
@@ -331,7 +345,8 @@ def _to_violation(rule: dict, left: str, right: str, outcome: CheckOutcome) -> V
     )
 
 
-def load_cross_rules(path: Optional[Path] = None) -> List[dict]:
+def read_cross_catalog(path: Optional[Path] = None) -> tuple:
+    """(룰 목록, 선언된 버전). `engine.read_catalog` 과 같은 이유로 나눴다."""
     try:
         import yaml
     except ImportError as exc:
@@ -343,7 +358,13 @@ def load_cross_rules(path: Optional[Path] = None) -> List[dict]:
     rules = (data or {}).get("rules")
     if not rules:
         raise RuleCatalogError("서류 간 정합성 룰이 하나도 없습니다")
-    return rules
+
+    declared = (data or {}).get("version")
+    return rules, (str(declared) if declared is not None else UNDECLARED_VERSION)
+
+
+def load_cross_rules(path: Optional[Path] = None) -> List[dict]:
+    return read_cross_catalog(path)[0]
 
 
 _REQUIRED = ("id", "title", "severity", "check", "left", "right", "message")
@@ -395,4 +416,5 @@ __all__ = [
     "DocumentSet",
     "LC_DOC",
     "load_cross_rules",
+    "read_cross_catalog",
 ]

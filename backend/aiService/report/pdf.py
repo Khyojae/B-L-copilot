@@ -283,11 +283,16 @@ def _unchecked(r: Report, st: dict) -> List:
 
 def _footer_note(r: Report, st: dict) -> List:
     source = "AI 생성 요약" if r.narrative_source == "llm" else "규칙 기반 요약"
+    # 인용한 조문이 어느 카탈로그의 것인지. 룰이 개정되면 같은 서류라도
+    # 판정이 달라지므로, 종이로 나간 리포트에도 기준이 남아야 한다.
+    catalog = (r.rule_catalog or {}).get("label")
+    basis = f" 판정 기준 룰 카탈로그: {_esc(catalog)}." if catalog else ""
     return [
         Spacer(1, 6 * mm),
         Paragraph(
             f"본 리포트의 위험 점수는 조문 코드화 규칙의 가중 합({_esc(r.model)})이며, "
-            f"학습된 예측 모델의 확률이 아닙니다. 요약 문장은 {source}입니다. "
+            f"학습된 예측 모델의 확률이 아닙니다. 요약 문장은 {source}입니다."
+            f"{basis} "
             "은행 심사 결과를 보증하지 않습니다.",
             st["note"]),
     ]

@@ -107,6 +107,11 @@ class Report:
     unchecked: List[UncheckedItem] = field(default_factory=list)
     narrative_source: str = "template"  # template | llm
 
+    # 판정 근거의 신원(`Verdict.catalog`). 리포트는 조문을 인용하므로
+    # **어느 카탈로그의 조문인지**가 인용의 일부다. 룰이 개정된 뒤 옛 리포트를
+    # 다시 읽을 때, 이 값이 없으면 지금 카탈로그로 쓴 것처럼 읽힌다.
+    rule_catalog: Optional[Dict[str, str]] = None
+
     @property
     def risk_level(self) -> str:
         """표지에 크게 찍는 등급."""
@@ -129,6 +134,7 @@ class Report:
                 "headline": self.headline,
                 "narrative": self.narrative,
                 "narrative_source": self.narrative_source,
+                "rule_catalog": self.rule_catalog,
             },
             "risks": [r.__dict__ for r in self.risks],
             "checklist": [c.__dict__ for c in self.checklist],

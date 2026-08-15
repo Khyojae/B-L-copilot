@@ -7,8 +7,16 @@ from datetime import datetime
 import pytest
 
 from ocr.types import BLFields
-from ruleEngine import LCTerms, RuleCatalogError, RuleEngine, Severity
-from ruleEngine.engine import load_rules
+from ruleEngine import (
+    UNDECLARED_VERSION,
+    CrossDocumentEngine,
+    DocumentSet,
+    LCTerms,
+    RuleCatalogError,
+    RuleEngine,
+    Severity,
+)
+from ruleEngine.engine import load_rules, read_catalog
 
 AS_OF = datetime(2026, 6, 10)
 
@@ -562,3 +570,73 @@ class TestSourceVerification:
     def test_모든_룰에_조문_근거가_있다(self, engine):
         # 근거 없는 룰은 리포트에서 인용할 것이 없다.
         assert all(r.get("source") for r in engine.rules)
+
+
+class TestCatalogFingerprint:
+    """판정 재현성 — 어떤 카탈로그로 냈는지 (기획안 5.3 · 5.8)."""
+
+    def test_판정에_카탈로그_신원이_실린다(self, engine):
+        verdict = engine.verify(clean_bl(), LCTerms(), as_of=AS_OF)
+
+        assert verdict.catalog == engine.fingerprint.to_dict()
+        assert verdict.to_dict()["catalog"]["label"] == engine.fingerprint.label
+
+    def test_선언된_버전을_그대로_읽는다(self, engine):
+        rules, declared = read_catalog()
+
+        assert engine.fingerprint.version == declared
+        assert len(rules) == len(engine.rules)
+
+    def test_다이제스트는_12자_16진수다(self, engine):
+        digest = engine.fingerprint.digest
+
+        assert len(digest) == 12
+        assert all(ch in "0123456789abcdef" for ch in digest)
+
+    def test_룰을_고치면_버전이_그대로여도_다이제스트가_바뀐다(self):
+        # 이 테스트가 이 기능의 존재 이유다. 8번(ISBP 룰 보강)에서 룰이
+        # 24건에서 29건이 되는 동안 version 은 1 이었다. version 만 남기면
+        # 서로 다른 카탈로그로 낸 판정이 같은 기준을 쓴 것으로 기록된다.
+        rules, declared = read_catalog()
+        changed = [dict(r) for r in rules]
+        changed[0]["severity"] = "info"
+
+        before = RuleEngine(rules, version=declared).fingerprint
+        after = RuleEngine(changed, version=declared).fingerprint
+
+        assert before.version == after.version
+        assert before.digest != after.digest
+
+    def test_버전만_올려도_다이제스트는_그대로다(self):
+        rules = load_rules()
+
+        assert (
+            RuleEngine(rules, version="1").fingerprint.digest
+            == RuleEngine(rules, version="2").fingerprint.digest
+        )
+
+    def test_키_순서는_신원을_바꾸지_않는다(self):
+        # YAML 에서 키를 재배열한 것은 카탈로그가 달라진 것이 아니다.
+        rules = load_rules()
+        reordered = [dict(reversed(list(r.items()))) for r in rules]
+
+        assert (
+            RuleEngine(rules).fingerprint.digest
+            == RuleEngine(reordered).fingerprint.digest
+        )
+
+    def test_버전을_선언하지_않은_카탈로그(self):
+        # 코드에서 주입한 룰에는 선언된 버전이 없다. 빈 값이 아니라
+        # 명시적인 표기가 남아야 버전 자리가 비었다는 사실이 읽힌다.
+        engine = RuleEngine(load_rules())
+
+        assert engine.fingerprint.version == UNDECLARED_VERSION
+        assert engine.fingerprint.label.startswith("v0+")
+
+    def test_서류_간_카탈로그는_신원이_따로다(self):
+        # 두 카탈로그는 별도 파일이라 별도로 개정된다. 신원을 합치면
+        # 어느 쪽이 바뀌었는지 되짚을 수 없다.
+        cross = CrossDocumentEngine()
+
+        assert cross.fingerprint.digest != RuleEngine().fingerprint.digest
+        assert cross.verify(DocumentSet()).catalog == cross.fingerprint.to_dict()

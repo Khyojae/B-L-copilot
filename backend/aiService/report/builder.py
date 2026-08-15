@@ -69,6 +69,10 @@ def build_report(
         ),
         counts=verdict.counts,
         model=prediction.model if prediction else verdict.model,
+        # 위험 점수는 모델이 낼 수 있어도 하자 목록·조문 인용은 언제나
+        # 룰엔진 결과다. 그래서 카탈로그 신원은 prediction 유무와 무관하게
+        # verdict 에서 온다.
+        rule_catalog=verdict.catalog,
     )
 
     report.risks = _risks(verdict)

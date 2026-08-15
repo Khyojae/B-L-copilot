@@ -101,6 +101,15 @@ class Verdict:
     # 화면·리포트가 근거를 정직하게 표기할 수 있도록 문자열로 남긴다.
     model: str = "rules-v1"
 
+    # 판정에 쓴 룰 카탈로그의 신원(`engine.CatalogFingerprint.to_dict()`).
+    # 기획안 5.8 '판정 재현성'이 요구하는 값이며, DB 스키마의
+    # `verdict.rule_catalog_version` 이 받을 자리이기도 하다.
+    #
+    # dict 로 두는 이유는 방향 때문이다. 이 모듈은 엔진을 import 하지 않고
+    # 엔진이 이 모듈을 import 한다 — `CatalogFingerprint` 를 형으로 받으면
+    # 순환이 된다.
+    catalog: Optional[dict] = None
+
     @property
     def defect_probability(self) -> float:
         """하자 확률.
@@ -134,6 +143,7 @@ class Verdict:
     def to_dict(self) -> dict:
         return {
             "model": self.model,
+            "catalog": self.catalog,
             "defect_probability": self.defect_probability,
             "evaluated_count": self.evaluated_count,
             "skipped_count": len(self.skipped),
