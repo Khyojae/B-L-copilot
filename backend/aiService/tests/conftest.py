@@ -75,14 +75,20 @@ def write_label(
     identifier: str = "TEST_BL_0001",
     width: int = IMAGE_WIDTH,
     height: int = IMAGE_HEIGHT,
+    form_type: str = "선하증권",
 ) -> str:
-    """라벨 JSON 파일을 만들고 경로를 돌려준다."""
+    """라벨 JSON 파일을 만들고 경로를 돌려준다.
+
+    `form_type` 은 메타데이터일 뿐이라는 점에 주의할 것. 파이프라인은 **본문
+    판별을 메타데이터보다 우선**하므로(`IntakePipeline._form_type`), 서류
+    종류를 바꾸려면 bbox 에 서식 제목도 함께 넣어야 한다.
+    """
     payload = {
         "Images": {
             "identifier": identifier,
             "width": width,
             "height": height,
-            "form_type": "선하증권",
+            "form_type": form_type,
         },
         "bbox": list(bboxes),
     }

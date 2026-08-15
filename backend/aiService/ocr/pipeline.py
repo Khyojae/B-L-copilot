@@ -104,21 +104,32 @@ class IntakePipeline:
         spec = doc_types.spec_for(self._form_type(ocr))
         if spec is not None:
             # 선하증권 외 서류. 좌표 교정본이 없어 앵커만 쓴다 — 근거는
-            # doc_types 도입부에 적었다. LLM 보충은 선하증권 필드 이름을
-            # 전제하므로 여기서는 태우지 않는다.
+            # doc_types 도입부에 적었다.
+            #
+            # **이 경로가 LLM 을 가장 필요로 한다.** 실물 말뭉치에서 재보니
+            # 앵커만으로는 값 채움률이 13% 였다(선하증권 91.5%). 상업송장은
+            # 실물 4,000건에 서로 다른 서식이 850종이라 구역 좌표 하나로 덮을
+            # 수 있는 형태가 아니고, 이런 입력이 기획안 5절의 "LLM 구조화
+            # 추출"이 놓인 자리다.
+            doc_fields = self.doc_parser.parse(ocr, spec)
+            if self.use_llm:
+                self._llm_extractor().fill_document_gaps(doc_fields, ocr, spec)
             return build_document_draft(
-                self.doc_parser.parse(ocr, spec), ocr,
-                threshold=self.confidence_threshold,
+                doc_fields, ocr, threshold=self.confidence_threshold,
             )
 
         fields: BLFields = self.parser.parse(ocr)
         if self.use_llm:
             # 파서가 비운 자리만 채운다. 채운 필드는 provenance 가 "llm" 이고
             # 신뢰도가 임계값 아래라 초안 편집기가 사람 확인을 요구한다.
-            if self._llm is None:
-                self._llm = LLMFieldExtractor()
-            self._llm.fill_gaps(fields, ocr)
+            self._llm_extractor().fill_gaps(fields, ocr)
         return build_draft(fields, ocr, threshold=self.confidence_threshold)
+
+    def _llm_extractor(self) -> LLMFieldExtractor:
+        """추출기는 1회만 만든다. 공급자 초기화가 서류마다 반복되면 안 된다."""
+        if self._llm is None:
+            self._llm = LLMFieldExtractor()
+        return self._llm
 
     @staticmethod
     def _form_type(ocr: OCRResult) -> str:

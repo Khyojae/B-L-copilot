@@ -131,19 +131,41 @@ class DocumentParser:
 
         후보를 **긴 것부터** 본다. `INVOICE NO` 와 `INVOICE DATE` 가 한 지면에
         같이 있을 때 `INVOICE` 로 먼저 걸리면 어느 쪽인지 알 수 없다.
+
+        **짧은 후보는 낱말 경계로만 맞춘다.** 부분 문자열로 찾으면 `TO`(매수인
+        후보)가 `SANTOS` 안에서 걸린다. 실제로 그렇게 잡힌 값이 매수인 자리에
+        `SANTOS EXPRESS 24-Dec-2019 V.928` 로 들어갔다 — 선사명·날짜·항차를
+        매수인으로 읽은 것이다.
+
+        틀린 값이 들어가는 대가는 빈칸보다 크다. 빈칸은 사람에게 묻지만,
+        그럴듯한 오값은 **LLM 보충 대상에서도 빠져** 그대로 검증까지 흘러간다.
         """
         for cand in sorted(candidates, key=len, reverse=True):
             target = _normalize(cand)
             if not target:
                 continue
             for bbox in bboxes:
-                if target in _normalize(bbox.text):
+                if _label_matches(target, _normalize(bbox.text)):
                     return bbox
         return None
 
 
 def _normalize(text: str) -> str:
     return re.sub(r"[^A-Z0-9 ]", " ", text.upper()).strip()
+
+
+def _label_matches(target: str, text: str) -> bool:
+    """항목명 후보가 이 칸의 글자와 맞는지.
+
+    긴 후보는 부분 문자열로도 인정한다 — `INVOICE NO` 는 `COMMERCIAL INVOICE NO.`
+    안에 있어도 그 항목명이 맞다. 짧은 후보는 **낱말 단위로 정확히** 맞아야
+    한다. `_stop_at_next_label` 이 경계 판정에 쓰는 기준과 같은 길이를 쓴다.
+    """
+    if not target or not text:
+        return False
+    if len(target) >= _MIN_LABEL_LENGTH:
+        return target in text
+    return target in text.split()
 
 
 def _stop_at_next_label(boxes: List[BBox], spec: DocumentSpec) -> List[BBox]:

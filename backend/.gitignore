@@ -42,6 +42,21 @@ typechain-types/
 !aiService/mlModel/artifacts/
 !aiService/mlModel/artifacts/**
 
+# 실물 말뭉치 (AI Hub 「OCR 데이터(금융 및 물류)」 라벨)
+#
+# 커밋하지 않는 이유는 두 가지다.
+#   1. 용량 — 선하증권만 21,232건 540MB 이고, 송장·포장명세서까지 더하면 700MB 를
+#      넘는다. 저장소가 감당할 크기가 아니다.
+#   2. 이용조건 — AI Hub 는 신청·승인을 거친 본인에게만 배포한다. 우리 저장소에
+#      재배포하는 형태가 되면 안 된다.
+#
+# **말뭉치가 없으면 생성기는 기존 합성 경로로 조용히 돌아간다.** 데이터가 있는
+# 환경에서만 좋아지고 CI 는 그대로 통과한다. 그래서 테스트는 말뭉치를 직접
+# 만들어 검사하며, 실제 데이터가 있어야만 도는 테스트를 쓰지 않는다.
+#
+# 받는 법은 docs/ai-service/remaining-work.md 5.9 절.
+aiService/.corpus/
+
 # IDE / OS
 .DS_Store
 .vscode/
