@@ -1,15 +1,21 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { FileQuestion } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { FieldForm } from './FieldForm';
 import { DocumentViewer, DISPLAY_SIZE } from './DocumentViewer';
 import { SuggestionCard } from './SuggestionCard';
 import { VerifyBar } from './VerifyBar';
 import { ImpactPanel } from './ImpactPanel';
+import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
-import { mockSuggestions } from '../../mocks/shipment.fixture';
+import { findShipmentData } from '../../mocks/shipmentData';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
 export function S3Draft() {
+  // S4·S7과 같은 방식 — URL(/shipments/:id/draft)의 :id로 이 선적의 묶음을 찾습니다
+  const { id } = useParams();
+  const data = findShipmentData(id);
+
   // S8 영향분석 패널의 열림/닫힘은 ImpactPanel 스스로 이 값을 읽어서 결정합니다
   // (화면전이_정의.md §1: "?impact=1" URL 상태). 여기서는 토글 버튼만 둡니다.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -54,6 +60,18 @@ export function S3Draft() {
   function handleSuggestionReject(suggestion: Suggestion, reason: string) {
     // 거절은 필드 값을 바꾸지 않습니다 — 지금은 사유만 기록(콘솔)
     console.log('[SuggestionCard] 거절:', suggestion.suggestion_id, { reason });
+  }
+
+  // ⚠ 이 자리보다 위에서 return하면 안 됩니다. useState·useSearchParams 같은
+  // 훅은 화면을 다시 그릴 때마다 "항상 같은 순서로, 같은 개수만큼" 불려야 하는데,
+  // 훅 호출 위에서 먼저 빠져나가면 그 규칙이 깨져서 React가 에러를 냅니다.
+  // 그래서 훅을 전부 부른 다음에 "선적 없음" 처리를 합니다.
+  if (data === null) {
+    return (
+      <PageContainer>
+        <EmptyState icon={FileQuestion} message={`선적 ${id ?? ''}을(를) 찾을 수 없습니다.`} />
+      </PageContainer>
+    );
   }
 
   // 뷰어(480px 고정) + 필드폼 + 영향패널을 한 줄에 다 넣으면 콘텐츠 최대폭
@@ -119,6 +137,7 @@ export function S3Draft() {
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <FieldForm
+              fields={data.fields}
               focusedFieldName={focusedField?.field_name ?? null}
               onFieldFocus={setFocusedField}
               editedValues={editedValues}
@@ -127,20 +146,32 @@ export function S3Draft() {
 
             <h2 style={{ textAlign: 'left', padding: '0 16px' }}>교정 제안</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-              {mockSuggestions.map((suggestion) => (
-                <SuggestionCard
-                  key={suggestion.suggestion_id}
-                  suggestion={suggestion}
-                  onAccept={handleSuggestionAccept}
-                  onReject={handleSuggestionReject}
-                />
-              ))}
+              {data.suggestions.length === 0 ? (
+                // 제목만 남고 아래가 비면 고장난 것처럼 보여서 한 줄 안내를 둡니다
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+                  지금 제안할 교정 항목이 없습니다.
+                </p>
+              ) : (
+                data.suggestions.map((suggestion) => (
+                  <SuggestionCard
+                    key={suggestion.suggestion_id}
+                    suggestion={suggestion}
+                    onAccept={handleSuggestionAccept}
+                    onReject={handleSuggestionReject}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
 
         <div style={{ marginTop: 24 }}>
-          <VerifyBar editedValues={editedValues} />
+          <VerifyBar
+            fields={data.fields}
+            verdicts={data.verdicts}
+            prediction={data.prediction}
+            editedValues={editedValues}
+          />
         </div>
       </div>
 

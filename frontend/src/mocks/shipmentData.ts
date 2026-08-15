@@ -14,14 +14,25 @@
  *   사정으로 공유 타입을 건드리지 않았습니다.
  */
 
-import type { DefectPrediction, FieldValue, Shipment, Verdict } from '../types/domain';
+import type {
+  Alert,
+  DefectPrediction,
+  FieldValue,
+  RealityEvent,
+  Shipment,
+  Suggestion,
+  Verdict,
+} from '../types/domain';
 import {
+  mockAlerts,
   mockFields,
   mockPrediction,
+  mockRealityEvents,
   mockShipment,
   mockShipmentDraft,
   mockShipmentSubmitted,
   mockShipmentVerified,
+  mockSuggestions,
   mockVerdicts,
 } from './shipment.fixture';
 
@@ -35,14 +46,48 @@ import {
 export interface ShipmentMockData {
   shipment: Shipment;
   fields: FieldValue[];
+  /** 그 선적에 값이 있는 필드에 대한 교정 제안만 (suggestionsFor 참고) */
+  suggestions: Suggestion[];
   /** 아직 검증을 실행하지 않은 선적은 빈 배열 */
   verdicts: Verdict[];
   /** 검증 전이면 null — 근거 없는 확률을 지어내 보여주지 않기 위함 (규약 §2.4) */
   prediction: DefectPrediction | null;
+  /**
+   * F6 현실 대조 이벤트 (S5 타임라인).
+   *
+   * ⚠ 지금 픽스처에는 SHP-2026-0812-001 것뿐입니다. 나머지 3건은 빈 배열로
+   *   두고 화면에서 "아직 현실 대조 데이터가 없습니다"로 안내합니다. 어댑터가
+   *   아직 안 붙은 것과 "이벤트가 정말 없는 것"은 다르지만, 어느 쪽이든
+   *   이벤트를 지어내지는 않습니다 (규약 §2.4 / §5.6 "데이터 없음을 정상으로
+   *   판단하지 않음").
+   */
+  realityEvents: RealityEvent[];
+  /** F6 모순 경보 — S5 상단 요약. 이벤트와 같은 이유로 1건분만 있습니다 */
+  alerts: Alert[];
 }
 
 /**
- * mockFields(22개)를 그대로 재사용하되, 선적마다 달라야 하는 식별번호 3개만
+ * 아직 추출되지 않은 필드로 되돌립니다 — 값뿐 아니라 근거(bbox·출처·신뢰도)까지
+ * 전부 비웁니다. 값만 지우고 bbox를 남기면 "출처는 있는데 값이 없는" 앞뒤 안 맞는
+ * 필드가 되고, toConfidenceGrade가 NOT_FOUND로 안 떨어집니다.
+ * conflict_flag·candidates도 함께 지웁니다 — 값이 없는데 충돌이 있을 수는 없으니까요.
+ */
+function toNotFound(field: FieldValue): FieldValue {
+  return {
+    field_name: field.field_name,
+    value: null,
+    normalized_value: null,
+    confidence: 0,
+    source_doc_id: null,
+    page: null,
+    bbox: null,
+    extractor: field.extractor,
+    conflict_flag: false,
+  };
+}
+
+/**
+ * mockFields(26개)를 그대로 재사용하되, 선적마다 달라야 하는 식별번호 3개만
  * 그 선적의 값으로 바꿔줍니다. 선적 4건치 필드를 전부 새로 쓰면 700줄이 넘고
  * 유지보수도 어려워서, 차이 나는 부분만 덮어쓰는 방식으로 했습니다.
  */
@@ -57,24 +102,54 @@ function withIdentityOf(shipment: Shipment): FieldValue[] {
     if (!(field.field_name in overrides)) return field;
 
     const value = overrides[field.field_name];
-
-    // DRAFT처럼 아직 값이 없는 경우. 값이 없으면 근거(bbox)도 없으므로
-    // 신뢰도·출처를 전부 비워 미검출(NOT_FOUND)로 떨어뜨립니다. 값만 지우고
-    // bbox를 남겨두면 "출처는 있는데 값이 없는" 앞뒤 안 맞는 필드가 됩니다.
-    if (value === null) {
-      return {
-        ...field,
-        value: null,
-        normalized_value: null,
-        confidence: 0,
-        source_doc_id: null,
-        page: null,
-        bbox: null,
-      };
-    }
+    if (value === null) return toNotFound(field);
 
     return { ...field, value, normalized_value: value };
   });
+}
+
+/**
+ * DRAFT 단계에서 이미 값이 있을 법한 필드.
+ *
+ * 초안(DRAFT)은 화주가 SI(선적요청서)를 내고 L/C를 받아둔 정도의 시점입니다.
+ * 그래서 계약 당사자·구간·물품 명세처럼 SI·L/C에서 바로 나오는 값만 남기고,
+ * 그 뒤 단계에서야 생기는 값들은 전부 미검출로 둡니다:
+ *
+ * - bl_no·no_of_original_bl·place_and_date_of_issue → B/L 발행 후에 생김
+ * - booking_no·carrier·vessel_voyage → 선사 부킹이 확정돼야 나옴
+ * - container_no·seal_no → 컨테이너 배정·봉인 후에 나옴
+ * - shipped_on_board_date → 실제 본선적재 후에만 알 수 있음
+ * - cargo_control_no·hs_code → 수출신고 단계
+ * - gross_weight·measurement·no_of_packages·marks_and_numbers → 포장명세서에서
+ */
+const DRAFT_KNOWN_FIELDS: string[] = [
+  'shipper',
+  'consignee',
+  'lc_no',
+  'port_of_loading',
+  'port_of_discharge',
+  'description_of_goods',
+];
+
+/** 위 목록에 없는 필드를 전부 미검출로 바꿉니다 (DRAFT 전용) */
+function toDraftFields(fields: FieldValue[]): FieldValue[] {
+  return fields.map((field) =>
+    DRAFT_KNOWN_FIELDS.includes(field.field_name) ? field : toNotFound(field),
+  );
+}
+
+/**
+ * 그 선적에 실제로 값이 있는 필드에 대한 제안만 남깁니다.
+ *
+ * 교정 제안은 "이 값을 이렇게 고치세요"라는 뜻이라, 아직 값이 없는 필드에
+ * 대해서는 성립하지 않습니다. DRAFT에 container_no 제안이 뜨면 편집기에는
+ * "출처 없음"인데 제안은 "MSKU 123456 5를 고치라"고 하는 셈이 됩니다.
+ */
+function suggestionsFor(fields: FieldValue[]): Suggestion[] {
+  const filledFieldNames = new Set(
+    fields.filter((field) => field.value !== null).map((field) => field.field_name),
+  );
+  return mockSuggestions.filter((suggestion) => filledFieldNames.has(suggestion.field));
 }
 
 // ─────────────────────────────────────────────
@@ -164,32 +239,56 @@ const submittedPrediction: DefectPrediction = {
 // shipment_id → 목데이터 묶음
 // ─────────────────────────────────────────────
 
+// 제안 목록이 필드에서 파생되므로(suggestionsFor), 필드를 먼저 한 번만 만들어
+// 두고 재사용합니다. 안 그러면 같은 계산을 두 번 하게 됩니다.
+const draftFields = toDraftFields(withIdentityOf(mockShipmentDraft));
+const verifiedFields = withIdentityOf(mockShipmentVerified);
+const submittedFields = withIdentityOf(mockShipmentSubmitted);
+
 export const mockDataByShipment: Record<string, ShipmentMockData> = {
   // 지금까지 개발 기준이던 선적. 판정 5건(위반 3·주의 1·참고 1) 그대로 유지합니다.
   [mockShipment.shipment_id]: {
     shipment: mockShipment,
     fields: mockFields,
+    suggestions: suggestionsFor(mockFields),
     verdicts: mockVerdicts,
     prediction: mockPrediction,
+    realityEvents: mockRealityEvents,
+    alerts: mockAlerts,
   },
-  // DRAFT — 아직 검증 실행 전이라 판정도 하자 확률도 없습니다.
+  // DRAFT — 아직 검증 실행 전이라 판정도 하자 확률도 없고, 필드도 SI·L/C에서
+  // 나오는 6개만 값이 있습니다. 그래서 교정 제안도 port_of_discharge 1건만
+  // 남습니다 (gross_weight·container_no는 아직 값이 없어 제안이 성립 안 함).
   [mockShipmentDraft.shipment_id]: {
     shipment: mockShipmentDraft,
-    fields: withIdentityOf(mockShipmentDraft),
+    fields: draftFields,
+    suggestions: suggestionsFor(draftFields),
     verdicts: [],
     prediction: null,
+    realityEvents: [],
+    alerts: [],
   },
+  // VERIFIED — 검증을 통과한 선적이라 교정 제안은 이미 다 처리(승인/거절)된
+  // 것으로 봅니다. 위반 0건으로 통과했는데 안 고친 제안이 3건 남아 있으면
+  // "통과했다"와 "아직 고칠 게 있다"가 동시에 뜨는 셈이라 앞뒤가 안 맞습니다.
+  // 그래서 suggestionsFor()로 거르지 않고 빈 배열로 둡니다.
   [mockShipmentVerified.shipment_id]: {
     shipment: mockShipmentVerified,
-    fields: withIdentityOf(mockShipmentVerified),
+    fields: verifiedFields,
+    suggestions: [],
     verdicts: verifiedVerdicts,
     prediction: verifiedPrediction,
+    realityEvents: [],
+    alerts: [],
   },
   [mockShipmentSubmitted.shipment_id]: {
     shipment: mockShipmentSubmitted,
-    fields: withIdentityOf(mockShipmentSubmitted),
+    fields: submittedFields,
+    suggestions: suggestionsFor(submittedFields),
     verdicts: submittedVerdicts,
     prediction: submittedPrediction,
+    realityEvents: [],
+    alerts: [],
   },
 };
 
