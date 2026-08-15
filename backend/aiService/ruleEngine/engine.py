@@ -10,8 +10,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
-from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -26,12 +28,82 @@ class RuleCatalogError(ValueError):
     """룰 카탈로그가 잘못되었을 때."""
 
 
+# ── 카탈로그 신원 ────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class CatalogFingerprint:
+    """어떤 룰 카탈로그로 판정했는지를 가리키는 신원.
+
+    기획안 5.8 '판정 재현성'과 5.3 '조문 개정 시 카탈로그 버전을 판정 결과에
+    함께 저장한다'가 요구하는 값이다.
+
+    **버전과 다이제스트를 함께 남긴다.** `version` 은 카탈로그가 스스로
+    선언한 값이라 룰을 고치면서 올리지 않으면 그대로 거짓말이 된다. 실제로
+    8번(ISBP 룰 보강)에서 룰이 24건에서 29건이 되는 동안 version 은 1 이었다.
+    그 상태로 version 만 기록하면 서로 다른 카탈로그로 낸 판정이 같은 기준을
+    쓴 것으로 남는다 — 재현성이 조용히 깨지고, 조용한 실패는 틀린 답보다 나쁘다.
+    """
+
+    version: str
+    digest: str   # 카탈로그 내용의 sha256 앞 12자
+
+    @property
+    def label(self) -> str:
+        return f"v{self.version}+{self.digest}"
+
+    def to_dict(self) -> dict:
+        return {"version": self.version, "digest": self.digest, "label": self.label}
+
+
+# 카탈로그가 버전을 선언하지 않았을 때 쓰는 값. 테스트나 기동 프로브처럼
+# 코드에서 룰을 주입한 경우가 여기 해당한다.
+#
+# 빈 문자열이 아니라 명시적인 값을 쓴다. 빈 문자열이면 label 이 `v+abc123`
+# 이 되어 버전 자리가 비었다는 사실이 오탈자처럼 보인다.
+UNDECLARED_VERSION = "0"
+
+# 다이제스트 길이. 12자면 39건 규모에서 충돌이 실질적으로 없고,
+# 로그·응답에 그대로 실을 만큼 짧다.
+_DIGEST_CHARS = 12
+
+
+def fingerprint_of(
+    rules: List[dict], version: Optional[str] = None
+) -> CatalogFingerprint:
+    """룰 목록에서 신원을 계산한다.
+
+    다이제스트는 **선언된 버전을 재료에 넣지 않는다.** 넣으면 version 만
+    올려도 다이제스트가 바뀌어, "내용이 같은지"를 묻는 질문에 답하지
+    못하게 된다. 둘은 서로를 감시하는 별개의 값이라 분리해 둔다.
+
+    키 순서와 YAML 들여쓰기에 흔들리지 않도록 정렬된 JSON 으로 직렬화한다.
+    주석만 고친 카탈로그가 다른 카탈로그로 잡히면 안 된다.
+    """
+    canonical = json.dumps(
+        rules, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:_DIGEST_CHARS]
+    return CatalogFingerprint(
+        version=str(version) if version is not None else UNDECLARED_VERSION,
+        digest=digest,
+    )
+
+
 class RuleEngine:
     """조문 코드화된 룰로 하자를 검출한다."""
 
-    def __init__(self, rules: Optional[List[dict]] = None) -> None:
-        self.rules: List[dict] = rules if rules is not None else load_rules()
+    def __init__(
+        self,
+        rules: Optional[List[dict]] = None,
+        version: Optional[str] = None,
+        path: Optional[Path] = None,
+    ) -> None:
+        if rules is None:
+            rules, declared = read_catalog(path)
+            version = version if version is not None else declared
+        self.rules: List[dict] = rules
         _validate_catalog(self.rules)
+        self.fingerprint = fingerprint_of(self.rules, version)
 
     # ── 조문 검증 상태 ────────────────────────────────────────────
 
@@ -68,7 +140,10 @@ class RuleEngine:
             )
 
         lc = lc or LCTerms()
-        verdict = Verdict(model="rules-v1")
+        # 어떤 카탈로그로 판정했는지를 결과에 박아 둔다(기획안 5.3·5.8).
+        # 판정 시점에 붙이지 않으면 나중에 되짚을 방법이 없다 — 그때 남아
+        # 있는 것은 이미 고쳐진 rules.yaml 뿐이다.
+        verdict = Verdict(model="rules-v1", catalog=self.fingerprint.to_dict())
 
         for rule in self.rules:
             check = REGISTRY[rule["check"]]
@@ -120,8 +195,13 @@ class RuleEngine:
 
 # ── 카탈로그 로드·검증 ───────────────────────────────────────────
 
-def load_rules(path: Optional[Path] = None) -> List[dict]:
-    """YAML 카탈로그를 읽는다."""
+def read_catalog(path: Optional[Path] = None) -> tuple:
+    """YAML 카탈로그를 읽어 (룰 목록, 선언된 버전) 을 돌려준다.
+
+    `load_rules` 와 나눈 이유는 버전이 필요한 호출부가 생겼기 때문이다.
+    `load_rules` 는 룰만 돌려주므로 `version:` 키를 조용히 버렸고, 그래서
+    판정 결과에 카탈로그 버전을 실을 수 없었다.
+    """
     try:
         import yaml
     except ImportError as exc:
@@ -135,7 +215,16 @@ def load_rules(path: Optional[Path] = None) -> List[dict]:
 
     if not isinstance(data, dict) or "rules" not in data:
         raise RuleCatalogError(f"룰 카탈로그 형식이 잘못되었습니다: {path}")
-    return list(data["rules"])
+
+    declared = data.get("version")
+    return list(data["rules"]), (
+        str(declared) if declared is not None else UNDECLARED_VERSION
+    )
+
+
+def load_rules(path: Optional[Path] = None) -> List[dict]:
+    """YAML 카탈로그의 룰 목록만 읽는다."""
+    return read_catalog(path)[0]
 
 
 _REQUIRED_KEYS = ("id", "title", "severity", "check", "source", "message")

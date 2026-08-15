@@ -28,7 +28,7 @@ from report.share import (
     ShareTokenTooLarge,
 )
 from report import share as share_tokens
-from ruleEngine import LCTerms, RuleEngine
+from ruleEngine import UNDECLARED_VERSION, LCTerms, RuleEngine
 
 # `.env` 를 읽는다. 이 호출이 없으면 `.env.example` 이 설명하는 설정이 하나도
 # 적용되지 않으며, **그 실패는 조용하다.** GEMINI_API_KEY 가 없으면 리포트가
@@ -74,7 +74,14 @@ def predictor() -> "DefectPredictor":
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """기동 시 카탈로그를 검증한다. 룰이 깨졌으면 여기서 죽는 편이 낫다."""
-    print(f"[aiService] 룰 카탈로그 로드 완료: {len(engine())}건")
+    print(
+        f"[aiService] 룰 카탈로그 로드 완료: {len(engine())}건 "
+        f"({engine().fingerprint.label})"
+    )
+    if engine().fingerprint.version == UNDECLARED_VERSION:
+        # rules.yaml 이 version 을 잃어버린 상태다. 다이제스트만으로도
+        # 카탈로그는 구분되지만, 사람이 읽는 버전 표기가 사라진다.
+        print("[aiService] 경고: 룰 카탈로그가 version 을 선언하지 않았습니다")
     unverified = engine().unverified_rules()
     if unverified:
         # 기획안 9절 "멘토 기업 실무 검증"의 남은 작업량이다. 발표에서
@@ -155,6 +162,9 @@ def health() -> dict:
     return {
         "status": "ok",
         "rules_loaded": len(engine()),
+        # 배포된 인스턴스가 어느 카탈로그를 물고 있는지. 같은 입력에 다른
+        # 판정이 나올 때 제일 먼저 봐야 하는 값이다.
+        "rule_catalog": engine().fingerprint.to_dict(),
         "env": os.getenv("ENV", "development"),
     }
 
@@ -164,6 +174,7 @@ def list_rules() -> dict:
     """적재된 룰 목록. S11 설정 화면과 발표 시연에서 쓴다."""
     return {
         "count": len(engine()),
+        "catalog": engine().fingerprint.to_dict(),
         # 조문 인용이 실무 검증을 거치지 않은 룰 수. 화면이 이 값을 숨기면
         # 미검증 조문이 검증된 것처럼 인용된다 — 기획안 9절의 리스크다.
         "unverified_source_count": len(engine().unverified_rules()),

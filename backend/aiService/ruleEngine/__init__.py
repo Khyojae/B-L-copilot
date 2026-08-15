@@ -9,8 +9,17 @@ from .cross_doc import (
     CrossDocumentEngine,
     DocumentSet,
     load_cross_rules,
+    read_cross_catalog,
 )
-from .engine import RuleCatalogError, RuleEngine, load_rules
+from .engine import (
+    UNDECLARED_VERSION,
+    CatalogFingerprint,
+    RuleCatalogError,
+    RuleEngine,
+    fingerprint_of,
+    load_rules,
+    read_catalog,
+)
 from .mt700 import MT700Parse, MT700ParseError, parse_mt700
 from .types import (
     DEFAULT_PRESENTATION_DAYS,
@@ -26,10 +35,15 @@ from .types import (
 
 __all__ = [
     "CROSS_REGISTRY",
+    "CatalogFingerprint",
     "CheckOutcome",
     "CrossDocumentEngine",
     "DocumentSet",
+    "UNDECLARED_VERSION",
+    "fingerprint_of",
     "load_cross_rules",
+    "read_catalog",
+    "read_cross_catalog",
     "DEFAULT_PRESENTATION_DAYS",
     "DEFAULT_TOLERANCE_PCT",
     "LCTerms",
