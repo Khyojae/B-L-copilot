@@ -37,10 +37,11 @@ export const mockShipment: Shipment = {
 };
 
 // S1 대시보드에서 여러 건이 동시에 보일 때 StatusBadge 색이 섞여 보이도록
-// 상태를 다르게 준 선적 3건. mockVerdicts/mockFields 등 나머지 픽스처는
-// mockShipment 것 하나뿐이라, 이 3건의 카드에서 "초안 편집"/"검증 결과 보기"를
-// 눌러도 전부 같은 mockDraft·mockVerdicts로 이동합니다 — 지금은 카드 레이아웃
-// 확인이 목적이라 데이터 자체는 아직 안 늘렸습니다.
+// 상태를 다르게 준 선적 3건.
+//
+// 이 3건의 판정·필드·하자확률은 shipmentData.ts에서 선적별로 따로 묶습니다.
+// S4·S7은 URL의 :id로 그 묶음을 찾아 쓰므로, 카드마다 다른 결과가 나옵니다.
+// (S3 초안 편집기·S5 타임라인은 아직 mockShipment 것을 그대로 씁니다)
 export const mockShipmentDraft: Shipment = {
   shipment_id: 'SHP-2026-0813-002',
   status: 'DRAFT',
