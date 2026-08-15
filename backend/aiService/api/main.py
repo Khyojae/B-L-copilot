@@ -123,6 +123,46 @@ app = FastAPI(
 )
 
 
+# ── CORS ────────────────────────────────────────────────────────
+#
+# 정상 경로는 게이트웨이(:4000)가 이 서비스를 서버끼리 호출하는 것이고, 거기엔
+# CORS 가 필요 없다 — 브라우저가 끼지 않기 때문이다. 그럼에도 여는 이유는
+# **개발 중 프론트가 브라우저에서 직접 부르기 때문이다.** 게이트웨이가 F1·F3·F4
+# 경로를 아직 중계하지 않는 동안 S3·S4·S7 을 붙여보려면 이 길밖에 없다.
+#
+# `*` 를 쓰지 않는다. 저장은 안 하지만 이 서비스는 요청 본문으로 선하증권·
+# 신용장 내용을 받는다. 아무 출처에서나 부를 수 있게 두면, 사용자가 다른 탭에서
+# 연 페이지가 사내망의 이 서비스를 대신 호출하고 응답까지 읽어갈 수 있다.
+#
+# 허용 목록은 환경변수로 받는다. 배포마다 프론트 주소가 다르고, 그때 코드를
+# 고쳐야 한다면 결국 누군가 `*` 로 열어두게 된다.
+_DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+
+if _cors_origins:
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        # 이 서비스는 쿠키·세션을 쓰지 않는다(저장하지 않으므로 로그인도 없다).
+        # 켜면 브라우저가 자격증명을 실어 보내는 것을 허용하게 되는데, 얻는 것
+        # 없이 공격면만 늘어난다.
+        allow_credentials=False,
+        # 실제로 여는 것만 적는다. 이 서비스에 DELETE·PUT 은 없다.
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type"],
+        # `/report/pdf` 의 파일명이 이 헤더에 실린다. 노출하지 않으면 브라우저
+        # 스크립트가 읽지 못해 프론트가 파일명을 지어내게 된다.
+        expose_headers=["Content-Disposition"],
+    )
+
+
 # ── 요청/응답 모델 ───────────────────────────────────────────────
 
 class VerifyRequest(BaseModel):

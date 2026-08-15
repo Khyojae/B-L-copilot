@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Dict, List, Optional
 
+from ruleEngine.deadline import PresentationDeadline
+
 
 @dataclass
 class RiskItem:
@@ -55,19 +57,10 @@ class Recommendation:
     source: str = ""
 
 
-@dataclass
-class Deadline:
-    """제출 기한 계산 결과."""
-
-    presentation_due: Optional[date] = None   # 제시기한
-    expiry: Optional[date] = None             # 신용장 유효기일(31D)
-    effective_due: Optional[date] = None      # 둘 중 이른 날
-    days_left: Optional[int] = None
-    basis: str = ""                           # 어떻게 계산했는지
-
-    @property
-    def is_overdue(self) -> bool:
-        return self.days_left is not None and self.days_left < 0
+# 제출 기한은 **룰엔진이 계산한다.** 여기서 자체 정의를 들고 있으면 같은 조문
+# (UCP 600 Art.14(c))에서 나온 같은 날짜를 두 곳이 각자 계산하게 되고, 한쪽만
+# 고쳤을 때 리포트에 그럴듯한 틀린 날짜가 찍힌다. 이름만 리포트 어휘로 남긴다.
+Deadline = PresentationDeadline
 
 
 @dataclass
@@ -139,14 +132,7 @@ class Report:
             "risks": [r.__dict__ for r in self.risks],
             "checklist": [c.__dict__ for c in self.checklist],
             "deadline": (
-                {
-                    "presentation_due": _iso(self.deadline.presentation_due),
-                    "expiry": _iso(self.deadline.expiry),
-                    "effective_due": _iso(self.deadline.effective_due),
-                    "days_left": self.deadline.days_left,
-                    "is_overdue": self.deadline.is_overdue,
-                    "basis": self.deadline.basis,
-                }
+                self.deadline.to_dict()
                 if self.deadline
                 else None
             ),

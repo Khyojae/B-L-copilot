@@ -127,11 +127,49 @@ class Test제시기한:
 
     def test_선적일과_유효기일이_모두_없으면_기한은_None(self, engine):
         bl = clean_bl()
+        # **두 날짜를 모두 비워야 한다.** 본선적재일만 지우면 발행일로 갈음되어
+        # 기한이 계산된다(아래 테스트). 예전에는 리포트가 `on_board_date` 만
+        # 봤기 때문에 이 픽스처로도 None 이 나왔고, 그 사실이 룰과의 어긋남을
+        # 가리고 있었다.
         bl["on_board_date"] = None
+        bl["date_of_issue"] = None
         lc = matching_lc()
         lc.expiry_date = None
         report = make(engine, bl, lc)
         assert report.deadline is None
+
+    def test_본선적재일이_없으면_발행일로_갈음한다(self, engine):
+        # 룰 D018 의 `fields: [on_board_date, date_of_issue]` 와 같은 순서다.
+        # 리포트만 `on_board_date` 를 보면, 룰은 하자로 잡는데 리포트는
+        # "기한을 계산하지 못했습니다"를 띄운다.
+        bl = clean_bl()
+        bl["on_board_date"] = None
+        report = make(engine, bl, matching_lc())
+
+        assert report.deadline is not None
+        assert report.deadline.shipped_from == "date_of_issue"
+
+    def test_룰과_리포트가_같은_선적일_필드를_본다(self, engine):
+        # 두 곳이 같은 조문의 같은 날짜를 계산한다. 순서가 어긋나면 한쪽만
+        # 기한을 잡는 서류가 생기고, 그 실패는 조용하다.
+        from ruleEngine.deadline import SHIPMENT_DATE_FIELDS
+
+        d018 = engine.rule("D018")
+
+        assert tuple(d018["fields"]) == SHIPMENT_DATE_FIELDS
+
+    def test_리포트_기한과_룰_판정이_어긋나지_않는다(self, engine):
+        # 기한을 넘긴 서류는 룰도 잡고 리포트도 경과로 표시해야 한다.
+        bl = clean_bl()
+        lc = matching_lc()
+        lc.expiry_date = None
+        late = datetime(2026, 7, 1)          # 선적일 5/10 + 21일 = 5/31 초과
+
+        verdict = engine.verify(bl, lc, as_of=late)
+        report = build_report(verdict, bl, lc, as_of=late)
+
+        assert "D018" in {v.rule_id for v in verdict.violations}
+        assert report.deadline.is_overdue is True
 
 
 class Test미검사_항목:

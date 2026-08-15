@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from conftest import complete_bl_bboxes, make_bbox, write_label
+from conftest import complete_bl_bboxes, lines_to_bboxes, make_bbox, write_label
 from ocr import IntakePipeline
 from ocr.extractor import OCRExtractor
 from ocr.field_parser import FieldParser
@@ -226,3 +226,146 @@ class TestPipelineWiring:
         assert by_name["bl_no"]["source"] == "llm"
         # 임계값 아래이므로 사람 확인 대상이어야 한다.
         assert by_name["bl_no"]["needs_review"] is True
+
+
+class Test서류별_LLM_보충:
+    """선하증권 외 서류(상업송장·포장명세서)의 LLM 보충.
+
+    이 경로가 LLM 을 가장 필요로 한다 — 좌표 교정본이 없어 파서가 앵커만
+    쓰는데, 실물 말뭉치에서 값 채움률이 13% 였다(선하증권 91.5%).
+    """
+
+    def _pipeline(self, reply: str):
+        fake = FakeCompletion(reply)
+        pipeline = IntakePipeline(use_llm=True)
+        pipeline._llm = LLMFieldExtractor(fake)
+        return pipeline, fake
+
+    def test_상업송장_빈칸을_LLM_이_채운다(self, tmp_path):
+        # 항목명 없이 값만 있는 서식. 앵커가 걸 곳이 없다 — AI Hub 라벨
+        # 데이터가 정확히 이 형태다(값만 라벨링되고 항목명은 없다).
+        bboxes = lines_to_bboxes([
+            (0.35, 0.06, "COMMERCIAL INVOICE"),
+            (0.30, 0.14, "INV-2026-0417"),
+            (0.30, 0.30, "DHHJ FRANCHISING CO., LTD."),
+        ])
+        path = write_label(tmp_path, bboxes, identifier="NV1", form_type="상업송장")
+
+        pipeline, fake = self._pipeline(json.dumps({
+            "invoice_no": "INV-2026-0417",
+            "buyer": "DHHJ FRANCHISING CO., LTD.",
+            "total_amount": "USD 41,250.00",
+        }))
+        by_name = {f["name"]: f for f in pipeline.run_from_json(path).to_dict()["fields"]}
+
+        assert by_name["total_amount"]["value"] == "USD 41,250.00"
+        assert by_name["total_amount"]["source"] == "llm"
+        # 임계값 아래라 초안 편집기가 사람 확인을 요구해야 한다.
+        assert by_name["total_amount"]["needs_review"] is True
+
+    def test_프롬프트가_서류_종류를_알린다(self, tmp_path):
+        # "선하증권에서 읽은 원문"이라고 물으면 모델이 송장 필드를 엉뚱하게 찾는다.
+        path = write_label(
+            tmp_path, lines_to_bboxes([(0.38, 0.06, "PACKING LIST")]),
+            identifier="PL1", form_type="포장명세서",
+        )
+        pipeline, fake = self._pipeline("{}")
+        pipeline.run_from_json(path)
+
+        assert fake.calls, "LLM 이 호출되지 않았다"
+        prompt = fake.calls[0][1]
+        assert "포장명세서" in prompt
+        assert "선하증권" not in prompt
+
+    def test_한국어_라벨을_함께_넘긴다(self, tmp_path):
+        # `package_count` 보다 `package_count(포장 수량)` 쪽이 무엇을 찾아야
+        # 하는지 분명하다.
+        path = write_label(
+            tmp_path, lines_to_bboxes([(0.38, 0.06, "PACKING LIST")]),
+            identifier="PL2", form_type="포장명세서",
+        )
+        pipeline, fake = self._pipeline("{}")
+        pipeline.run_from_json(path)
+
+        assert "package_count(포장 수량)" in fake.calls[0][1]
+
+    def test_명세의_핵심_필드만_묻는다(self, tmp_path):
+        # 전 필드를 매번 물으면 토큰이 늘고, 무엇이 핵심인지는 DocumentSpec 이
+        # 정한다 — 여기서 다시 나열하면 명세와 어긋난다.
+        from ocr.doc_types import spec_for
+
+        path = write_label(
+            tmp_path, lines_to_bboxes([(0.35, 0.06, "COMMERCIAL INVOICE")]),
+            identifier="NV2", form_type="상업송장",
+        )
+        pipeline, fake = self._pipeline("{}")
+        pipeline.run_from_json(path)
+
+        prompt = fake.calls[0][1]
+        spec = spec_for("상업송장")
+        for name in spec.critical:
+            assert name in prompt
+        # 핵심이 아닌 필드는 묻지 않는다.
+        assert "incoterms" not in prompt
+
+    def test_LLM_이_실패해도_파서_결과는_남는다(self, tmp_path):
+        path = write_label(
+            tmp_path, lines_to_bboxes([
+                (0.35, 0.06, "COMMERCIAL INVOICE"),
+                (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+            ]),
+            identifier="NV3", form_type="상업송장",
+        )
+        pipeline = IntakePipeline(use_llm=True)
+        pipeline._llm = LLMFieldExtractor(FakeCompletion(error=RuntimeError("타임아웃")))
+
+        draft = pipeline.run_from_json(path)
+        by_name = {f["name"]: f for f in draft.to_dict()["fields"]}
+
+        assert by_name["invoice_no"]["value"] == "INV-2026-0417"
+        assert by_name["invoice_no"]["source"] == "anchor"
+
+    def test_파서가_찾은_값을_덮지_않는다(self, tmp_path):
+        path = write_label(
+            tmp_path, lines_to_bboxes([
+                (0.35, 0.06, "COMMERCIAL INVOICE"),
+                (0.05, 0.14, "INVOICE NO"), (0.30, 0.14, "INV-2026-0417"),
+            ]),
+            identifier="NV4", form_type="상업송장",
+        )
+        pipeline, _ = self._pipeline(json.dumps({"invoice_no": "지어낸-번호"}))
+        by_name = {f["name"]: f for f in pipeline.run_from_json(path).to_dict()["fields"]}
+
+        # 설명 가능한 값을 설명 불가능한 값으로 바꾸는 거래는 남는 장사가 아니다.
+        assert by_name["invoice_no"]["value"] == "INV-2026-0417"
+        assert by_name["invoice_no"]["source"] == "anchor"
+
+    def test_LLM_을_끄면_부르지_않는다(self, tmp_path):
+        path = write_label(
+            tmp_path, lines_to_bboxes([(0.35, 0.06, "COMMERCIAL INVOICE")]),
+            identifier="NV5", form_type="상업송장",
+        )
+        fake = FakeCompletion("{}")
+        pipeline = IntakePipeline(use_llm=False)
+        pipeline._llm = LLMFieldExtractor(fake)
+        pipeline.run_from_json(path)
+
+        assert fake.calls == []
+
+
+class Test짧은_항목명_오매칭:
+    """`TO` 가 `SANTOS` 안에서 걸리던 버그."""
+
+    def test_짧은_후보는_낱말_경계로만_맞는다(self):
+        from ocr.doc_parser import _label_matches
+
+        # 매수인 후보 `TO` 가 선사명 `SANTOS` 에 걸리면, 선사명·날짜·항차가
+        # 매수인 값으로 들어간다. 실제로 그렇게 잡혔다.
+        assert _label_matches("TO", "SANTOS EXPRESS") is False
+        assert _label_matches("TO", "TO ORDER") is True
+
+    def test_긴_후보는_부분_일치도_인정한다(self):
+        from ocr.doc_parser import _label_matches
+
+        # `COMMERCIAL INVOICE NO.` 안의 `INVOICE NO` 는 그 항목명이 맞다.
+        assert _label_matches("INVOICE NO", "COMMERCIAL INVOICE NO") is True
