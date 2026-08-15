@@ -18,6 +18,7 @@ import type {
   Alert,
   DefectPrediction,
   FieldValue,
+  ImpactResult,
   RealityEvent,
   Shipment,
   Suggestion,
@@ -26,6 +27,7 @@ import type {
 import {
   mockAlerts,
   mockFields,
+  mockImpactResult,
   mockPrediction,
   mockRealityEvents,
   mockShipment,
@@ -64,6 +66,14 @@ export interface ShipmentMockData {
   realityEvents: RealityEvent[];
   /** F6 모순 경보 — S5 상단 요약. 이벤트와 같은 이유로 1건분만 있습니다 */
   alerts: Alert[];
+  /**
+   * S8 정정 영향분석 — port_of_loading을 고쳤을 때 무엇을 다시 봐야 하는가.
+   *
+   * 네 선적 모두 port_of_loading에 값이 있어 영향분석 대상이 되므로 null은
+   * 두지 않았습니다. "아직 영향분석할 게 없다"는 상태는 ImpactPanel이 이미
+   * 따로 다룹니다 — 그 필드를 아직 안 고친 경우입니다.
+   */
+  impact: ImpactResult;
 }
 
 /**
@@ -236,6 +246,101 @@ const submittedPrediction: DefectPrediction = {
 };
 
 // ─────────────────────────────────────────────
+// S8 정정 영향분석 — 선적 상태에 따라 정정의 무게가 달라집니다
+//
+// 같은 port_of_loading을 고쳐도, 아직 초안이면 그냥 다시 쓰면 되지만 이미
+// 은행에 제출됐으면 조건 변경(amendment)과 B/L 재발행까지 가야 합니다.
+// 그 차이를 reissue_path·requires_amendment로 드러냅니다 (§5.5).
+// ─────────────────────────────────────────────
+
+// DRAFT — 아직 SI·L/C 2건만 올라와 있어 교차 참조할 대상이 적습니다.
+// 포장명세서가 없으니 SUM(수량 합계) 제약도 걸리지 않아 1건뿐입니다.
+const draftImpact: ImpactResult = {
+  items: [
+    {
+      affected_doc: 'DOC-002',
+      affected_field: 'port_of_loading',
+      action: 'L/C 44E가 지정한 선적항(KRPUS)과 값이 같은지 확인해야 합니다.',
+      party: '은행',
+      urgency: 'Critical',
+      requires_recheck: true,
+      rule_id: 'R-LC-44EF',
+      constraint_type: 'EQ',
+      indirect: false,
+    },
+  ],
+  indirect_count: 0,
+  reissue_path: 'DRAFT_EDIT',
+  requires_amendment: false,
+};
+
+// VERIFIED — 제출 전이라 초안 수정으로 충분하지만, 이미 통과한 판정을 다시
+// 돌려야 해서 선적 상태가 검증 완료에서 검토 중으로 되돌아갑니다.
+const verifiedImpact: ImpactResult = {
+  items: [
+    {
+      affected_doc: 'DOC-002',
+      affected_field: 'port_of_loading',
+      action:
+        '이미 통과한 L/C 대사를 다시 실행해야 합니다. 선적 상태가 검증 완료에서 검토 중으로 되돌아갑니다.',
+      party: '은행',
+      urgency: 'Critical',
+      requires_recheck: true,
+      rule_id: 'R-LC-44EF',
+      constraint_type: 'EQ',
+      indirect: false,
+    },
+    {
+      affected_doc: 'DOC-004',
+      affected_field: 'no_of_packages',
+      action: '포장 수량 교차 검사를 다시 돌려야 합니다.',
+      party: '화주',
+      urgency: 'Warning',
+      requires_recheck: true,
+      rule_id: 'R-XREF-QTY',
+      constraint_type: 'SUM',
+      indirect: true,
+    },
+  ],
+  indirect_count: 1,
+  reissue_path: 'DRAFT_EDIT',
+  requires_amendment: false,
+};
+
+// SUBMITTED — 이미 은행에 제출됐고 B/L도 발행된 상태라, 초안 수정으로는
+// 되돌릴 수 없습니다. 조건 변경(amendment) + 재발행 경로로 넘어갑니다.
+const submittedImpact: ImpactResult = {
+  items: [
+    {
+      affected_doc: 'DOC-002',
+      affected_field: 'port_of_loading',
+      action:
+        '이미 제출된 건이라 초안 수정으로는 고칠 수 없습니다. 개설은행에 조건 변경(amendment)을 요청하세요.',
+      party: '은행',
+      urgency: 'Critical',
+      requires_recheck: true,
+      rule_id: 'R-LC-44EF',
+      constraint_type: 'REF',
+      indirect: false,
+    },
+    {
+      affected_doc: 'DOC-001',
+      affected_field: 'bl_no',
+      action: 'B/L이 이미 발행되어 선적항 변경은 재발행 절차가 필요합니다. 선사에 요청하세요.',
+      party: '선사',
+      urgency: 'Critical',
+      requires_recheck: true,
+      rule_id: null,
+      constraint_type: 'REF',
+      indirect: false,
+    },
+  ],
+  indirect_count: 0,
+  reissue_path: 'REISSUE',
+  requires_amendment: true,
+};
+
+// ─────────────────────────────────────────────
 // shipment_id → 목데이터 묶음
 // ─────────────────────────────────────────────
 
@@ -255,6 +360,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     prediction: mockPrediction,
     realityEvents: mockRealityEvents,
     alerts: mockAlerts,
+    impact: mockImpactResult,
   },
   // DRAFT — 아직 검증 실행 전이라 판정도 하자 확률도 없고, 필드도 SI·L/C에서
   // 나오는 6개만 값이 있습니다. 그래서 교정 제안도 port_of_discharge 1건만
@@ -267,6 +373,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     prediction: null,
     realityEvents: [],
     alerts: [],
+    impact: draftImpact,
   },
   // VERIFIED — 검증을 통과한 선적이라 교정 제안은 이미 다 처리(승인/거절)된
   // 것으로 봅니다. 위반 0건으로 통과했는데 안 고친 제안이 3건 남아 있으면
@@ -280,6 +387,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     prediction: verifiedPrediction,
     realityEvents: [],
     alerts: [],
+    impact: verifiedImpact,
   },
   [mockShipmentSubmitted.shipment_id]: {
     shipment: mockShipmentSubmitted,
@@ -289,6 +397,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     prediction: submittedPrediction,
     realityEvents: [],
     alerts: [],
+    impact: submittedImpact,
   },
 };
 

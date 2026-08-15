@@ -175,7 +175,7 @@ export function S3Draft() {
         </div>
       </div>
 
-      <ImpactPanel editedValues={editedValues} />
+      <ImpactPanel impact={data.impact} editedValues={editedValues} />
     </PageContainer>
   );
 }

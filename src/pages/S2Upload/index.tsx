@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { UploadCloud } from 'lucide-react';
 import type { Job } from '../../types/domain';
 import { JOB_STATUS_LABEL, SUPPORTED_INPUT } from '../../constants/domain';
-import { mockShipment } from '../../mocks/shipment.fixture';
+import { mockShipmentDraft } from '../../mocks/shipment.fixture';
 import { PageContainer } from '../../components/PageContainer';
 
 function getExtension(fileName: string): string {
@@ -35,9 +35,21 @@ export function S2Upload() {
   }, [job?.status]);
 
   // DONE이 되면 S3(초안 편집기)로 이동 — 화면전이_정의.md: "job DONE 전에는 S3로 이동하지 않는다"
+  //
+  // 어디로 보낼 것인가: 업로드는 "새 선적을 만드는" 흐름이라 원래는 방금 만들어진
+  // 선적으로 가야 합니다. 하지만 mockDataByShipment는 모듈 로드 시 한 번 만들어지는
+  // 고정 상수라, 런타임에 선적을 새로 추가하려면 전역 상태 저장소가 필요하고 —
+  // 무엇보다 새로고침하면 그 선적이 사라져 "선적을 찾을 수 없습니다"가 됩니다.
+  //
+  // 대신 이미 있는 DRAFT 선적(SHP-2026-0813-002)으로 보냅니다. 이 선적은 26개
+  // 필드 중 SI·L/C에서 나오는 6개만 값이 있는, 정확히 "서류를 막 올린 초안"
+  // 상태라 업로드 직후 도착할 화면으로 맞습니다.
+  //
+  // ⚠ 한계: 몇 번을 업로드해도 같은 선적으로 갑니다. 실제 API가 붙으면
+  //   POST /shipments 응답의 새 shipment_id로 이동하도록 바꿔야 합니다.
   useEffect(() => {
     if (job?.status === 'DONE') {
-      navigate(`/shipments/${mockShipment.shipment_id}/draft`);
+      navigate(`/shipments/${mockShipmentDraft.shipment_id}/draft`);
     }
   }, [job?.status, navigate]);
 
