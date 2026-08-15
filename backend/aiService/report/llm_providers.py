@@ -27,7 +27,16 @@ from typing import Callable, Dict, List, Optional
 Completion = Callable[[str, str], str]
 
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+
+# **버전을 고정한다.** `gemini-flash-latest` 같은 별칭도 동작하지만, 별칭은
+# 밑에서 모델이 바뀐다 — 같은 서류에 다른 요약이 나와도 무엇이 달라졌는지
+# 알 방법이 없다. 룰 카탈로그에 지문을 붙인 것과 같은 이유다.
+#
+# 이전 기본값 `gemini-2.5-flash` 는 **호출이 막혔다.** `list_models()` 목록에는
+# 아직 보이는데 generateContent 가 404 와 함께 "no longer available to new
+# users" 를 돌려준다. 즉 목록에 있다고 쓸 수 있는 것이 아니므로, 모델을 바꿀
+# 때는 목록 조회가 아니라 실제 호출로 확인할 것.
+DEFAULT_GEMINI_MODEL = "gemini-3.7-flash"
 
 # 요약은 짧다. 길게 열어두면 리포트 문단이 페이지를 넘겨 레이아웃이 깨진다.
 DEFAULT_MAX_TOKENS = 600

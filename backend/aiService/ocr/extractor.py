@@ -22,6 +22,8 @@ OCR 텍스트 추출 (PaddleOCR 3.6.0).
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, List, Optional
@@ -86,6 +88,24 @@ _PDF_TEXT_MIN_LINES = 10
 # 200dpi 스캔이기 때문이며, 구역 좌표 교정 기준과 같은 배율을 유지한다.
 _PDF_RASTER_DPI = 200
 
+# OCR 에 넣는 이미지의 최대 너비. 구역 좌표가 교정된 해상도와 같은 값이다
+# (`preprocessor.STANDARD_WIDTH`). 근거는 `_downscale_for_ocr` 에 적었다.
+#
+# `OCR_MAX_WIDTH=0` 으로 끌 수 있다. 축소가 실물 스캔의 작은 글씨를 뭉개는지
+# 아직 검증되지 않았으므로, 원천 이미지로 확인하기 전까지 끄는 문을 남긴다.
+DEFAULT_OCR_MAX_WIDTH = 1654
+
+
+def _max_ocr_width() -> int:
+    raw = (os.getenv("OCR_MAX_WIDTH") or "").strip()
+    if not raw:
+        return DEFAULT_OCR_MAX_WIDTH
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        print(f"[경고] OCR_MAX_WIDTH 값을 읽을 수 없습니다: {raw!r} — 기본값 사용")
+        return DEFAULT_OCR_MAX_WIDTH
+
 
 class OCRExtractor:
     """이미지 또는 라벨 JSON에서 OCR 결과를 만든다."""
@@ -113,16 +133,24 @@ class OCRExtractor:
         )
 
     def from_image(self, image_path: str) -> OCRResult:
-        """PaddleOCR 로 이미지에서 직접 추출."""
+        """PaddleOCR 로 이미지에서 직접 추출.
+
+        큰 이미지는 먼저 줄인다(`_downscale_for_ocr`). 상한을 여기 두는 이유는
+        **이 경로가 모든 OCR 의 목구멍이기 때문이다** — 스캔 PDF(`_from_pdf_scan`)
+        와 이메일 첨부도 결국 여기로 들어온다. 전처리기(`preprocessor`)에 두면
+        `run_from_image(preprocess=True)` 만 혜택을 보고 나머지는 그대로 느리다.
+        """
         started = time.perf_counter()
-        raw = self._get_ocr().predict(str(image_path))
+        target, width, height = self._downscale_for_ocr(image_path)
+        raw = self._get_ocr().predict(str(target))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
         bboxes = self._parse_paddle_result(raw)
-        width, height = self._image_size(image_path)
 
         return OCRResult(
             image_id=Path(image_path).stem,
+            # **실제로 OCR 에 넣은 크기를 남긴다.** 원본 크기를 남기면 좌표는
+            # 축소본 기준인데 분모만 원본이 되어 구역 비율이 통째로 어긋난다.
             image_width=width,
             image_height=height,
             form_type="선하증권",
@@ -131,6 +159,55 @@ class OCRExtractor:
             processing_time_ms=elapsed_ms,
             model_version=self._paddleocr_version(),
         )
+
+    def _downscale_for_ocr(self, image_path: str):
+        """OCR 비용 상한. (넣을 경로, 너비, 높이) 를 돌려준다.
+
+        추론 시간이 **화소 수에 비례한다.** 같은 서식을 해상도만 바꿔 재면
+        이렇게 나온다(합성 B/L 1장, 4코어).
+
+            827x1170    7.6~8.1초     박스 14  신뢰도 0.991
+            1240x1755   11~13초       박스 14  신뢰도 0.994
+            1653x2339   19~23초       박스 14  신뢰도 0.994
+            2480x3509   36~53초       박스 14  신뢰도 0.998
+
+        폰으로 찍은 사진은 이보다 크다. 상한이 없으면 업로드 후 1분을 기다리게
+        되고, 그 시연은 성립하지 않는다.
+
+        **상한을 `STANDARD_WIDTH` 로 잡는 이유**는 구역 좌표가 교정된 해상도가
+        그것이기 때문이다. 전처리기가 작은 이미지를 이 너비로 **키우고** 있었는데
+        (`preprocessor._normalize_resolution`), 큰 이미지를 줄이지는 않아 한쪽만
+        정규화되고 있었다. 양방향으로 맞추는 편이 규칙으로도 단순하다.
+
+        **정확도 영향은 아직 검증되지 않았다.** 위 표는 합성 이미지 한 장이고,
+        거기서는 네 해상도가 전부 박스 14개로 같았다 — 즉 **속도만 구분했고
+        정확도는 구분하지 못했다.** 실물 스캔의 작은 글씨가 축소에서 뭉개지는지는
+        원천 이미지를 받아야 안다. 그때까지는 `OCR_MAX_WIDTH=0` 으로 끌 수 있게
+        열어 둔다(문서 2.1 절의 "압축되지 않는 세 가지" 1번과 같은 성격의 미검증
+        항목이다).
+        """
+        width, height = self._image_size(image_path)
+        limit = _max_ocr_width()
+        if not limit or width <= limit:
+            return image_path, width, height
+
+        try:
+            from PIL import Image
+        except ImportError:
+            # Pillow 가 없으면 줄이지 않는다. 느릴 뿐 결과는 옳다.
+            return image_path, width, height
+
+        scale = limit / width
+        new_size = (limit, max(1, int(round(height * scale))))
+        target = Path(tempfile.mkdtemp()) / f"{Path(image_path).stem}_ocr.png"
+        with Image.open(image_path) as img:
+            img.convert("RGB").resize(new_size, Image.LANCZOS).save(target)
+
+        print(
+            f"[aiService] OCR 입력 축소: {width}x{height} → "
+            f"{new_size[0]}x{new_size[1]} (상한 {limit}px)"
+        )
+        return str(target), new_size[0], new_size[1]
 
     def from_pdf(self, pdf_path: str, page_number: int = 0) -> OCRResult:
         """PDF 한 쪽에서 추출한다.
