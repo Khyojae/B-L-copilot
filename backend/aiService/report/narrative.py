@@ -15,7 +15,12 @@ import os
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
+from .integrity import check_narrative
 from .model import Report
+
+# 무결성 검사에 걸렸을 때 다시 생성해 볼 횟수. 기획안 5.7 이 "2회 실패 시
+# LLM 서술을 버리고 템플릿 문장으로 대체한다"로 정한 값이다.
+MAX_NARRATIVE_ATTEMPTS = 2
 
 
 @dataclass
@@ -116,21 +121,59 @@ class LLMNarrator:
         self._fallback = fallback or TemplateNarrator()
 
     def summarize(self, report: Report) -> Summary:
-        try:
-            text = self._complete(_SYSTEM_PROMPT, _render_facts(report))
-        except Exception:  # noqa: BLE001 - 요약 실패가 리포트를 막지 않는다
-            # 폴백 결과를 그대로 돌려준다. source 가 'template' 로 남아
-            # 리포트가 출처를 정직하게 표기한다.
-            return self._fallback.summarize(report)
+        """생성 → 무결성 검사 → 통과하면 채택, 아니면 재생성.
 
-        lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
-        if not lines:
-            return self._fallback.summarize(report)
-        return Summary(
-            headline=lines[0],
-            narrative=" ".join(lines[1:]) or lines[0],
-            source=self.name,
-        )
+        `MAX_NARRATIVE_ATTEMPTS` 회 모두 걸리면 템플릿으로 떨어진다. 프롬프트
+        제약만으로는 지어낸 숫자를 막을 수 없다는 것이 이 반복의 전제다
+        (`integrity` 모듈 머리말).
+
+        재생성 프롬프트에 **무엇이 걸렸는지 알려 준다.** 같은 지시로 다시
+        부르면 같은 문장이 나올 확률이 높고, 그러면 재시도가 호출 비용만
+        쓰고 끝난다.
+        """
+        facts = _render_facts(report)
+        last: Optional[str] = None
+
+        for attempt in range(MAX_NARRATIVE_ATTEMPTS):
+            system = _SYSTEM_PROMPT if last is None else _retry_prompt(last)
+            try:
+                text = self._complete(system, facts)
+            except Exception:  # noqa: BLE001 - 요약 실패가 리포트를 막지 않는다
+                # 폴백 결과를 그대로 돌려준다. source 가 'template' 로 남아
+                # 리포트가 출처를 정직하게 표기한다.
+                return self._fallback.summarize(report)
+
+            lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
+            if not lines:
+                return self._fallback.summarize(report)
+
+            headline = lines[0]
+            narrative = " ".join(lines[1:]) or lines[0]
+
+            result = check_narrative(report, headline, narrative)
+            if result.ok:
+                return Summary(
+                    headline=headline, narrative=narrative, source=self.name
+                )
+
+            last = result.describe()
+            print(
+                f"[aiService] 경고: 리포트 서술 무결성 검사 실패 "
+                f"({attempt + 1}/{MAX_NARRATIVE_ATTEMPTS}) — {last}"
+            )
+
+        # 여기까지 오면 LLM 서술을 버린다. 딱딱한 문장이 틀린 숫자보다 낫다.
+        return self._fallback.summarize(report)
+
+
+def _retry_prompt(problem: str) -> str:
+    """재생성 지시. 직전에 무엇이 걸렸는지 붙인다."""
+    return (
+        _SYSTEM_PROMPT
+        + "\n직전 작성이 검사에 걸렸습니다: "
+        + problem
+        + "\n아래 사실 목록에 있는 값만 쓰십시오. 없는 값은 문장에서 빼십시오.\n"
+    )
 
 
 def _render_facts(report: Report) -> str:

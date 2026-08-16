@@ -46,7 +46,7 @@ from typing import Callable, List, Optional, Sequence
 
 from mlModel.synth import EVAL, SyntheticGenerator
 from ocr.pipeline import IntakePipeline
-from report import apply_narrative, build_report, render_pdf
+from report import apply_narrative, build_report, check_narrative, render_pdf
 from ruleEngine import RuleEngine
 
 # ── 수용 기준 (기획안 v2) ────────────────────────────────────────
@@ -258,11 +258,20 @@ def _measure_evidence_ratios(samples, verdicts, use_llm: bool) -> List[Result]:
 
     # 리포트의 수치가 판정 데이터와 일치하는가. 리포트가 스스로 다시 세는
     # 곳이 있으면 여기서 어긋난다.
+    #
+    # **서사를 붙인 뒤에 잰다.** 예전에는 `build_report` 만 부르고
+    # `apply_narrative` 를 건너뛰었는데, 그러면 템플릿이 채운 필드끼리만
+    # 대조하게 되어 LLM 이 산문에 쓴 숫자는 측정 밖에 남는다. v2 5.4 가
+    # 요구하는 것은 "리포트 내 **모든** 수치"이므로 그 상태의 100% 는
+    # 통과라고 말할 수 없었다.
     matched = 0
+    intact = 0
     for sample, verdict in zip(samples, verdicts):
         report = build_report(
             verdict, sample.bl.to_dict(), sample.lc, as_of=sample.as_of
         )
+        if use_llm:
+            report = apply_narrative(report)
         if (
             report.counts == verdict.counts
             and report.defect_probability == verdict.defect_probability
@@ -270,6 +279,8 @@ def _measure_evidence_ratios(samples, verdicts, use_llm: bool) -> List[Result]:
             and len(report.unchecked) == len(verdict.skipped)
         ):
             matched += 1
+        if check_narrative(report, report.headline, report.narrative).ok:
+            intact += 1
 
     return [
         _ratio_result(
@@ -283,6 +294,15 @@ def _measure_evidence_ratios(samples, verdicts, use_llm: bool) -> List[Result]:
         _ratio_result(
             "F4", "리포트 수치와 판정 데이터 일치율", "v2 5.4",
             matched, len(samples),
+            note="LLM 서사 포함" if use_llm else "템플릿 서사 (LLM 미포함)",
+        ),
+        _ratio_result(
+            "F4", "서술 무결성 검사 통과율", "v2 5.7",
+            intact, len(samples),
+            note=(
+                "LLM 서사" if use_llm
+                else "템플릿 서사 — LLM 경로는 --llm 으로 재야 한다"
+            ),
         ),
     ]
 
