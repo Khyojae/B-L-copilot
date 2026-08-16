@@ -43,6 +43,20 @@ BL = {
     "total_freight": "$1,741.56",
 }
 
+# 서류 간 정합성 점검용 상업송장. BL 과 저촉하지 않는 값이다 — 여기서 보는
+# 것은 하자 검출이 아니라 **경로가 살아 있는가**이므로 정상 서류를 쓴다.
+INVOICE = {
+    "invoice_no": "INV-2026-0421",
+    "invoice_date": "2026-06-01",
+    "seller": "GAE WOON CO., LTD.",
+    "buyer": "DHHJ FRANCHISING CO., LTD.",
+    "description_of_goods": "SAW MACHINE",
+    "quantity": "27 PKG",
+    "total_amount": "USD 9,800.00",
+    "incoterms": "FOB",
+    "lc_no": "LC-2026-0001",
+}
+
 LINES = [
     (0.35, 0.03, "BILL OF LADING"),
     (0.60, 0.09, "B/L NO HG290309"),
@@ -281,6 +295,40 @@ with TestClient(app) as client, tempfile.TemporaryDirectory() as tmp:
             else f"빈 입력 → {r.status_code} ✗"
 
     check("POST /verify (빈 입력)", _verify_bad)
+
+    def _verify_cross():
+        """서류 간 정합성이 같은 응답에 합쳐지는지 (21번)."""
+        payload = {"bl": BL, "lc": lc, "as_of": "2026-06-10T00:00:00"}
+        alone = client.post("/verify", json=payload).json()["verdict"]
+
+        r = client.post("/verify", json={**payload, "documents": {"상업송장": INVOICE}})
+        r.raise_for_status()
+        d = r.json()["verdict"]
+
+        # 여기도 절대 개수로 재지 않는다. 보는 것은 두 불변식이다 —
+        # 서류를 주기 전에는 서류 간 카탈로그가 없고(검사하지 않았다),
+        # 주고 나면 검사 범위가 넓어진다.
+        assert alone["cross_catalog"] is None, "서류를 안 줬는데 서류 간 판정이 있다"
+        assert d["cross_catalog"], "서류를 줬는데 서류 간 카탈로그가 비었다"
+        assert d["evaluated_count"] > alone["evaluated_count"], (
+            f"송장을 실어도 평가 범위가 그대로다 "
+            f"({alone['evaluated_count']} → {d['evaluated_count']})"
+        )
+        cross_hits = [v for v in d["violations"] if v["rule_id"].startswith("X")]
+        return (f"평가 {alone['evaluated_count']}→{d['evaluated_count']} · "
+                f"서류 간 위반 {len(cross_hits)} · {d['cross_catalog']['label']}")
+
+    check("POST /verify (서류 간)", _verify_cross)
+
+    def _verify_cross_bad():
+        r = client.post("/verify", json={
+            "bl": BL, "lc": lc, "as_of": "2026-06-10T00:00:00",
+            "documents": {"invoice": INVOICE},
+        })
+        return f"모르는 서류 종류 → {r.status_code} (400 이어야 함)" \
+            if r.status_code == 400 else f"모르는 서류 종류 → {r.status_code} ✗"
+
+    check("POST /verify (모르는 서류 종류)", _verify_cross_bad)
 
     print("\n── F4 리포트 ────────────────────────────────────────────────")
 

@@ -110,6 +110,18 @@ class Verdict:
     # 순환이 된다.
     catalog: Optional[dict] = None
 
+    # 서류 간 정합성 카탈로그(`cross_rules.yaml`)의 신원. 서류 세트로 검증한
+    # 경우에만 채워진다.
+    #
+    # **`catalog` 에 합치지 않고 자리를 따로 둔다.** `cross_doc` 이 신원을
+    # 별도로 잡는 이유와 같다 — 하나로 뭉치면 어느 쪽 카탈로그를 고쳐서
+    # 판정이 달라졌는지 되짚을 수 없다. 재현성이 요구하는 것은 '무엇으로
+    # 판정했나'이고, 그 답은 카탈로그가 둘이면 둘이어야 한다.
+    #
+    # `None` 은 "서류 간 룰을 돌리지 않았다"는 뜻이다. "돌렸는데 위반이
+    # 없었다"와 다르며, 그 구분은 리포트 부록이 쓴다.
+    cross_catalog: Optional[dict] = None
+
     @property
     def defect_probability(self) -> float:
         """하자 확률.
@@ -140,10 +152,36 @@ class Verdict:
             self.violations, key=lambda v: (order[v.severity], -v.weight, v.rule_id)
         )
 
+    def merge_cross(self, cross: "Verdict") -> "Verdict":
+        """서류별 판정에 서류 간 판정을 얹어 하나로 만든다.
+
+        `RuleEngine` 은 서류 1건을 L/C 에 대조하고 `CrossDocumentEngine` 은
+        서류끼리 대조한다. 둘은 입력 형태가 달라 엔진이 나뉘어 있지만,
+        사용자에게는 하나의 검증 결과다 — S4 화면도 리포트도 목록 하나를
+        그린다. 그 합침을 여기서 한 번만 정의한다.
+
+        비대칭인 것이 맞다. 서류별 판정이 본체이고 서류 간 판정은 얹히는
+        쪽이다 — `model` 과 `catalog` 를 왼쪽 것으로 유지하고, 오른쪽의
+        신원은 `cross_catalog` 로 옮긴다.
+
+        **평가불가는 위반과 함께 온다.** `skipped` 를 합치지 않으면 "서류가
+        없어서 못 본 것"이 사라져 위반 0건이 '하자 없음'으로 읽힌다. 서류를
+        B/L 한 장만 올린 사용자에게 특히 그렇다.
+        """
+        return Verdict(
+            violations=self.violations + cross.violations,
+            skipped=self.skipped + cross.skipped,
+            evaluated_count=self.evaluated_count + cross.evaluated_count,
+            model=self.model,
+            catalog=self.catalog,
+            cross_catalog=cross.catalog,
+        )
+
     def to_dict(self) -> dict:
         return {
             "model": self.model,
             "catalog": self.catalog,
+            "cross_catalog": self.cross_catalog,
             "defect_probability": self.defect_probability,
             "evaluated_count": self.evaluated_count,
             "skipped_count": len(self.skipped),

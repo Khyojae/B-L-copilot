@@ -4,6 +4,7 @@ Verdict(F3) → Report → PDF. 골격·수치는 결정론이고 LLM 은 산문
 """
 
 from .builder import build_report
+from .integrity import IntegrityReport, check_narrative
 from .model import (
     ChecklistItem,
     Deadline,
@@ -33,9 +34,11 @@ __all__ = [
     "DEFAULT_TTL_SECONDS",
     "Deadline",
     "ExpiredShareToken",
+    "IntegrityReport",
     "ShareTokenError",
     "ShareTokenTooLarge",
     "LLMNarrator",
+    "check_narrative",
     "Narrator",
     "Recommendation",
     "Report",

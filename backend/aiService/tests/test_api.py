@@ -47,6 +47,19 @@ CLEAN_LC = {
 
 AS_OF = "2026-06-10T00:00:00"
 
+# 서류 간 정합성 검증용. CLEAN_BL·CLEAN_LC 와 저촉하지 않는 값이다.
+CLEAN_INVOICE = {
+    "invoice_no": "INV-2026-0421",
+    "invoice_date": "2026-06-01",
+    "seller": "GAE WOON CO., LTD.",
+    "buyer": "DHHJ FRANCHISING CO., LTD.",
+    "description_of_goods": "SAW MACHINE",
+    "quantity": "27 PKG",
+    "total_amount": "USD 9,800.00",
+    "incoterms": "FOB",
+    "lc_no": "LC-2026-001",
+}
+
 
 class TestHealth:
     def test_룰_적재_수를_보고한다(self, client):
@@ -58,8 +71,22 @@ class TestHealth:
     def test_룰_목록에_조문이_실린다(self, client):
         body = client.get("/rules").json()
 
-        assert body["count"] == len(body["rules"])
+        # count 는 두 카탈로그의 합이다. 화면이 서류별 룰만 세면 실제 판정에
+        # 쓰이는 룰보다 적게 표시된다.
+        assert body["count"] == len(body["rules"]) + len(body["cross_rules"])
         assert all(r["source"] for r in body["rules"])
+        assert all(r["source"] for r in body["cross_rules"])
+
+    def test_룰_목록이_서류_간_룰을_함께_낸다(self, client):
+        body = client.get("/rules").json()
+
+        assert len(body["cross_rules"]) >= 10
+        assert body["cross_catalog"]["label"] != body["catalog"]["label"]
+        # 화면이 '해당 필드로 바로가기'를 그리려면 어느 서류의 어느 필드인지가
+        # 있어야 한다. 서류별 룰과 달리 양쪽을 맞대므로 둘 다 필요하다.
+        first = body["cross_rules"][0]
+        assert first["scope"] == "cross_document"
+        assert "." in first["left"] and "." in first["right"]
 
 
 class TestExtract:
@@ -270,6 +297,110 @@ class TestVerify:
         response = client.post("/verify", json={"bl": {}})
 
         assert response.status_code == 400
+
+
+class TestVerifyCrossDocument:
+    """서류 간 정합성이 `/verify` 응답에 합쳐져 나오는지 (21번)."""
+
+    def test_서류를_안_주면_서류_간_카탈로그가_비어_있다(self, client):
+        verdict = client.post(
+            "/verify", json={"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+        ).json()["verdict"]
+
+        # null 은 '돌리지 않았다'는 뜻이다. '돌렸는데 위반이 없었다'와 다르며
+        # 화면이 이 둘을 같게 그리면 검사 범위를 속이게 된다.
+        assert verdict["cross_catalog"] is None
+
+    def test_송장을_주면_서류_간_룰이_함께_돈다(self, client):
+        verdict = client.post("/verify", json={
+            "bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"상업송장": CLEAN_INVOICE},
+        }).json()["verdict"]
+
+        assert verdict["cross_catalog"]["label"]
+        assert verdict["cross_catalog"] != verdict["catalog"]
+
+    def test_송장_명세가_어긋나면_저촉이_잡힌다(self, client):
+        invoice = {**CLEAN_INVOICE, "description_of_goods": "COTTON FABRIC ROLL"}
+
+        verdict = client.post("/verify", json={
+            "bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"상업송장": invoice},
+        }).json()["verdict"]
+
+        x003 = next(v for v in verdict["violations"] if v["rule_id"] == "X003")
+        assert x003["source"]
+        # 서류가 둘이므로 필드에 종류가 붙는다. S4 의 바로가기가 이걸 쓴다.
+        assert any("선하증권." in f for f in x003["fields"])
+        assert any("상업송장." in f for f in x003["fields"])
+
+    def test_송장_금액이_LC를_넘으면_저촉이다(self, client):
+        invoice = {**CLEAN_INVOICE, "total_amount": "USD 99,000.00"}
+
+        verdict = client.post("/verify", json={
+            "bl": CLEAN_BL, "lc": {**CLEAN_LC, "currency_amount": "USD 10,000.00"},
+            "as_of": AS_OF, "documents": {"상업송장": invoice},
+        }).json()["verdict"]
+
+        assert any(v["rule_id"] == "X009" for v in verdict["violations"])
+
+    def test_없는_서류의_룰은_위반이_아니라_평가불가다(self, client):
+        # 포장명세서를 주지 않았다. 사용자가 고칠 수 없는 것을 하자로 세면
+        # 화면이 신뢰를 잃는다.
+        verdict = client.post("/verify", json={
+            "bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"상업송장": CLEAN_INVOICE},
+        }).json()["verdict"]
+
+        packing_rules = {"X004", "X005", "X006", "X007"}
+        assert not packing_rules & {v["rule_id"] for v in verdict["violations"]}
+        assert packing_rules <= {s["rule_id"] for s in verdict["skipped"]}
+
+    def test_서류별_판정은_그대로_남는다(self, client):
+        bl = {**CLEAN_BL, "port_of_loading": "SHANGHAI, CHINA"}
+
+        verdict = client.post("/verify", json={
+            "bl": bl, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"상업송장": CLEAN_INVOICE},
+        }).json()["verdict"]
+
+        assert any(v["rule_id"] == "D003" for v in verdict["violations"])
+
+    def test_모르는_서류_종류는_400이다(self, client):
+        # 조용히 무시하면 그 서류를 쓰는 룰이 전부 평가불가로 빠지는데,
+        # 200 응답을 받은 사용자는 검사가 된 줄 안다.
+        response = client.post("/verify", json={
+            "bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"invoice": CLEAN_INVOICE},
+        })
+
+        assert response.status_code == 400
+        assert "invoice" in response.json()["detail"]
+
+    def test_예측은_서류별_판정으로만_낸다(self, client):
+        """모델은 서류별 룰만 돌던 판정으로 학습했다(30번 전까지)."""
+        payload = {"bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF}
+        alone = client.post("/verify", json=payload).json()
+
+        invoice = {**CLEAN_INVOICE, "description_of_goods": "COTTON FABRIC ROLL"}
+        withdoc = client.post(
+            "/verify", json={**payload, "documents": {"상업송장": invoice}}
+        ).json()
+
+        # 서류 간 위반이 늘어도 예측 확률은 움직이지 않는다.
+        assert withdoc["verdict"]["counts"]["critical"] > alone["verdict"]["counts"]["critical"]
+        assert withdoc["prediction"]["probability"] == alone["prediction"]["probability"]
+
+    def test_리포트도_서류_간_저촉을_싣는다(self, client):
+        invoice = {**CLEAN_INVOICE, "description_of_goods": "COTTON FABRIC ROLL"}
+
+        body = client.post("/report", json={
+            "bl": CLEAN_BL, "lc": CLEAN_LC, "as_of": AS_OF,
+            "documents": {"상업송장": invoice},
+        }).json()
+
+        assert body["summary"]["cross_rule_catalog"]["label"]
+        assert any(r["rule_id"] == "X003" for r in body["risks"])
 
     def test_bl이_없으면_422다(self, client):
         # Pydantic 이 잡는 스키마 오류.

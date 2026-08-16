@@ -286,7 +286,11 @@ def _footer_note(r: Report, st: dict) -> List:
     # 인용한 조문이 어느 카탈로그의 것인지. 룰이 개정되면 같은 서류라도
     # 판정이 달라지므로, 종이로 나간 리포트에도 기준이 남아야 한다.
     catalog = (r.rule_catalog or {}).get("label")
-    basis = f" 판정 기준 룰 카탈로그: {_esc(catalog)}." if catalog else ""
+    cross = (r.cross_rule_catalog or {}).get("label")
+    # 서류 간 카탈로그는 돌렸을 때만 찍는다. 없는데 자리를 만들면 "서류 간
+    # 검사도 했는데 빈 값"으로 읽힌다 — 실제로는 돌리지 않은 것이다.
+    labels = " · ".join(x for x in (catalog, cross) if x)
+    basis = f" 판정 기준 룰 카탈로그: {_esc(labels)}." if labels else ""
     return [
         Spacer(1, 6 * mm),
         Paragraph(

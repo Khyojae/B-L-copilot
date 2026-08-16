@@ -28,7 +28,13 @@ from report.share import (
     ShareTokenTooLarge,
 )
 from report import share as share_tokens
-from ruleEngine import UNDECLARED_VERSION, LCTerms, RuleEngine
+from ruleEngine import (
+    UNDECLARED_VERSION,
+    CrossDocumentEngine,
+    DocumentSet,
+    LCTerms,
+    RuleEngine,
+)
 
 # `.env` 를 읽는다. 이 호출이 없으면 `.env.example` 이 설명하는 설정이 하나도
 # 적용되지 않으며, **그 실패는 조용하다.** GEMINI_API_KEY 가 없으면 리포트가
@@ -51,6 +57,18 @@ def engine() -> RuleEngine:
     if _engine is None:
         _engine = RuleEngine()
     return _engine
+
+
+# 서류 간 정합성 카탈로그도 같은 이유로 1회만 읽는다. 파일이 별도이므로
+# 엔진도 신원도 따로다(`cross_rules.yaml` 머리말).
+_cross_engine: Optional[CrossDocumentEngine] = None
+
+
+def cross_engine() -> CrossDocumentEngine:
+    global _cross_engine
+    if _cross_engine is None:
+        _cross_engine = CrossDocumentEngine()
+    return _cross_engine
 
 
 # 하자 확률 예측기도 1회만 만든다. 모델 파일 로드가 요청 시간에 들어가면
@@ -76,19 +94,22 @@ async def lifespan(_: FastAPI):
     """기동 시 카탈로그를 검증한다. 룰이 깨졌으면 여기서 죽는 편이 낫다."""
     print(
         f"[aiService] 룰 카탈로그 로드 완료: {len(engine())}건 "
-        f"({engine().fingerprint.label})"
+        f"({engine().fingerprint.label}) · 서류 간 {len(cross_engine())}건 "
+        f"({cross_engine().fingerprint.label})"
     )
     if engine().fingerprint.version == UNDECLARED_VERSION:
         # rules.yaml 이 version 을 잃어버린 상태다. 다이제스트만으로도
         # 카탈로그는 구분되지만, 사람이 읽는 버전 표기가 사라진다.
         print("[aiService] 경고: 룰 카탈로그가 version 을 선언하지 않았습니다")
-    unverified = engine().unverified_rules()
+    # 두 카탈로그를 합쳐 센다. 한쪽만 보고하면 남은 검증량이 실제보다 적게
+    # 읽힌다 — 서류 간 10건도 조문을 인용하는 것은 같다.
+    unverified = engine().unverified_rules() + cross_engine().unverified_rules()
     if unverified:
         # 기획안 9절 "멘토 기업 실무 검증"의 남은 작업량이다. 발표에서
         # 조문이 틀리면 시스템 전체의 신뢰가 무너지므로 조용히 두지 않는다.
         print(
             f"[aiService] 경고: 조문 인용 미검증 {len(unverified)}건 "
-            f"/ {len(engine())}건 — 실무 검증 필요"
+            f"/ {len(engine()) + len(cross_engine())}건 — 실무 검증 필요"
         )
     # 모델 적재 여부를 기동 시 확정한다. 첫 요청에서 알게 되면, 그때는
     # 이미 rules-v1 로 산출된 응답이 나간 뒤다.
@@ -181,6 +202,14 @@ class VerifyRequest(BaseModel):
     as_of: Optional[datetime] = Field(
         None, description="제시기간 계산 기준 시각. 생략하면 현재 시각."
     )
+    documents: Optional[Dict[str, Dict[str, Any]]] = Field(
+        None,
+        description=(
+            "함께 제시한 다른 서류. {서류종류: 필드dict} 형태이며 서류 종류는 "
+            "'상업송장' · '포장명세서' 를 쓴다. 주면 서류 간 정합성 룰이 함께 "
+            "돈다. 선하증권은 bl 에서 자동으로 넣으므로 여기 다시 넣지 않아도 된다."
+        ),
+    )
 
 
 class VerifyResponse(BaseModel):
@@ -202,22 +231,36 @@ def health() -> dict:
     return {
         "status": "ok",
         "rules_loaded": len(engine()),
+        "cross_rules_loaded": len(cross_engine()),
         # 배포된 인스턴스가 어느 카탈로그를 물고 있는지. 같은 입력에 다른
         # 판정이 나올 때 제일 먼저 봐야 하는 값이다.
         "rule_catalog": engine().fingerprint.to_dict(),
+        "cross_rule_catalog": cross_engine().fingerprint.to_dict(),
         "env": os.getenv("ENV", "development"),
     }
 
 
 @app.get("/rules")
 def list_rules() -> dict:
-    """적재된 룰 목록. S11 설정 화면과 발표 시연에서 쓴다."""
+    """적재된 룰 목록. S11 설정 화면과 발표 시연에서 쓴다.
+
+    **서류별 룰과 서류 간 룰을 함께 낸다.** 한쪽만 내면 화면이 "룰 29건"으로
+    표시하는데 실제 판정은 39건으로 이뤄진다. 목록에 없는 룰이 하자를 내면
+    사용자는 그 하자의 근거를 화면에서 찾지 못한다.
+
+    두 목록을 합치지 않고 나눠 내는 이유는 `scope` 가 다르기 때문이다 —
+    서류별 룰은 필드 하나를 L/C 에 대조하고, 서류 간 룰은 두 서류의 필드를
+    맞댄다. 화면이 '해당 필드로 바로가기'를 그릴 때 그 차이가 필요하다.
+    """
     return {
-        "count": len(engine()),
+        "count": len(engine()) + len(cross_engine()),
         "catalog": engine().fingerprint.to_dict(),
+        "cross_catalog": cross_engine().fingerprint.to_dict(),
         # 조문 인용이 실무 검증을 거치지 않은 룰 수. 화면이 이 값을 숨기면
         # 미검증 조문이 검증된 것처럼 인용된다 — 기획안 9절의 리스크다.
-        "unverified_source_count": len(engine().unverified_rules()),
+        "unverified_source_count": (
+            len(engine().unverified_rules()) + len(cross_engine().unverified_rules())
+        ),
         "rules": [
             {
                 "id": r["id"],
@@ -226,8 +269,23 @@ def list_rules() -> dict:
                 "source": r.get("source", ""),
                 "source_verified": r.get("verified") is True,
                 "check": r["check"],
+                "scope": "document",
             }
             for r in engine().rules
+        ],
+        "cross_rules": [
+            {
+                "id": r["id"],
+                "title": r["title"],
+                "severity": r["severity"],
+                "source": r.get("source", ""),
+                "source_verified": r.get("verified") is True,
+                "check": r["check"],
+                "scope": "cross_document",
+                "left": f"{r['left']['doc']}.{r['left']['field']}",
+                "right": f"{r['right']['doc']}.{r['right']['field']}",
+            }
+            for r in cross_engine().rules
         ],
     }
 
@@ -456,9 +514,12 @@ def parse_lc_mt700(req: MT700Request) -> dict:
     return parsed.to_dict()
 
 
-@app.post("/verify", response_model=VerifyResponse)
-def verify(req: VerifyRequest) -> VerifyResponse:
-    """F3 하자 예측. 기획안 S4(검증 결과) 화면이 이 응답을 그대로 그린다."""
+def _run_verification(req: "VerifyRequest"):
+    """검증 1회. `/verify` 와 `/report` 가 공유한다.
+
+    돌려주는 판정이 둘인 이유는 **사람에게 보일 판정과 예측기에 넣을 판정이
+    달라야 하기 때문**이다. 아래 `_predict` 의 주석에 이유를 적었다.
+    """
     if not req.bl:
         raise HTTPException(status_code=400, detail="bl 필드가 비어 있습니다.")
 
@@ -470,10 +531,57 @@ def verify(req: VerifyRequest) -> VerifyResponse:
         # 입력 형 오류는 400 이다. 500 으로 흘리면 게이트웨이가 재시도한다.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    merged = verdict
+    if req.documents:
+        merged = verdict.merge_cross(cross_engine().verify(_document_set(req, lc)))
+
+    return merged, verdict, lc
+
+
+def _document_set(req: "VerifyRequest", lc: Optional[LCTerms]) -> DocumentSet:
+    """요청을 서류 묶음으로 옮긴다.
+
+    **모르는 서류 종류는 400 으로 돌려보낸다.** 조용히 무시하면 그 서류를
+    쓰는 룰이 전부 '세트에 없는 서류'로 빠지는데, 화면에는 평가불가로만
+    보이므로 사용자는 오타 때문이라는 것을 알 방법이 없다. 검증을 요청했고
+    응답도 200 이니 검사가 된 줄 안다.
+    """
+    from ocr.doc_types import BILL_OF_LADING, SUPPORTED_TYPES
+
+    unknown = [name for name in req.documents if name not in SUPPORTED_TYPES]
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"알 수 없는 서류 종류: {', '.join(unknown)} "
+                f"(가능: {', '.join(SUPPORTED_TYPES)})"
+            ),
+        )
+
+    documents = DocumentSet(lc=lc)
+    # 선하증권은 `bl` 이 본체다. `documents` 에 같은 종류가 또 오면 그쪽을
+    # 나중에 넣어 덮는다 — 명시적으로 준 것이 우선이다.
+    documents.add(req.bl, form_type=BILL_OF_LADING)
+    for name, fields in req.documents.items():
+        documents.add(fields, form_type=name)
+    return documents
+
+
+@app.post("/verify", response_model=VerifyResponse)
+def verify(req: VerifyRequest) -> VerifyResponse:
+    """F3 하자 예측. 기획안 S4(검증 결과) 화면이 이 응답을 그대로 그린다.
+
+    `documents` 를 함께 주면 서류 간 정합성 룰(UCP 600 Art.14(d))이 같은
+    응답에 합쳐져 나온다. 주지 않으면 서류별 룰만 돌고 `verdict.cross_catalog`
+    가 `null` 로 남는다 — **서류 간 검사를 하지 않았다는 표시**이며, 위반이
+    없었다는 뜻이 아니다.
+    """
+    verdict, single, lc = _run_verification(req)
+
     return VerifyResponse(
         shipment_id=req.bl.get("bl_no"),
         verdict=verdict.to_dict(),
-        prediction=_predict(req.bl, lc, verdict, req.as_of).to_dict(),
+        prediction=_predict(req.bl, lc, single, req.as_of).to_dict(),
     )
 
 
@@ -482,6 +590,15 @@ def _predict(bl, lc, verdict, as_of):
 
     모델은 부가 축이다. 여기서 터져 500 을 내면, 룰엔진이 정상적으로 낸
     하자 목록까지 함께 잃는다.
+
+    **`verdict` 는 서류 간 판정을 합치기 전의 것을 받는다.** 모델은 서류별
+    룰만 돌던 시절의 판정으로 학습했다. 합친 판정을 넣으면 `critical_count`
+    ·`violation_weight_sum`·`skipped_ratio` 가 전부 학습 때와 다른 분포로
+    들어가고, 모델은 그것을 알리지 않은 채 그럴듯한 확률을 낸다. 조용히
+    틀린 값이 눈에 보이는 실패보다 나쁘다.
+
+    합친 판정으로 다시 학습하는 것은 별도 작업이다
+    (`docs/ai-service/remaining-work.md` 30번).
     """
     try:
         return predictor().predict(bl, lc, verdict, as_of)
@@ -507,20 +624,13 @@ class ReportRequest(VerifyRequest):
 
 def _make_report(req: "ReportRequest"):
     """검증 → 리포트 조립 → 요약. /report 와 /report/pdf 가 공유한다."""
-    if not req.bl:
-        raise HTTPException(status_code=400, detail="bl 필드가 비어 있습니다.")
-
-    lc = LCTerms.from_dict(req.lc) if req.lc else None
-    try:
-        verdict = engine().verify(req.bl, lc, as_of=req.as_of)
-    except TypeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    verdict, single, lc = _run_verification(req)
 
     report = build_report(
         verdict, req.bl, lc,
         submitted_documents=req.submitted_documents,
         as_of=req.as_of,
-        prediction=_predict(req.bl, lc, verdict, req.as_of),
+        prediction=_predict(req.bl, lc, single, req.as_of),
     )
     return apply_narrative(report)
 
