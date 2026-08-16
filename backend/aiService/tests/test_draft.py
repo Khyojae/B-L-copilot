@@ -9,7 +9,14 @@ from ocr.draft import FIELD_LABELS, ReviewReason, build_draft
 from ocr.extractor import OCRExtractor
 from ocr.field_parser import FieldParser
 from ocr.pipeline import IntakePipeline
-from ocr.types import BL_FIELD_NAMES, BBox, BLFields, OCRResult
+from ocr.types import (
+    BL_FIELD_NAMES,
+    BBox,
+    BLFields,
+    ConfidenceGrade,
+    OCRResult,
+    grade_for,
+)
 
 
 def draft_of(path: str):
@@ -83,8 +90,8 @@ class TestReviewFlags:
 
         bl_no = draft.get("bl_no")
         assert bl_no.value == "SEAU1234567"
-        # 앵커 감점(0.85)이 기본 임계값(0.80)을 넘으므로 저신뢰가 아니라
-        # 앵커 사유로 잡혀야 한다.
+        # 앵커 감점(0.85)은 확정 경계(0.90) 아래지만, 의심스러운 것은 OCR 이
+        # 아니라 매핑이다. 저신뢰로 설명하면 원본의 엉뚱한 곳을 보게 된다.
         assert bl_no.review_reason is ReviewReason.ANCHOR_DERIVED
 
     def test_비핵심필드의_앵커추출은_확인_대상이_아니다(self):
@@ -157,8 +164,9 @@ class TestSerialization:
         assert payload["is_ready_for_verification"] is True
         first = payload["fields"][0]
         assert set(first) == {
-            "name", "label", "value", "confidence", "source", "is_critical",
-            "needs_review", "review_reason", "review_message",
+            "name", "label", "value", "confidence", "source", "grade",
+            "grade_label", "is_critical", "needs_review", "review_reason",
+            "review_message",
         }
 
     def test_review_reason은_문자열로_나간다(self, label_factory):
@@ -297,4 +305,97 @@ class TestLabelEcho:
         assert goods.confidence == 1.0
         assert goods.review_reason is ReviewReason.LABEL_ECHOED, (
             "신뢰도 1.0 인 오추출을 아무도 확인하지 않게 됩니다"
+        )
+
+
+class TestConfidenceGrade:
+    """신뢰도 4단계 (기획안 v2 5.1 등급표)."""
+
+    def test_등급_경계는_명세대로_090과_070이다(self):
+        # 이 셋이 어긋나면 화면 색과 검증 차단이 명세와 갈라진다.
+        assert grade_for("X", 0.90) is ConfidenceGrade.CONFIRMED
+        assert grade_for("X", 0.89) is ConfidenceGrade.RECOMMENDED
+        assert grade_for("X", 0.70) is ConfidenceGrade.RECOMMENDED
+        assert grade_for("X", 0.69) is ConfidenceGrade.REQUIRED
+
+    def test_값이_없으면_미검출이다(self):
+        assert grade_for(None, 0.99) is ConfidenceGrade.UNDETECTED
+        assert grade_for("", None) is ConfidenceGrade.UNDETECTED
+
+    def test_신뢰도가_없으면_확정이다(self):
+        # S3 편집기에서 사람이 고쳐 넣은 값. OCR 불확실성이 없다.
+        assert grade_for("MSC BIANCA", None) is ConfidenceGrade.CONFIRMED
+
+    def test_강등은_나쁜_쪽을_택한다(self):
+        # 신뢰도가 만점이어도 스키마 위반이면 필수 확인이다.
+        assert grade_for("X", 1.0, ConfidenceGrade.REQUIRED) is ConfidenceGrade.REQUIRED
+        # 반대로 강등이 더 가벼우면 신뢰도 판정이 남는다.
+        assert grade_for("X", 0.5, ConfidenceGrade.RECOMMENDED) is ConfidenceGrade.REQUIRED
+
+    def test_항목명_혼입은_신뢰도와_무관하게_필수_확인이다(self):
+        # 값이 틀린 것이지 흐릿한 것이 아니다 — 5.1 의 '스키마 위반'에 해당한다.
+        fields = BLFields()
+        fields.set_field("consignee", "DESCRIPTION OF GOODS SAW MACHINE", 1.0, "region")
+
+        field = build_draft(fields).get("consignee")
+
+        assert field.review_reason is ReviewReason.LABEL_ECHOED
+        assert field.grade is ConfidenceGrade.REQUIRED
+
+    def test_앵커_감점은_확인_권고에_머문다(self):
+        # 필수 확인으로 올리면 검증이 차단되는데, 앵커 추출은 흔하다.
+        fields = BLFields()
+        fields.set_field("bl_no", "SEAU1234567", 0.85, "anchor")
+
+        field = build_draft(fields).get("bl_no")
+
+        assert field.review_reason is ReviewReason.ANCHOR_DERIVED
+        assert field.grade is ConfidenceGrade.RECOMMENDED
+
+
+class TestVerificationGate:
+    """필수 확인 필드는 검증 실행을 막는다 (기획안 v2 5.1)."""
+
+    def test_필수_확인_필드가_있으면_검증이_차단된다(self, complete_label):
+        draft = draft_of(complete_label)
+        assert draft.is_ready_for_verification
+
+        draft.get("consignee").grade = ConfidenceGrade.REQUIRED
+
+        assert not draft.is_ready_for_verification
+        assert draft.review_required_fields == ["consignee"]
+
+    def test_확인_권고는_검증을_막지_않는다(self, complete_label):
+        # 5.1: "검증 실행은 가능하되 리포트에 미확인 항목으로 기재"
+        draft = draft_of(complete_label)
+        draft.get("consignee").grade = ConfidenceGrade.RECOMMENDED
+
+        assert draft.is_ready_for_verification
+
+    def test_미검출은_검증을_막지_않는다(self, label_factory):
+        # 값 없음은 룰엔진이 missing_field 로 이미 잡는다. 차단까지 걸면
+        # 같은 사실로 두 번 멈춰 세운다.
+        bboxes = [b for b in complete_bl_bboxes() if "FREIGHT" not in b["data"]]
+        draft = draft_of(label_factory(bboxes))
+
+        assert draft.get("total_freight").grade is ConfidenceGrade.UNDETECTED
+        assert draft.is_ready_for_verification
+
+    def test_보류율은_필수_확인만_센다(self, complete_label):
+        draft = draft_of(complete_label)
+        draft.get("consignee").grade = ConfidenceGrade.REQUIRED
+        draft.get("vessel").grade = ConfidenceGrade.UNDETECTED
+
+        # 15 필드 중 필수 확인 1건. 미검출은 분자에 들어가지 않는다.
+        assert draft.hold_ratio() == round(1 / len(draft.fields), 4)
+
+    def test_임계값을_낮추면_두_경계가_함께_내려간다(self):
+        # 한쪽만 내리면 필수 확인 구간이 남아 검증 차단이 풀리지 않는다.
+        fields = BLFields()
+        fields.set_field("shipper", "GAE WOON CO., LTD.", 0.55, "region")
+
+        assert build_draft(fields).get("shipper").grade is ConfidenceGrade.REQUIRED
+        assert (
+            build_draft(fields, threshold=0.50).get("shipper").grade
+            is ConfidenceGrade.CONFIRMED
         )

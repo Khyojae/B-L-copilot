@@ -21,7 +21,7 @@ from .draft import BLDraft, build_document_draft, build_draft
 from .extractor import OCRExtractor
 from .field_parser import FieldParser
 from .llm_extract import LLMFieldExtractor
-from .types import LOW_CONFIDENCE_THRESHOLD, BLFields, OCRResult
+from .types import CONFIRMED_THRESHOLD, BLFields, OCRResult
 
 
 def _env_flag(name: str) -> bool:
@@ -36,7 +36,7 @@ class IntakePipeline:
         self,
         lang: str = "en",
         use_gpu: bool = False,
-        confidence_threshold: float = LOW_CONFIDENCE_THRESHOLD,
+        confidence_threshold: float = CONFIRMED_THRESHOLD,
         use_llm: Optional[bool] = None,
     ) -> None:
         """use_llm 은 파서가 비운 핵심 필드를 LLM 으로 채울지 여부다.
