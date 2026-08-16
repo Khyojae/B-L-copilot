@@ -29,6 +29,7 @@ from .types import (
     Outcome,
     Severity,
     SkippedRule,
+    HeldRule,
     Verdict,
     Violation,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "RuleEngine",
     "Severity",
     "SkippedRule",
+    "HeldRule",
     "Verdict",
     "Violation",
     "load_rules",

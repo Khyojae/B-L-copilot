@@ -636,3 +636,50 @@ class TestPipelineIntegration:
         assert extract["is_ready_for_verification"]
         assert verdict["evaluated_count"] > 0
         assert report["bl_no"] == "HG290309"
+
+
+class TestHoldGateAPI:
+    """field_confidence 가 판정 보류로 이어진다 (기획안 v2 5.3)."""
+
+    _BL = {
+        "bl_no": "HG290309", "consignee": "ACME CORP",
+        "port_of_loading": "BUSAN", "port_of_discharge": "LOS ANGELES",
+        "date_of_issue": "2026-06-01", "on_board_date": "2026-06-01",
+    }
+
+    def test_신뢰도를_주지_않으면_보류가_없다(self, client):
+        body = client.post("/verify", json={"bl": self._BL}).json()
+
+        assert body["verdict"]["held_count"] == 0
+
+    def test_필수_확인_등급_필드의_룰이_보류된다(self, client):
+        body = client.post("/verify", json={
+            "bl": self._BL,
+            # 0.70 미만이면 필수 확인이다.
+            "field_confidence": {"port_of_discharge": 0.4},
+        }).json()
+
+        held = body["verdict"]["held"]
+        assert held, "필수 확인 필드를 참조하는 룰이 하나도 보류되지 않았습니다"
+        assert all("port_of_discharge" in h["fields"] for h in held)
+
+    def test_확인_권고_등급은_보류하지_않는다(self, client):
+        # 5.1: "검증 실행은 가능하되 리포트에 미확인 항목으로 기재"
+        body = client.post("/verify", json={
+            "bl": self._BL,
+            "field_confidence": {"port_of_discharge": 0.85},
+        }).json()
+
+        assert body["verdict"]["held_count"] == 0
+
+    def test_리포트가_범위와_경고를_싣는다(self, client):
+        summary = client.post("/report", json={
+            "bl": self._BL,
+            # 6 필드 중 2 보류 = 33% > 20%
+            "field_confidence": {"port_of_discharge": 0.4, "consignee": 0.3},
+        }).json()["summary"]
+
+        assert summary["probability_is_ranged"] is True
+        assert summary["confidence_warning"]
+        low, high = summary["probability_range"]
+        assert low <= high

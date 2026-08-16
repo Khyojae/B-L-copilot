@@ -29,6 +29,12 @@ from .model import (
 # 심각도 → 정렬 순위. 수정 권고 우선순위에 그대로 쓴다.
 _SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
+# 확률 대신 범위를 제시하는 보류 비율 (기획안 v2 5.4 "전체 필드의 20% 초과").
+#
+# **초과**다. 정확히 20% 는 점 확률을 유지한다 — 명세가 "초과"로 썼고,
+# 경계에서 표기가 뒤집히면 필드 하나 차이로 리포트의 성격이 달라진다.
+HOLD_RATIO_LIMIT = 0.20
+
 
 def build_report(
     verdict: Verdict,
@@ -37,6 +43,7 @@ def build_report(
     submitted_documents: Optional[Sequence[str]] = None,
     as_of: Optional[datetime] = None,
     prediction: Optional[Any] = None,
+    field_count: int = 0,
 ) -> Report:
     """검증 결과와 서류 정보를 리포트로 조립한다.
 
@@ -81,8 +88,54 @@ def build_report(
         UncheckedItem(rule_id=s.rule_id, title=s.title, reason=s.reason)
         for s in verdict.skipped
     ]
+    report.held = [
+        UncheckedItem(rule_id=h.rule_id, title=h.title, reason=h.reason)
+        for h in verdict.held
+    ]
+    _apply_hold_gate(report, verdict, bl, field_count)
 
     return report
+
+
+# ── ① 판정 보류 게이트 ───────────────────────────────────────────
+
+def _apply_hold_gate(
+    report: Report, verdict, bl: Dict[str, Optional[str]], field_count: int
+) -> None:
+    """보류가 많으면 확률 대신 범위를 쓰게 표시한다 (기획안 v2 5.4).
+
+    **분모는 필드 수이고 분자는 보류된 룰이 참조하는 필드 수다.** 룰 수로
+    세지 않는 이유는 명세가 "전체 필드의 20% 초과"로 필드를 단위로 썼기
+    때문이고, 그 편이 실제로도 맞다 — 한 필드가 못 미더워서 룰 5건이 보류될
+    수 있는데 그걸 5로 세면 필드 하나가 리포트 전체의 성격을 뒤집는다.
+
+    `field_count` 를 인자로 받는 이유는 **분모가 서류 종류마다 다르기**
+    때문이다. 선하증권은 15 필드지만 송장·포장명세서는 다르고, 리포트는
+    그 명세를 들고 있지 않다. 주지 않으면 `bl` 의 키 수로 떨어진다.
+    """
+    # 하한은 리포트가 쓰는 확률이다. `verdict.probability_range` 를 그대로
+    # 쓰면 모델이 낸 확률(prediction)로 바꿔 놓은 값과 범위가 어긋난다 —
+    # 요약에는 0.62 가 찍히는데 범위는 0.30~0.55 로 나오는 식이다.
+    low = report.defect_probability
+    high = round(min(1.0, low + sum(h.weight for h in verdict.held)), 4)
+    report.probability_range = (low, high)
+
+    held_fields = {name for h in verdict.held for name in h.fields}
+    report.held_field_count = len(held_fields)
+
+    total = field_count or len(bl) or 0
+    report.hold_ratio = round(len(held_fields) / total, 4) if total else 0.0
+
+    if report.hold_ratio <= HOLD_RATIO_LIMIT:
+        return
+
+    low, high = report.probability_range
+    report.confidence_warning = (
+        f"입력 필드 {total}개 중 {len(held_fields)}개가 확인이 필요한 상태라 "
+        f"관련 검사 {len(verdict.held)}건의 판정을 보류했습니다. "
+        f"하자 확률을 하나의 값으로 제시하지 않고 {low:.2f}~{high:.2f} 범위로 "
+        "표시합니다. 해당 필드를 확인한 뒤 다시 검증하십시오."
+    )
 
 
 # ── ② 항목별 리스크 ──────────────────────────────────────────────
@@ -254,6 +307,13 @@ def _outlook(verdict: Verdict, deadline: Optional[Deadline]) -> tuple[str, str]:
         detail += (
             f" 다만 자료 부족으로 검사하지 못한 항목이 {unchecked}건 있어, "
             "이 결과가 서류 전체를 보증하지는 않습니다."
+        )
+    # 보류는 평가불가와 따로 말한다. 사용자가 할 일이 다르다 — 평가불가는
+    # 서류를 더 올려야 풀리고, 보류는 그 필드를 확인해야 풀린다.
+    if verdict.held:
+        detail += (
+            f" 또한 확인이 필요한 필드 때문에 판정을 보류한 항목이 "
+            f"{len(verdict.held)}건 있습니다."
         )
     return head, detail
 

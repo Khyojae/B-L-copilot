@@ -96,8 +96,30 @@ class Report:
     outlook: str = ""            # 예상 심사 결과
     outlook_detail: str = ""
 
+    # ① 요약 — 판정 보류 (기획안 v2 5.3 · 5.4)
+    #
+    # `defect_probability` 는 보류된 룰을 뺀 값이다. 보류가 전체 필드의 20%
+    # 를 넘으면 그 점 확률을 대표값으로 쓰지 않고 `probability_range` 를
+    # 쓴다 — 5.4 가 "확률 대신 범위를 제시한다"로 정했다.
+    #
+    # 범위를 항상 계산해 두고 표기만 가르는 이유는, 화면이 보류 여부와
+    # 무관하게 같은 필드를 읽게 하기 위해서다. 보류가 없으면 두 값이 같다.
+    probability_range: tuple = (0.0, 0.0)
+    hold_ratio: float = 0.0
+    held_field_count: int = 0
+    # 비어 있지 않으면 요약 상단에 띄운다(5.4 "신뢰도 제한 경고").
+    confidence_warning: str = ""
+
+    @property
+    def probability_is_ranged(self) -> bool:
+        """확률 대신 범위를 써야 하는 상태인지."""
+        return bool(self.confidence_warning)
+
     # 부록
     unchecked: List[UncheckedItem] = field(default_factory=list)
+    # 판정을 보류한 룰. `unchecked`(평가불가)와 나눠 두는 이유는
+    # `ruleEngine.types.HeldRule` 주석에 있다 — 사용자가 할 일이 다르다.
+    held: List[UncheckedItem] = field(default_factory=list)
     narrative_source: str = "template"  # template | llm
 
     # 판정 근거의 신원(`Verdict.catalog`). 리포트는 조문을 인용하므로
@@ -126,6 +148,13 @@ class Report:
             "generated_at": self.generated_at.isoformat() if self.generated_at else None,
             "summary": {
                 "defect_probability": self.defect_probability,
+                "probability_range": list(self.probability_range),
+                # 화면은 이 값으로 표기를 가른다. False 면 점 확률을,
+                # True 면 범위를 그리고 경고를 요약 상단에 띄운다.
+                "probability_is_ranged": self.probability_is_ranged,
+                "confidence_warning": self.confidence_warning,
+                "hold_ratio": self.hold_ratio,
+                "held_field_count": self.held_field_count,
                 "risk_level": self.risk_level,
                 "counts": self.counts,
                 "model": self.model,
@@ -145,6 +174,7 @@ class Report:
             "recommendations": [r.__dict__ for r in self.recommendations],
             "outlook": {"verdict": self.outlook, "detail": self.outlook_detail},
             "unchecked": [u.__dict__ for u in self.unchecked],
+            "held": [h.__dict__ for h in self.held],
         }
 
 

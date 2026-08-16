@@ -63,10 +63,19 @@ class TemplateNarrator:
         else:
             headline = "하자로 볼 만한 사항이 발견되지 않았습니다."
 
-        parts = [
-            f"위험도는 '{report.risk_level}'이며, 규칙 기반 위험 점수는 "
-            f"{report.defect_probability:.2f} 입니다."
-        ]
+        # 보류가 많으면 점 확률을 대표값으로 쓰지 않는다(기획안 v2 5.4).
+        # 하나의 값으로 적으면 보류된 룰이 전부 통과한 것처럼 읽힌다.
+        if report.probability_is_ranged:
+            low, high = report.probability_range
+            parts = [
+                f"위험도는 '{report.risk_level}'이며, 확인이 필요한 필드가 있어 "
+                f"규칙 기반 위험 점수를 {low:.2f}~{high:.2f} 범위로 제시합니다."
+            ]
+        else:
+            parts = [
+                f"위험도는 '{report.risk_level}'이며, 규칙 기반 위험 점수는 "
+                f"{report.defect_probability:.2f} 입니다."
+            ]
         found = []
         if critical:
             found.append(f"치명 {critical}건")
@@ -89,6 +98,11 @@ class TemplateNarrator:
         if report.unchecked:
             parts.append(
                 f"자료 부족으로 검사하지 못한 항목이 {len(report.unchecked)}건 있습니다."
+            )
+        if report.held:
+            parts.append(
+                f"확인이 필요한 필드 때문에 판정을 보류한 항목이 "
+                f"{len(report.held)}건 있습니다."
             )
 
         return Summary(headline=headline, narrative=" ".join(parts), source=self.name)
@@ -178,11 +192,19 @@ def _retry_prompt(problem: str) -> str:
 
 def _render_facts(report: Report) -> str:
     """LLM 에 넘길 사실 목록. 리포트에 있는 것만 넣는다."""
-    lines = [
-        f"위험도: {report.risk_level}",
-        f"위험 점수: {report.defect_probability:.2f} (산출: {report.model})",
-        f"심각도 분포: {report.counts}",
-    ]
+    lines = [f"위험도: {report.risk_level}"]
+    # 보류 상태에서는 **점 확률을 사실 목록에 넣지 않는다.** 넣으면 LLM 이
+    # 그 값을 확정된 확률로 서술하는데, 5.4 가 범위로 내라고 한 이유가
+    # 그 값을 단정할 수 없어서다. 사실 목록에 없는 값은 쓸 수 없다.
+    if report.probability_is_ranged:
+        low, high = report.probability_range
+        lines.append(
+            f"위험 점수 범위: {low:.2f}~{high:.2f} (산출: {report.model}) "
+            "— 확인이 필요한 필드가 있어 하나의 값으로 확정할 수 없음"
+        )
+    else:
+        lines.append(f"위험 점수: {report.defect_probability:.2f} (산출: {report.model})")
+    lines.append(f"심각도 분포: {report.counts}")
     if report.deadline and report.deadline.effective_due:
         lines.append(
             f"제시기한: {report.deadline.effective_due} "
@@ -192,6 +214,8 @@ def _render_facts(report: Report) -> str:
         lines.append(f"[{risk.severity_label}] {risk.title} — {risk.message} ({risk.source})")
     if report.unchecked:
         lines.append(f"미검사 항목 {len(report.unchecked)}건")
+    if report.held:
+        lines.append(f"판정 보류 항목 {len(report.held)}건 (확인이 필요한 필드 참조)")
     return "\n".join(lines)
 
 

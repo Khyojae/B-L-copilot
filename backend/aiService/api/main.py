@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from dotenv import load_dotenv
 
+from ocr.types import review_required_fields
 from report import apply_narrative, build_report, render_pdf
 from report.share import (
     DEFAULT_TTL_SECONDS,
@@ -201,6 +202,15 @@ class VerifyRequest(BaseModel):
     )
     as_of: Optional[datetime] = Field(
         None, description="제시기간 계산 기준 시각. 생략하면 현재 시각."
+    )
+    field_confidence: Optional[Dict[str, float]] = Field(
+        None,
+        description=(
+            "필드별 신뢰도(0~1). F1 초안 응답의 fields[].confidence 를 그대로 "
+            "되돌려 주면 된다. 0.70 미만인 필드는 '필수 확인' 등급이라 그 "
+            "필드를 쓰는 룰의 판정을 보류한다(기획안 v2 5.3). 주지 않으면 "
+            "사람이 확정한 값으로 보고 전부 검사한다."
+        ),
     )
     documents: Optional[Dict[str, Dict[str, Any]]] = Field(
         None,
@@ -524,18 +534,25 @@ def _run_verification(req: "VerifyRequest"):
         raise HTTPException(status_code=400, detail="bl 필드가 비어 있습니다.")
 
     lc = LCTerms.from_dict(req.lc) if req.lc else None
+    held = review_required_fields(req.bl, req.field_confidence)
 
     try:
-        verdict = engine().verify(req.bl, lc, as_of=req.as_of)
+        verdict = engine().verify(req.bl, lc, as_of=req.as_of, held_fields=held)
     except TypeError as exc:
         # 입력 형 오류는 400 이다. 500 으로 흘리면 게이트웨이가 재시도한다.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # 예측기에 넘길 판정은 **보류를 적용하지 않은** 것이다. 모델은 룰이
+    # 전부 도는 판정으로 학습했고, 보류가 걸리면 `evaluated_count` 와
+    # `violation_weight_sum` 이 학습 때와 다른 분포로 들어간다. 서류 간
+    # 판정을 합치기 전 것을 넘기는 이유와 같다 — 아래 `_predict` 주석에 있다.
+    for_model = engine().verify(req.bl, lc, as_of=req.as_of) if held else verdict
 
     merged = verdict
     if req.documents:
         merged = verdict.merge_cross(cross_engine().verify(_document_set(req, lc)))
 
-    return merged, verdict, lc
+    return merged, for_model, lc
 
 
 def _document_set(req: "VerifyRequest", lc: Optional[LCTerms]) -> DocumentSet:
@@ -631,6 +648,9 @@ def _make_report(req: "ReportRequest"):
         submitted_documents=req.submitted_documents,
         as_of=req.as_of,
         prediction=_predict(req.bl, lc, single, req.as_of),
+        # 보류 비율의 분모. 요청이 실은 필드 수를 쓴다 — 서류 종류마다
+        # 필드 수가 달라 리포트가 스스로 알 수 없다.
+        field_count=len(req.bl),
     )
     return apply_narrative(report)
 
