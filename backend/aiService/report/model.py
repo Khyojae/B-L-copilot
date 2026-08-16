@@ -105,6 +105,11 @@ class Report:
     # 다시 읽을 때, 이 값이 없으면 지금 카탈로그로 쓴 것처럼 읽힌다.
     rule_catalog: Optional[Dict[str, str]] = None
 
+    # 서류 간 정합성 카탈로그의 신원. 서류 세트로 검증한 경우에만 채워진다.
+    # `None` 이면 서류 간 룰을 **돌리지 않았다**는 뜻이고, 이 리포트의 위반
+    # 목록에 서류 간 저촉이 없는 것은 그래서다 — 저촉이 없어서가 아니다.
+    cross_rule_catalog: Optional[Dict[str, str]] = None
+
     @property
     def risk_level(self) -> str:
         """표지에 크게 찍는 등급."""
@@ -128,6 +133,7 @@ class Report:
                 "narrative": self.narrative,
                 "narrative_source": self.narrative_source,
                 "rule_catalog": self.rule_catalog,
+                "cross_rule_catalog": self.cross_rule_catalog,
             },
             "risks": [r.__dict__ for r in self.risks],
             "checklist": [c.__dict__ for c in self.checklist],

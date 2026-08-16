@@ -69,6 +69,7 @@ def build_report(
         # 룰엔진 결과다. 그래서 카탈로그 신원은 prediction 유무와 무관하게
         # verdict 에서 온다.
         rule_catalog=verdict.catalog,
+        cross_rule_catalog=verdict.cross_catalog,
     )
 
     report.risks = _risks(verdict)
