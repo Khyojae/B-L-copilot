@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
 
+// "/"는 랜딩(S0)이 쓰므로 대시보드는 "/shipments"입니다
 const NAV_ITEMS = [
-  { to: '/', label: '대시보드' },
+  { to: '/shipments', label: '대시보드' },
   { to: '/alerts', label: '경보 센터' },
 ];
 
