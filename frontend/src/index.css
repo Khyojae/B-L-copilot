@@ -338,3 +338,21 @@ button:disabled {
   border-color: var(--severity-critical);
   border-left-width: 4px;
 }
+
+/* 랜딩 히어로의 대시보드 미리보기 — 장식이라 좁은 화면에서는 숨깁니다.
+   숨겨도 정보가 사라지지 않습니다(실제 대시보드는 "시작하기"로 갑니다).
+   인라인 style로는 미디어쿼리를 못 써서 이 규칙만 클래스로 뺐습니다. */
+.landing-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  width: 440px;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .landing-preview {
+    display: none;
+  }
+}

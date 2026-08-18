@@ -1,6 +1,7 @@
 import { ArrowRight, FileSearch, Radar, Scale, Ship } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DashboardPreview } from './DashboardPreview';
 
 /**
  * 랜딩 페이지 — 서비스 소개 + 대시보드 진입.
@@ -36,6 +37,10 @@ const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
 const GUTTER = 'var(--space-6)';
 
 export function S0Landing() {
+  // 미리보기 카드의 D-day 계산 기준 시각. 렌더 중에 new Date()를 여러 번
+  // 부르지 않도록 여기서 한 번만 만듭니다.
+  const now = new Date();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, textAlign: 'left' }}>
       {/* ── 자체 헤더 ── */}
@@ -71,11 +76,22 @@ export function S0Landing() {
           style={{
             width: '100%',
             display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--space-6)',
+            flexWrap: 'wrap',
+            padding: `var(--space-6) ${GUTTER}`,
+            boxSizing: 'border-box',
+          }}
+        >
+        <div
+          style={{
+            flex: '1 1 460px',
+            minWidth: 0,
+            display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
             gap: 'var(--space-5)',
-            padding: `var(--space-6) ${GUTTER}`,
-            boxSizing: 'border-box',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -128,6 +144,9 @@ export function S0Landing() {
               <FeatureCard key={feature.title} {...feature} />
             ))}
           </div>
+        </div>
+
+          <DashboardPreview now={now} />
         </div>
       </div>
 
