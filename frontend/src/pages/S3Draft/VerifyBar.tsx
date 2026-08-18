@@ -182,12 +182,13 @@ export function VerifyBar({ fields, verdicts, prediction, editedValues }: Verify
       <div style={{ flex: 1, minWidth: 'var(--space-2)' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-        {!gate.allowed &&
-          gate.blockers.map((blocker) => (
-            <span key={blocker} style={{ fontSize: 12.5, color: 'var(--severity-critical)' }}>
-              {blocker}
-            </span>
-          ))}
+        {/* 차단 사유를 한 줄로 잇습니다 — 세로로 쌓으면 하단 고정 바가
+            그만큼 두꺼워져서 본문을 더 가립니다 */}
+        {!gate.allowed && (
+          <span style={{ fontSize: 12.5, color: 'var(--severity-critical)', textAlign: 'right' }}>
+            {gate.blockers.join(' · ')}
+          </span>
+        )}
 
         {overrideRecorded !== null && (
           <span style={{ fontSize: 12.5, color: 'var(--brand-primary)' }}>

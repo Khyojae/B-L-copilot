@@ -7,6 +7,7 @@ import { SuggestionCard } from './SuggestionCard';
 import { displayValueOf, isEditedField } from './fieldEditing';
 import {
   effectiveGradeOf,
+  resolveConflicts,
   type EditedValues,
   type ResolvedConflicts,
 } from '../../shared/shipmentStats';
@@ -16,6 +17,13 @@ import { CONFIDENCE } from '../../constants/domain';
 const GROUP_ORDER: ConfidenceGrade[] = ['REQUIRED', 'NOT_FOUND', 'ADVISORY', 'CONFIRMED'];
 
 interface FieldFormProps {
+  /**
+   * 충돌 해소 전의 원본 필드.
+   *
+   * ⚠ 여기는 일부러 원본을 받습니다. 그룹 배치를 원본 등급으로 정해야
+   *   후보를 고른 순간 그 카드가 다른 그룹으로 튀어나가지 않습니다.
+   *   보여줄 값·등급 뱃지는 아래에서 해소 결과로 다시 계산합니다.
+   */
   fields: FieldValue[];
   /** 이 선적의 교정 제안 — 해당 필드 카드 안쪽에 붙여서 보여줍니다 */
   suggestions: Suggestion[];
@@ -67,6 +75,11 @@ export function FieldForm({
     setEditingFieldName(field.field_name);
   }
 
+  // 충돌이 해소된 필드를 이름으로 찾을 수 있게 미리 만들어 둡니다
+  const resolvedByName = new Map(
+    resolveConflicts(fields, resolvedConflicts).map((field) => [field.field_name, field]),
+  );
+
   function commitEdit(field: FieldValue) {
     const trimmed = draft.trim();
     onFieldEdit(field.field_name, trimmed === '' ? null : trimmed);
@@ -92,6 +105,9 @@ export function FieldForm({
       </div>
 
       {GROUP_ORDER.map((grade) => {
+        // 그룹 배치는 원본 등급으로 — 후보를 골라도 카드가 제자리에 남습니다.
+        // (검증 실행 버튼이 보는 "남은 필수 확인 건수"는 VerifyBar가 해소된
+        //  필드로 따로 세므로, 버튼 조건은 즉시 반영됩니다)
         const groupFields = fields.filter(
           (field) => effectiveGradeOf(field, editedValues) === grade,
         );
@@ -101,15 +117,20 @@ export function FieldForm({
             key={grade}
             grade={grade}
             count={groupFields.length}
+            resolvedCount={
+              groupFields.filter((field) => resolvedConflicts[field.field_name] !== undefined)
+                .length
+            }
             // 검증을 막는 등급(필수 확인)만 펼친 채 시작합니다 — 상수를 따르므로
             // blocksVerify 규칙이 바뀌면 여기도 자동으로 따라갑니다
             defaultOpen={CONFIDENCE[grade].blocksVerify}
-            // 방금 충돌을 해소한 필드가 이 그룹으로 옮겨왔다면 펼쳐 둡니다
-            forceOpen={groupFields.some(
-              (field) => resolvedConflicts[field.field_name] !== undefined,
-            )}
           >
-            {groupFields.map((field) => (
+            {groupFields.map((originalField) => {
+              // 값·신뢰도 등급은 해소 결과를 반영해서 보여줍니다. 자리만 원본
+              // 등급을 따르고, 뱃지는 "지금 이 필드가 어떤 상태인가"를 보여줘야
+              // 후보를 고른 결과가 눈에 보입니다.
+              const field = resolvedByName.get(originalField.field_name) ?? originalField;
+              return (
               <FieldCard key={field.field_name} grade={grade}>
                 <FieldRow
                   field={field}
@@ -127,9 +148,10 @@ export function FieldForm({
 
                 {/* 아직 충돌 상태이거나, 이미 골라서 해소한 필드. 후자도 계속
                     보여줘야 "선택 취소"로 되돌릴 수 있습니다 */}
-                {(field.conflict_flag || resolvedConflicts[field.field_name] !== undefined) && (
+                {(originalField.conflict_flag ||
+                  resolvedConflicts[field.field_name] !== undefined) && (
                   <CandidateChooser
-                    field={field}
+                    field={originalField}
                     onChoose={(value) => onConflictResolve(field.field_name, value)}
                     chosenValue={resolvedConflicts[field.field_name] ?? null}
                     onClear={() => onConflictClear(field.field_name)}
@@ -156,7 +178,8 @@ export function FieldForm({
                     </div>
                   ))}
               </FieldCard>
-            ))}
+              );
+            })}
           </FieldGroup>
         );
       })}

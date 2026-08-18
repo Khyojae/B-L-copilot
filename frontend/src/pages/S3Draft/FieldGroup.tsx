@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ConfidenceGrade } from '../../types/domain';
@@ -17,14 +17,8 @@ interface FieldGroupProps {
   count: number;
   /** 처음부터 펼쳐둘지. 필수 확인만 true입니다 */
   defaultOpen: boolean;
-  /**
-   * true가 되면 접혀 있어도 자동으로 펼칩니다.
-   *
-   * 충돌을 해소한 필드는 등급이 바뀌면서 다른 그룹으로 옮겨갑니다. 그 그룹이
-   * 접혀 있으면 방금 고른 필드가 화면에서 사라져 되돌릴 수가 없어서, 그럴
-   * 때만 그룹을 열어 둡니다.
-   */
-  forceOpen?: boolean;
+  /** 이 그룹 안에서 충돌이 해소된 필드 수 — 헤더에 "N건 해소됨"으로 덧붙입니다 */
+  resolvedCount?: number;
   children: ReactNode;
 }
 
@@ -36,12 +30,14 @@ interface FieldGroupProps {
  * 나머지는 건수와 뜻만 보여주고 접어둡니다 — 뜻 문구(hint)는 CONFIDENCE 상수에
  * 이미 있는 것을 그대로 씁니다.
  */
-export function FieldGroup({ grade, count, defaultOpen, forceOpen = false, children }: FieldGroupProps) {
+export function FieldGroup({
+  grade,
+  count,
+  defaultOpen,
+  resolvedCount = 0,
+  children,
+}: FieldGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  useEffect(() => {
-    if (forceOpen) setIsOpen(true);
-  }, [forceOpen]);
   const meta = CONFIDENCE[grade];
   const colorVar = GRADE_COLOR_VAR[grade];
   const Chevron = isOpen ? ChevronDown : ChevronRight;
@@ -51,26 +47,22 @@ export function FieldGroup({ grade, count, defaultOpen, forceOpen = false, child
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* 인라인 style로 border·background를 주면 index.css의 button:hover 규칙을
+          덮어써서 마우스를 올려도 아무 반응이 없습니다. 그래서 클래스로 뺐습니다 */}
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-2)',
-          width: '100%',
-          padding: '13px 18px',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-card)',
-          backgroundColor: 'var(--bg)',
-          textAlign: 'left',
-          flexWrap: 'wrap',
-        }}
+        className={`field-group-head${CONFIDENCE[grade].blocksVerify ? ' field-group-head--blocking' : ''}`}
       >
         <Chevron size={15} color="var(--text-muted)" aria-hidden="true" />
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: `var(${colorVar})` }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: `var(${colorVar})` }}>
           {meta.label} {count}건
         </span>
+        {resolvedCount > 0 && (
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--status-verified)' }}>
+            {resolvedCount}건 해소됨
+          </span>
+        )}
         <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', wordBreak: 'keep-all' }}>
           {meta.hint}
         </span>
