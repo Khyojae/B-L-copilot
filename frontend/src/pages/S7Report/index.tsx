@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { VerdictCard } from '../S4Verdicts/VerdictCard';
 import { findShipmentData } from '../../mocks/shipmentData';
 import { bySeverity } from '../../constants/domain';
+import { summarizeVerdicts } from '../../shared/shipmentStats';
 
 /**
  * S7 선제 대응 리포트 — 축소 구현 (화면전이_정의.md §1 "이번 기간: 축소").
@@ -54,7 +55,9 @@ export function S7Report() {
   }
 
   const sortedVerdicts = [...verdicts].sort(bySeverity);
-  const deferredVerdicts = verdicts.filter((verdict) => verdict.result === 'DEFERRED');
+  // 보류 건수는 shared/shipmentStats가 셉니다 — S1·S4·S6과 같은 규칙을 타야
+  // 화면마다 숫자가 어긋나지 않습니다
+  const { deferred: deferredCount } = summarizeVerdicts(verdicts);
 
   return (
     <PageContainer narrow>
@@ -87,13 +90,33 @@ export function S7Report() {
             textAlign: 'left',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <strong style={{ fontSize: 18 }}>{shipment.bl_no ?? '-'}</strong>
+          {/* 항목·순서를 S3 초안 편집기와 맞췄습니다 — B/L · 상태 · L/C · 선적ID.
+              화면 성격상 필요한 화물관리번호만 뒤에 덧붙입니다 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              flexWrap: 'wrap',
+            }}
+          >
+            {shipment.bl_no !== null ? (
+              <strong style={{ fontSize: 18, letterSpacing: '-0.2px' }}>{shipment.bl_no}</strong>
+            ) : (
+              <span style={{ fontSize: 16, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                B/L 번호 미발급
+              </span>
+            )}
             <StatusBadge status={shipment.status} />
+            <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+              L/C {shipment.lc_no ?? '-'}
+            </span>
+            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              {shipment.shipment_id}
+            </span>
           </div>
-          <span style={{ color: 'var(--text)' }}>L/C {shipment.lc_no ?? '-'}</span>
-          <span style={{ color: 'var(--text)' }}>
-            Cargo Control No. {shipment.cargo_control_no ?? '-'}
+          <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+            화물관리번호 {shipment.cargo_control_no ?? '-'}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             조회 시각: {new Date().toLocaleString('ko-KR')} — 스냅샷이 아닌 현재 데이터 기준입니다
@@ -134,7 +157,7 @@ export function S7Report() {
         </section>
 
         {/* 판정 보류 안내 */}
-        {deferredVerdicts.length > 0 && (
+        {deferredCount > 0 && (
           <div
             style={{
               display: 'flex',
@@ -154,7 +177,7 @@ export function S7Report() {
               style={{ flexShrink: 0, marginTop: 2 }}
             />
             <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-              판정 보류 {deferredVerdicts.length}건 — 위 하자 확률에는 반영되지 않았습니다. 관련 필드가
+              판정 보류 {deferredCount}건 — 위 하자 확률에는 반영되지 않았습니다. 관련 필드가
               확인되면 판정이 재개됩니다.
             </p>
           </div>
