@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { FieldValue, Verdict } from '../../types/domain';
+import type { FieldValue, Shipment, Verdict } from '../../types/domain';
 import { GradeBadge } from '../S3Draft/GradeBadge';
 import { UNSETTLED_LABEL, VERDICT_RESULT_LABEL, labelOfField } from '../../constants/domain';
 import { effectiveGradeOf } from '../../shared/shipmentStats';
@@ -9,7 +9,14 @@ import { EvidenceColumns, EvidencePanel, InfoTip } from './AlertParts';
 interface DeferredCardProps {
   verdict: Verdict;
   fields: FieldValue[];
-  shipmentId: string;
+  /**
+   * 어느 선적의 판정인지.
+   *
+   * 위 경보 목록처럼 선적별 그룹 헤더를 반복하지 않고, 카드에 B/L 번호만
+   * 붙입니다 — 지금은 선적이 한 건뿐이라 같은 헤더가 두 번 나왔습니다.
+   * 선적이 여러 건이 되면 그때 묶는 방식을 다시 봅니다.
+   */
+  shipment: Shipment;
 }
 
 /**
@@ -21,7 +28,7 @@ interface DeferredCardProps {
  *
  * 현실측 근거가 없는 항목이라 타임라인(S5)이 아니라 검증 결과(S4)로 보냅니다.
  */
-export function DeferredCard({ verdict, fields, shipmentId }: DeferredCardProps) {
+export function DeferredCard({ verdict, fields, shipment }: DeferredCardProps) {
   // 검사 대상 — 이 판정이 보려던 필드
   const targetName = verdict.target_fields[0];
   const targetField = fields.find((field) => field.field_name === targetName);
@@ -73,6 +80,15 @@ export function DeferredCard({ verdict, fields, shipmentId }: DeferredCardProps)
             >
               {VERDICT_RESULT_LABEL.DEFERRED}
             </span>
+
+            {/* 어느 선적인지 — 그룹 헤더를 반복하는 대신 여기에 붙입니다 */}
+            {shipment.bl_no !== null ? (
+              <strong style={{ fontSize: 13.5, letterSpacing: '-0.2px' }}>{shipment.bl_no}</strong>
+            ) : (
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                B/L 번호 미발급
+              </span>
+            )}
             <span
               style={{
                 display: 'inline-flex',
@@ -158,7 +174,7 @@ export function DeferredCard({ verdict, fields, shipmentId }: DeferredCardProps)
         >
           {blockingField !== undefined && (
             <Link
-              to={`/shipments/${shipmentId}/draft?focus=${blockingField.field_name}`}
+              to={`/shipments/${shipment.shipment_id}/draft?focus=${blockingField.field_name}`}
               className="btn btn-primary"
               style={{ gap: 5, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}
             >
@@ -167,7 +183,7 @@ export function DeferredCard({ verdict, fields, shipmentId }: DeferredCardProps)
             </Link>
           )}
           <Link
-            to={`/shipments/${shipmentId}/verdicts`}
+            to={`/shipments/${shipment.shipment_id}/verdicts`}
             className="btn btn-secondary"
             style={{ padding: '8px 14px', fontSize: 13 }}
           >

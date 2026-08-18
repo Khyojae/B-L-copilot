@@ -106,27 +106,25 @@ export function S6Alerts() {
               판정 보류 {withDeferred.reduce((sum, group) => sum + group.deferred.length, 0)}건
             </h2>
             <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', wordBreak: 'keep-all' }}>
-              심각도가 정해진 것이 아니라, 아직 판단이 끝나지 않은 상태입니다
+              — 아직 판단이 끝나지 않았습니다
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {withDeferred.map(({ data, deferred }) => (
-              <div
-                key={data.shipment.shipment_id}
-                style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}
-              >
-                <ShipmentGroupHeader data={data} count={`판정 보류 ${deferred.length}건`} />
-                {deferred.map((verdict) => (
-                  <DeferredCard
-                    key={verdict.verdict_id}
-                    verdict={verdict}
-                    fields={data.fields}
-                    shipmentId={data.shipment.shipment_id}
-                  />
-                ))}
-              </div>
-            ))}
+          {/* 위 경보 목록과 달리 선적별 그룹 헤더를 반복하지 않습니다. 선적이
+              한 건뿐일 때 같은 줄("HLCUBUS2608001 · 검토 중 · L/C …")이 두 번
+              나왔습니다. 어느 선적인지는 카드가 B/L 번호로 밝힙니다.
+              선적이 여러 건이 되면 묶는 방식을 다시 봅니다. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {withDeferred.flatMap(({ data, deferred }) =>
+              deferred.map((verdict) => (
+                <DeferredCard
+                  key={verdict.verdict_id}
+                  verdict={verdict}
+                  fields={data.fields}
+                  shipment={data.shipment}
+                />
+              )),
+            )}
           </div>
         </section>
       )}
