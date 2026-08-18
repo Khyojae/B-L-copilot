@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Verdict } from '../../types/domain';
 import { SeverityBadge } from '../../components/SeverityBadge';
-import { SEVERITY, labelOfField } from '../../constants/domain';
+import { SEVERITY, VERDICT_RESULT_LABEL, labelOfField } from '../../constants/domain';
 
 interface VerdictCardProps {
   verdict: Verdict;
@@ -11,8 +11,17 @@ interface VerdictCardProps {
 }
 
 export function VerdictCard({ verdict, shipmentId }: VerdictCardProps) {
-  const meta = SEVERITY[verdict.severity];
   const targetField = verdict.target_fields[0];
+
+  // ⚠ 판정 보류는 심각도를 그대로 보여주면 안 됩니다.
+  //   VD-003처럼 severity가 Critical이어도 result가 DEFERRED면 "아직 판단하지
+  //   못한" 상태입니다. 여기서 "위반" 뱃지를 달면, 같은 화면 위쪽 요약이
+  //   "위반 2 · 판정 보류 1"이라고 세는 것과 정면으로 어긋납니다
+  //   (요약 집계는 shared/shipmentStats의 summarizeVerdicts가 맡습니다).
+  const isDeferred = verdict.result === 'DEFERRED';
+  const meta = SEVERITY[verdict.severity];
+  // 보류는 심각도 색을 쓰지 않고 중립 회색으로 — S6 판정 보류 카드와 같은 방식
+  const accentVar = isDeferred ? '--text-muted' : meta.colorVar;
 
   return (
     <div
@@ -24,14 +33,32 @@ export function VerdictCard({ verdict, shipmentId }: VerdictCardProps) {
         borderTop: '1px solid var(--border-default)',
         borderRight: '1px solid var(--border-default)',
         borderBottom: '1px solid var(--border-default)',
-        borderLeft: `4px solid var(${meta.colorVar})`,
+        borderLeft: `4px solid var(${accentVar})`,
         borderRadius: 'var(--radius-card)',
         boxShadow: 'var(--shadow-card)',
-        backgroundColor: `var(${meta.bgVar})`,
+        backgroundColor: isDeferred ? 'var(--bg-card)' : `var(${meta.bgVar})`,
         textAlign: 'left',
       }}
     >
-      <SeverityBadge severity={verdict.severity} />
+      {isDeferred ? (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            padding: '3px 9px',
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-default)',
+          }}
+        >
+          {VERDICT_RESULT_LABEL.DEFERRED}
+        </span>
+      ) : (
+        <SeverityBadge severity={verdict.severity} />
+      )}
 
       <p style={{ margin: 0 }}>{verdict.message}</p>
 
