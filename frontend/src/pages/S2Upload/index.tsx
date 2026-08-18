@@ -5,6 +5,7 @@ import { UploadCloud } from 'lucide-react';
 import type { Job } from '../../types/domain';
 import { JOB_STATUS_LABEL, SUPPORTED_INPUT } from '../../constants/domain';
 import { useCreateDraft } from '../../shared/shipmentStore';
+import { extractDraft } from '../../api/extract';
 import { PageContainer } from '../../components/PageContainer';
 
 function getExtension(fileName: string): string {
@@ -17,39 +18,51 @@ export function S2Upload() {
   const createDraft = useCreateDraft();
   const inputRef = useRef<HTMLInputElement>(null);
   const [job, setJob] = useState<Job | null>(null);
+  // 사용자가 고른 파일. 이게 정해지면 아래 useEffect가 추출 요청을 보냅니다.
+  const [file, setFile] = useState<File | null>(null);
   const [rejectMessage, setRejectMessage] = useState<string | null>(null);
 
-  // 가짜 추출 작업 진행 — PENDING 800ms 후 EXTRACTING, 다시 2000ms 후 DONE
-  useEffect(() => {
-    if (job?.status === 'PENDING') {
-      const timer = setTimeout(() => {
-        setJob((prev) => (prev ? { ...prev, status: 'EXTRACTING' } : prev));
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-    if (job?.status === 'EXTRACTING') {
-      const timer = setTimeout(() => {
-        setJob((prev) => (prev ? { ...prev, status: 'DONE' } : prev));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [job?.status]);
-
-  // DONE이 되면 새 초안을 만들고 그 선적의 S3로 이동합니다 —
+  // 파일이 정해지면 백엔드(F1 인테이크)에 올려서 초안 필드를 받아옵니다.
+  //
+  // 예전에는 setTimeout으로 진행 상태를 흉내 냈지만, 지금은 진짜 요청이
+  // 걸리는 동안이 EXTRACTING이고 응답이 오면 DONE입니다.
+  //
   // 화면전이_정의.md: "job DONE 전에는 S3로 이동하지 않는다"
-  //
-  // ⚠ 목 추출은 가짜라 어떤 파일을 올려도 결과가 같습니다. 새 선적은 기존
-  //   DRAFT와 같은 필드 프로필(SI·L/C에서 나오는 6개만 값 있음)을 받습니다.
-  //   "업로드한 파일에서 뽑은 척"하는 셈이라 buildNewDraftData에 명시해뒀습니다.
-  //
-  // ⚠ 새 선적은 sessionStorage에만 남습니다. 탭을 닫거나 새 탭에서 열면
-  //   사라집니다. 실제 API가 붙으면 POST /shipments 응답의 id를 쓰게 되고
-  //   이 저장소는 사라집니다.
   useEffect(() => {
-    if (job?.status !== 'DONE') return;
-    const shipmentId = createDraft();
-    navigate(`/shipments/${shipmentId}/draft`);
-  }, [job?.status, createDraft, navigate]);
+    if (file === null) return;
+
+    // 화면을 떠나면 요청을 취소합니다.
+    const controller = new AbortController();
+    setJob({
+      job_id: `JOB-${file.lastModified}-${file.size}`,
+      status: 'EXTRACTING',
+      progress: null,
+      failure_reason: null,
+    });
+
+    extractDraft(file, controller.signal)
+      .then((fields) => {
+        if (controller.signal.aborted) return;
+        setJob((prev) => (prev ? { ...prev, status: 'DONE' } : prev));
+        // 추출된 진짜 필드로 새 선적을 만들고 그 선적의 S3로 갑니다.
+        const shipmentId = createDraft(fields);
+        navigate(`/shipments/${shipmentId}/draft`);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setJob((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'FAILED',
+                failure_reason: err instanceof Error ? err.message : String(err),
+              }
+            : prev,
+        );
+      });
+
+    return () => controller.abort();
+  }, [file, createDraft, navigate]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -72,11 +85,14 @@ export function S2Upload() {
     }
 
     setRejectMessage(null);
-    setJob({ job_id: `JOB-${Date.now()}`, status: 'PENDING', progress: null, failure_reason: null });
+    setFile(file);
   }
 
+  // 추출 중이거나 이미 끝난 뒤에만 잠급니다 — 실패했으면 다시 고를 수 있어야 합니다.
+  const busy = job !== null && job.status !== 'FAILED';
+
   function openFilePicker() {
-    if (job !== null) return;
+    if (busy) return;
     inputRef.current?.click();
   }
 
@@ -101,8 +117,8 @@ export function S2Upload() {
           border: '2px dashed var(--border-default)',
           borderRadius: 'var(--radius-card)',
           backgroundColor: 'var(--bg-card)',
-          cursor: job !== null ? 'default' : 'pointer',
-          opacity: job !== null ? 0.6 : 1,
+          cursor: busy ? 'default' : 'pointer',
+          opacity: busy ? 0.6 : 1,
           textAlign: 'center',
         }}
       >
@@ -117,7 +133,7 @@ export function S2Upload() {
             event.stopPropagation();
             openFilePicker();
           }}
-          disabled={job !== null}
+          disabled={busy}
         >
           파일 선택
         </button>
@@ -132,6 +148,14 @@ export function S2Upload() {
       )}
 
       {job !== null && <p>진행 상태: {JOB_STATUS_LABEL[job.status]}</p>}
+
+      {/* 실패 사유는 감추지 않고 그대로 보여줍니다 — 추출 서버가 안 떠 있는
+          것인지, 형식이 안 맞는 것인지 사용자가 알아야 다음 행동이 정해집니다 */}
+      {job?.status === 'FAILED' && (
+        <p style={{ color: 'var(--severity-critical)' }}>
+          추출 실패: {job.failure_reason ?? '알 수 없는 오류'}
+        </p>
+      )}
     </PageContainer>
   );
 }

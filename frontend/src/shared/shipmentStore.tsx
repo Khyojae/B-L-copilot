@@ -6,7 +6,7 @@ import {
   findShipmentData,
   type ShipmentMockData,
 } from '../mocks/shipmentData';
-import type { Shipment } from '../types/domain';
+import type { FieldValue, Shipment } from '../types/domain';
 
 /**
  * 화면이 선적을 읽는 유일한 통로.
@@ -26,27 +26,46 @@ import type { Shipment } from '../types/domain';
 const STORAGE_KEY = 'bl-copilot:created-shipments';
 
 /**
- * 저장은 Shipment(식별 정보)만 합니다.
+ * 저장하는 것 — 식별 정보(Shipment)와, 백엔드에서 뽑아온 필드 목록.
  *
- * 묶음 전체(필드 26개·제안·영향분석)를 저장하면 용량도 크고, 픽스처가 바뀌었을
- * 때 저장된 옛 구조가 되살아나 화면과 어긋납니다. 식별 정보만 남기고 묶음은
- * 읽을 때마다 buildNewDraftData로 다시 만듭니다.
+ * 묶음 전체(제안·영향분석까지)를 저장하면 용량도 크고, 픽스처가 바뀌었을 때
+ * 저장된 옛 구조가 되살아나 화면과 어긋납니다. 그래서 나머지는 읽을 때마다
+ * buildNewDraftData로 다시 만듭니다.
+ *
+ * 다만 **추출 필드는 다시 만들 수 없습니다** — 그건 사용자가 올린 파일에서
+ * 백엔드가 한 번 읽어낸 결과라, 새로고침하면 되살릴 방법이 없습니다.
+ * 그래서 이것만 함께 저장합니다.
  */
-function readStored(): Shipment[] {
+interface CreatedShipment {
+  shipment: Shipment;
+  /** 실제 추출 결과. 추출 없이 만든 초안이면 null */
+  fields: FieldValue[] | null;
+}
+
+function readStored(): CreatedShipment[] {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw === null ? [] : (JSON.parse(raw) as Shipment[]);
+    if (raw === null) return [];
+    const parsed = JSON.parse(raw) as unknown[];
+    // 예전 형식(Shipment만 저장하던 때)이 남아 있어도 화면이 죽지 않게 감쌉니다.
+    return parsed.map((item) => {
+      const record = item as Partial<CreatedShipment> & Partial<Shipment>;
+      return record.shipment !== undefined
+        ? { shipment: record.shipment, fields: record.fields ?? null }
+        : { shipment: item as Shipment, fields: null };
+    });
   } catch {
     // 저장소를 못 쓰는 환경(사생활 보호 모드 등)에서도 화면은 떠야 합니다
     return [];
   }
 }
 
-function writeStored(shipments: Shipment[]): void {
+function writeStored(created: CreatedShipment[]): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(shipments));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(created));
   } catch {
     // 저장에 실패해도 이번 세션 메모리에는 남아 있으므로 화면은 계속 동작합니다
+    // (추출 필드가 커서 용량 한계에 걸리는 경우도 여기로 옵니다)
   }
 }
 
@@ -54,16 +73,19 @@ interface ShipmentStoreValue {
   /** 픽스처 + 새로 만든 선적. 새것이 위로 옵니다 (S1이 "최근 수정순"이라고 밝힘) */
   list: ShipmentMockData[];
   find: (shipmentId: string | undefined) => ShipmentMockData | null;
-  /** 새 초안을 만들고 그 shipment_id를 돌려줍니다 */
-  createDraft: () => string;
+  /**
+   * 새 초안을 만들고 그 shipment_id를 돌려줍니다.
+   * `fields` 는 백엔드 /extract 로 뽑아온 실제 필드입니다. 없으면 목 필드로 채웁니다.
+   */
+  createDraft: (fields?: FieldValue[] | null) => string;
 }
 
 const ShipmentStoreContext = createContext<ShipmentStoreValue | null>(null);
 
 export function ShipmentStoreProvider({ children }: { children: ReactNode }) {
-  const [created, setCreated] = useState<Shipment[]>(readStored);
+  const [created, setCreated] = useState<CreatedShipment[]>(readStored);
 
-  const createDraft = useCallback((): string => {
+  const createDraft = useCallback((fields?: FieldValue[] | null): string => {
     const now = new Date();
     const pad = (value: number) => String(value).padStart(2, '0');
     const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
@@ -87,7 +109,7 @@ export function ShipmentStoreProvider({ children }: { children: ReactNode }) {
         lc_expiry_date: null,
       };
 
-      const next = [...prev, shipment];
+      const next = [...prev, { shipment, fields: fields ?? null }];
       writeStored(next);
       return next;
     });
@@ -97,7 +119,9 @@ export function ShipmentStoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ShipmentStoreValue>(() => {
     // 새로 만든 것이 위, 그 아래 픽스처 4건
-    const createdData = [...created].reverse().map(buildNewDraftData);
+    const createdData = [...created]
+      .reverse()
+      .map((record) => buildNewDraftData(record.shipment, record.fields));
     const fixtureData = mockShipments
       .map((shipment) => findShipmentData(shipment.shipment_id))
       .filter((data): data is ShipmentMockData => data !== null);
@@ -135,6 +159,6 @@ export function useShipmentData(shipmentId: string | undefined): ShipmentMockDat
 }
 
 /** 새 초안 만들기 — S2 업로드가 끝났을 때 씁니다 */
-export function useCreateDraft(): () => string {
+export function useCreateDraft(): (fields?: FieldValue[] | null) => string {
   return useStore().createDraft;
 }
