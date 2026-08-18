@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { RealityEvent } from '../../types/domain';
+import { InfoTip } from '../../components/InfoTip';
 
 /**
  * 경보·판정 보류 카드가 같이 쓰는 조각들.
@@ -56,38 +57,6 @@ export function EvidencePanel({
   );
 }
 
-/**
- * ⓘ 툴팁 — 룰 코드(R-XREF-QTY), 문서 ID(DOC-002), 이벤트 코드(EVT-003 · DCSA)처럼
- * 평소엔 필요 없지만 문의·디버깅에는 있어야 하는 값을 접어둡니다.
- *
- * title 속성만 씁니다. 커스텀 툴팁을 만들면 키보드·모바일 대응을 따로 해야
- * 하는데, 브라우저 기본 툴팁은 그게 이미 됩니다.
- */
-export function InfoTip({ text }: { text: string }) {
-  return (
-    <span
-      title={text}
-      aria-label={text}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 16,
-        height: 16,
-        flexShrink: 0,
-        borderRadius: 999,
-        border: '1.5px solid var(--border-default)',
-        fontSize: 10,
-        fontWeight: 700,
-        lineHeight: 1,
-        color: 'var(--text-secondary)',
-        cursor: 'help',
-      }}
-    >
-      i
-    </span>
-  );
-}
 
 /** RealityEvent.precision을 지킴 — DATE면 시각을 표시하지 않음 (§5.6) */
 export function formatEventTime(event: RealityEvent): string {
@@ -96,3 +65,7 @@ export function formatEventTime(event: RealityEvent): string {
     ? date.toLocaleDateString('ko-KR')
     : date.toLocaleString('ko-KR');
 }
+
+// InfoTip은 S6·S8이 함께 쓰므로 src/components로 옮겼습니다.
+// 이 폴더 안에서 쓰던 이름을 그대로 유지하기 위해 재수출합니다.
+export { InfoTip };

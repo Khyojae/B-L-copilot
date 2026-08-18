@@ -239,7 +239,11 @@ export function S3Draft() {
         </div>
       </div>
 
-      <ImpactPanel impact={data.impact} editedValues={editedValues} />
+      <ImpactPanel
+        impact={data.impact}
+        editedValues={editedValues}
+        resolvedConflicts={resolvedConflicts}
+      />
     </PageContainer>
   );
 }
