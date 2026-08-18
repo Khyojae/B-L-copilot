@@ -1,0 +1,412 @@
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --text-muted: #9b96a3;
+  --bg: #fff;
+  --card-bg: #faf9fb;
+  --border: #e5e4e7;
+  --code-bg: #f4f3ec;
+  --accent: #aa3bff;
+  --accent-bg: rgba(170, 59, 255, 0.1);
+  --accent-border: rgba(170, 59, 255, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  /* 브랜드 색상 — 진한 남색/인디고. 버튼·링크·선택 상태에 씀.
+     ⚠ --severity-info(파랑)와는 다른 색조라 서로 안 겹침. 심각도/신뢰도/상태
+     색상(SEVERITY·CONFIDENCE·SHIPMENT_STATUS)은 절대 이 색으로 바꾸지 않음 */
+  --brand-primary: #1e3a5f;
+  --brand-primary-hover: #16293f;
+  --brand-primary-light: rgba(30, 58, 95, 0.08);
+
+  /* 중립 색상 — 기존 --text/--text-h/--bg/--card-bg/--border의 별칭.
+     원본 값은 그대로 두고 이름만 의미 단위로 하나 더 붙인 것이라, 다크모드
+     오버라이드도 원본 쪽에서 자동으로 따라옴 */
+  --text-primary: var(--text-h);
+  --text-secondary: var(--text);
+  --bg-page: var(--bg);
+  --bg-card: var(--card-bg);
+  --border-default: var(--border);
+
+  /* 여백 체계 — 8px 기준 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* 카드 기본 스타일 — 그림자는 은은하게 1단계만, 그라데이션·글로우 없음 */
+  --radius-card: 8px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+  /* 페이지 폭. max-width는 화면(#root) 전체가, narrow-width는 목록형 화면의
+     카드 텍스트가 너무 길어져서 읽기 불편해지지 않도록 PageContainer가 씀 */
+  --content-max-width: 1280px;
+  --content-narrow-width: 840px;
+
+  --sans: 'Noto Sans KR', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Noto Sans KR', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  /* 심각도 3단계 색상 — constants/domain.ts의 SEVERITY가 참조함. 여기서만 정의 */
+  --severity-critical: #dc2626;
+  --severity-critical-bg: rgba(220, 38, 38, 0.1);
+  --severity-warning: #b45309;
+  --severity-warning-bg: rgba(217, 119, 6, 0.12);
+  --severity-info: #2563eb;
+  --severity-info-bg: rgba(37, 99, 235, 0.1);
+
+  /* 선적 상태 6단계 색상 — constants/domain.ts의 SHIPMENT_STATUS가 참조함. 여기서만 정의 */
+  --status-draft: #71717a;
+  --status-reviewing: #d97706;
+  --status-verified: #16a34a;
+  --status-submitted: #2563eb;
+  --status-monitoring: #7c3aed;
+  --status-closed: #52525b;
+
+  /* 신뢰도 4등급 배경색 — constants/domain.ts의 CONFIDENCE가 참조함. CONFIRMED는 배경 없음(null) */
+  --confidence-advisory-bg: rgba(217, 119, 6, 0.08);
+  --confidence-required-bg: rgba(220, 38, 38, 0.08);
+  /* NOT_FOUND(출처 없음) — 경고성 색조 없이 아주 옅은 중립 회색으로만 구분 */
+  --confidence-not-found-bg: rgba(0, 0, 0, 0.035);
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #9ca3af;
+    --text-h: #f3f4f6;
+    --text-muted: #6b7280;
+    --bg: #16171d;
+    --card-bg: #1c1d24;
+    --border: #2e303a;
+    --code-bg: #1f2028;
+    --accent: #c084fc;
+    --accent-bg: rgba(192, 132, 252, 0.15);
+    --accent-border: rgba(192, 132, 252, 0.5);
+    --social-bg: rgba(47, 48, 58, 0.5);
+    --shadow:
+      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    --brand-primary: #5b84ac;
+    --brand-primary-hover: #75a0c4;
+    --brand-primary-light: rgba(91, 132, 172, 0.15);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    --severity-critical: #f87171;
+    --severity-critical-bg: rgba(248, 113, 113, 0.15);
+    --severity-warning: #fbbf24;
+    --severity-warning-bg: rgba(251, 191, 36, 0.15);
+    --severity-info: #60a5fa;
+    --severity-info-bg: rgba(96, 165, 250, 0.15);
+
+    --status-draft: #a1a1aa;
+    --status-reviewing: #fbbf24;
+    --status-verified: #4ade80;
+    --status-submitted: #60a5fa;
+    --status-monitoring: #c084fc;
+    --status-closed: #71717a;
+
+    --confidence-advisory-bg: rgba(251, 191, 36, 0.12);
+    --confidence-required-bg: rgba(248, 113, 113, 0.12);
+    --confidence-not-found-bg: rgba(255, 255, 255, 0.06);
+  }
+
+  #social .button-icon {
+    filter: invert(1) brightness(2);
+  }
+}
+
+#root {
+  /* 페이지 콘텐츠 최대 폭. 개별 화면은 PageContainer로 안쪽 여백만 더함 */
+  width: var(--content-max-width);
+  max-width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  border-inline: 1px solid var(--border);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: 56px;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+  @media (max-width: 1024px) {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+}
+h2 {
+  font-size: 24px;
+  line-height: 118%;
+  letter-spacing: -0.24px;
+  margin: 0 0 8px;
+  @media (max-width: 1024px) {
+    font-size: 20px;
+  }
+}
+p {
+  margin: 0;
+}
+
+code,
+.counter {
+  font-family: var(--mono);
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--text-h);
+}
+
+code {
+  font-size: 15px;
+  line-height: 135%;
+  padding: 4px 8px;
+  background: var(--code-bg);
+}
+
+/* 링크 기본 스타일. 카드 전체를 감싸는 Link는 inline style로 color/textDecoration을
+   직접 지정하므로 이 규칙에 안 덮임 (인라인 스타일이 항상 우선함) */
+a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--brand-primary-hover);
+  text-decoration: underline;
+}
+
+/* 버튼 기본 스타일 — 그라데이션·그림자·애니메이션 없이 배경색 전환만 */
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.15s ease;
+}
+button:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* <a>(Link)를 버튼처럼 보이게 할 때 씀 (예: ShipmentCard의 이동 버튼).
+   <button>은 위 button{} 기본 스타일을 이미 받으니 이 클래스가 필요 없음 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.15s ease;
+}
+.btn:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+/* 주요 동작(승인·검증 실행 등) — 채워진 남색 버튼 */
+.btn-primary {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+}
+
+/* 보조 동작(거절·취소 등) — 테두리만 있는 버튼 */
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--brand-primary-light);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+/* 상단 네비게이션 링크 (NavBar) — 지금 있는 화면은 밑줄+색으로, 나머지는 hover로만 반응 */
+.nav-link {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.nav-link:hover {
+  color: var(--brand-primary);
+}
+.nav-link.active {
+  color: var(--brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--brand-primary);
+}
+
+/* S3 초안 편집기 — 뷰어+필드폼 두 칸 배치. 인라인 스타일로는 미디어쿼리를
+   못 쓰기 때문에 이 두 규칙만 CSS 클래스로 뺐습니다. 1024px 이하에서는
+   가로 배치 대신 세로로 쌓아서(뷰어 위, 필드폼 아래) 필드폼이 눌려
+   줄바꿈되는 걸 막습니다. */
+.s3-content-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+/* 뷰어 안쪽 문서 박스 — 기본은 480px 고정, 폭·높이 비율(612:792)은
+   aspect-ratio로 항상 유지. 좁은 화면에서 폭이 100%로 바뀌어도 비율은
+   그대로라 찌그러지지 않습니다. */
+.s3-viewer-box {
+  width: 480px;
+  aspect-ratio: 612 / 792;
+}
+
+@media (max-width: 1024px) {
+  .s3-content-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .s3-viewer-box {
+    width: 100%;
+    max-width: 480px;
+  }
+}
+
+/* S3 필드 그룹 헤더 — 등급별로 필드를 묶어 접었다 펴는 줄.
+   인라인 style로 border/background를 주면 위 button:hover 규칙을 덮어써서
+   마우스를 올려도 반응이 없기 때문에, 이 두 규칙만 클래스로 뺐습니다. */
+.field-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 13px 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  background: var(--bg);
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+/* 검증을 막고 있는 그룹(필수 확인)만 눈에 띄게. 나머지 세 줄과 글자색만
+   다르면 "지금 할 일"이 안 읽혀서, 배경·테두리·왼쪽 띠로 구분합니다. */
+.field-group-head--blocking {
+  background: var(--severity-critical-bg);
+  border-color: var(--severity-critical);
+  border-left-width: 4px;
+}
+
+/* 랜딩 히어로의 대시보드 미리보기 — 장식이라 좁은 화면에서는 숨깁니다.
+   숨겨도 정보가 사라지지 않습니다(실제 대시보드는 "시작하기"로 갑니다).
+   인라인 style로는 미디어쿼리를 못 써서 이 규칙만 클래스로 뺐습니다. */
+.landing-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  width: 440px;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .landing-preview {
+    display: none;
+  }
+}
+
+/* S6 경보 그룹 — 선적별 헤더와 그 아래 카드들을 한 덩어리로 붙입니다.
+   전에는 헤더가 8px 떨어진 별개 둥근 박스라, 그룹이 하나뿐일 때 "묶어주는
+   머리"가 아니라 "카드 중 첫 번째"처럼 보였습니다.
+   맞닿는 테두리가 2px로 겹치지 않도록 -1px씩 당겨 올립니다. */
+.alert-group {
+  display: flex;
+  flex-direction: column;
+}
+.alert-group > * + * {
+  margin-top: -1px;
+}
+/* 모서리는 여기서 정합니다. 자식이 인라인 style로 border-radius를 주면
+   이 규칙을 덮어버려서 첫/마지막 카드 모서리가 안 깎입니다. */
+.alert-group > * {
+  border-radius: var(--radius-card);
+}
+.alert-group > :first-child {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.alert-group > :last-child {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+.alert-group > :not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+/* 경보·판정 보류 카드의 근거 두 칸 — 서류측 | 현실측.
+   사이에 세로 구분선을 둡니다. 간격만으로는 두 칸이 하나의 목록처럼
+   이어져 보여서, 무엇과 무엇을 대조하는지가 안 읽힙니다. */
+.evidence-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.evidence-columns > * + * {
+  border-inline-start: 1px solid var(--border-default);
+  padding-inline-start: var(--space-3);
+}
+
+/* 좁아지면 두 칸을 위아래로 쌓고, 구분선도 가로로 눕힙니다 */
+@media (max-width: 640px) {
+  .evidence-columns {
+    grid-template-columns: 1fr;
+  }
+  .evidence-columns > * + * {
+    border-inline-start: none;
+    padding-inline-start: 0;
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--space-3);
+  }
+}
