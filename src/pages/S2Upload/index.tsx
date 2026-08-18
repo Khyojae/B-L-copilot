@@ -83,7 +83,9 @@ export function S2Upload() {
   }
 
   return (
-    <PageContainer>
+    // 목록·폼 화면은 narrow로 콘텐츠 폭을 좁힙니다 (S1·S4~S7과 같은 기준).
+    // 전체 폭을 쓰는 건 뷰어+폼을 좌우로 놓는 S3뿐입니다.
+    <PageContainer narrow>
       <h1>서류 업로드</h1>
 
       <input ref={inputRef} type="file" onChange={handleFileChange} style={{ display: 'none' }} />
