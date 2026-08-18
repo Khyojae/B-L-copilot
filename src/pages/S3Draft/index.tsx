@@ -132,7 +132,7 @@ export function S3Draft() {
               </p>
             </div>
           ) : (
-            <DocumentViewer focusedField={focusedField ?? undefined} />
+            <DocumentViewer focusedField={focusedField ?? undefined} documents={data.documents} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <FieldForm

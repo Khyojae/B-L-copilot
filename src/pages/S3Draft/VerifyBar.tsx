@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { canTransitionToVerified } from '../../constants/domain';
+import { SEVERITY, VERDICT_RESULT_LABEL, canTransitionToVerified } from '../../constants/domain';
 import type { DefectPrediction, FieldValue, Verdict } from '../../types/domain';
-import { countRequiredFields } from '../../shared/shipmentStats';
+import { countRequiredFields, summarizeVerdicts, SEVERITIES_IN_ORDER } from '../../shared/shipmentStats';
 
 interface VerifyBarProps {
   /** 이 선적의 필드 — 필수 확인 건수를 셀 대상 */
@@ -30,6 +30,7 @@ export function VerifyBar({ fields, verdicts, prediction, editedValues }: Verify
   const [overrideRecorded, setOverrideRecorded] = useState<string | null>(null);
 
   const requiredCount = countRequiredFields(fields, editedValues);
+  const verdictCounts = summarizeVerdicts(verdicts);
   // 이 선적의 판정 중 "미해결" Critical만 셉니다. DEFERRED는 필수 확인 필드
   // 쪽에서 이미 세고 있는 문제라 여기서 또 세면 같은 문제를 두 번 반영하게
   // 됩니다. 아직 검증 전인 선적은 판정이 0건이라 이 값도 0입니다.
@@ -94,8 +95,47 @@ export function VerifyBar({ fields, verdicts, prediction, editedValues }: Verify
                 </span>
               )}
             </p>
+            {/* 판정 건수 — 집계는 shared/shipmentStats가 맡아서 S1·S4와 항상 같습니다.
+                판정 보류는 심각도에 섞지 않고 옆에 따로 붙습니다 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', margin: '8px 0 0' }}>
+              {SEVERITIES_IN_ORDER.map((severity) => (
+                <span
+                  key={severity}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '3px 10px',
+                    borderRadius: 999,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: `var(${SEVERITY[severity].colorVar})`,
+                    backgroundColor: `var(${SEVERITY[severity].bgVar})`,
+                    border: `1px solid var(${SEVERITY[severity].colorVar})`,
+                  }}
+                >
+                  {SEVERITY[severity].label} {verdictCounts.bySeverity[severity]}
+                </span>
+              ))}
+              {verdictCounts.deferred > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '3px 10px',
+                    borderRadius: 999,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-default)',
+                  }}
+                >
+                  {VERDICT_RESULT_LABEL.DEFERRED} {verdictCounts.deferred}
+                </span>
+              )}
+            </div>
+
             <ul
-              style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}
+              style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}
             >
               {prediction.top_factors.map((factor) => (
                 <li key={factor.factor}>

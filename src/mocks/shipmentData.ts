@@ -16,6 +16,7 @@
 
 import type {
   Alert,
+  DocumentMeta,
   DefectPrediction,
   FieldValue,
   ImpactResult,
@@ -26,6 +27,7 @@ import type {
 } from '../types/domain';
 import {
   mockAlerts,
+  mockDocuments,
   mockFields,
   mockImpactResult,
   mockPrediction,
@@ -66,6 +68,15 @@ export interface ShipmentMockData {
   realityEvents: RealityEvent[];
   /** F6 모순 경보 — S5 상단 요약. 이벤트와 같은 이유로 1건분만 있습니다 */
   alerts: Alert[];
+  /**
+   * 이 선적에 붙어 있는 서류 — S3 문서 뷰어의 탭이 됩니다.
+   *
+   * 별도 목록을 만들지 않고 "필드가 실제로 인용한 서류"만 추립니다. 어떤
+   * 서류가 붙어 있는지는 그 서류에서 읽어낸 값이 있는지로 알 수 있고,
+   * 그래야 선적마다 탭 수가 실제 데이터와 어긋나지 않습니다. DRAFT처럼
+   * 서류가 적은 선적은 탭도 적게 뜨는 게 정상입니다.
+   */
+  documents: DocumentMeta[];
   /**
    * S8 정정 영향분석 — port_of_loading을 고쳤을 때 무엇을 다시 봐야 하는가.
    *
@@ -116,6 +127,16 @@ function withIdentityOf(shipment: Shipment): FieldValue[] {
 
     return { ...field, value, normalized_value: value };
   });
+}
+
+/** 필드들이 실제로 근거로 삼은 서류만 골라냅니다 (mockDocuments 순서 유지) */
+function documentsCitedBy(fields: FieldValue[]): DocumentMeta[] {
+  const citedIds = new Set(
+    fields
+      .filter((field) => field.source_doc_id !== null && field.bbox !== null)
+      .map((field) => field.source_doc_id),
+  );
+  return mockDocuments.filter((document) => citedIds.has(document.document_id));
 }
 
 /**
@@ -361,6 +382,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     realityEvents: mockRealityEvents,
     alerts: mockAlerts,
     impact: mockImpactResult,
+    documents: documentsCitedBy(mockFields),
   },
   // DRAFT — 아직 검증 실행 전이라 판정도 하자 확률도 없고, 필드도 SI·L/C에서
   // 나오는 6개만 값이 있습니다. 그래서 교정 제안도 port_of_discharge 1건만
@@ -374,6 +396,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     realityEvents: [],
     alerts: [],
     impact: draftImpact,
+    documents: documentsCitedBy(draftFields),
   },
   // VERIFIED — 검증을 통과한 선적이라 교정 제안은 이미 다 처리(승인/거절)된
   // 것으로 봅니다. 위반 0건으로 통과했는데 안 고친 제안이 3건 남아 있으면
@@ -388,6 +411,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     realityEvents: [],
     alerts: [],
     impact: verifiedImpact,
+    documents: documentsCitedBy(verifiedFields),
   },
   [mockShipmentSubmitted.shipment_id]: {
     shipment: mockShipmentSubmitted,
@@ -398,6 +422,7 @@ export const mockDataByShipment: Record<string, ShipmentMockData> = {
     realityEvents: [],
     alerts: [],
     impact: submittedImpact,
+    documents: documentsCitedBy(submittedFields),
   },
 };
 
