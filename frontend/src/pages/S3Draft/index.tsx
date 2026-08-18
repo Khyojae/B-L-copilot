@@ -7,7 +7,7 @@ import { VerifyBar } from './VerifyBar';
 import { ImpactPanel } from './ImpactPanel';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
-import { findShipmentData } from '../../mocks/shipmentData';
+import { useShipmentData } from '../../shared/shipmentStore';
 import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { resolveConflicts, type ResolvedConflicts } from '../../shared/shipmentStats';
 import type { FieldValue, Suggestion } from '../../types/domain';
@@ -15,7 +15,7 @@ import type { FieldValue, Suggestion } from '../../types/domain';
 export function S3Draft() {
   // S4·S7과 같은 방식 — URL(/shipments/:id/draft)의 :id로 이 선적의 묶음을 찾습니다
   const { id } = useParams();
-  const data = findShipmentData(id);
+  const data = useShipmentData(id);
 
   // S8 영향분석 패널의 열림/닫힘은 ImpactPanel 스스로 이 값을 읽어서 결정합니다
   // (화면전이_정의.md §1: "?impact=1" URL 상태). 여기서는 토글 버튼만 둡니다.

@@ -48,7 +48,12 @@ export function DashboardPreview({ now }: DashboardPreviewProps) {
     return () => observer.disconnect();
   }, []);
 
-  // 목록 첫 번째 선적 — 판정·필드가 가장 많이 채워져 있어 화면을 대표합니다
+  // 목록 첫 번째 선적 — 판정·필드가 가장 많이 채워져 있어 화면을 대표합니다.
+  //
+  // 다른 화면과 달리 저장소(useShipmentList)를 쓰지 않고 픽스처를 직접 읽습니다.
+  // 저장소를 쓰면 사용자가 방금 업로드한 빈 초안이 미리보기에 뜨는데, 랜딩은
+  // "이 제품이 무엇을 보여주는가"를 소개하는 자리라 판정·경보가 다 채워진
+  // 고정 예시가 맞습니다.
   const first = mockShipments[0];
   const data = first === undefined ? null : findShipmentData(first.shipment_id);
   if (data === null) return null;
