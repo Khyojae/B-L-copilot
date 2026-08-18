@@ -271,6 +271,18 @@ export interface ShipmentDraft {
   suggestions: Suggestion[];
 }
 
+/**
+ * S1 대시보드 카드용 요약 번들. 새 개념이 아니라 기존 F1·F3·F4 타입을
+ * 선적 하나 기준으로 묶은 것뿐입니다 — 실제 API가 생기면 이 모양 그대로
+ * "선적 목록 + 요약" 응답이 될 가능성이 높습니다.
+ */
+export interface ShipmentStats {
+  fields: FieldValue[];
+  verdicts: Verdict[];
+  /** null = 검증을 아직 한 번도 실행하지 않음 (추정하지 않음, §5.4) */
+  prediction: DefectPrediction | null;
+}
+
 /** 상태 강제 진행 시 기록 — 리포트와 피드백 데이터에 남음 (§5.8) */
 export interface StatusOverride {
   from: ShipmentStatus;

@@ -10,6 +10,7 @@
 import type {
   Shipment,
   ShipmentDraft,
+  ShipmentStats,
   DocumentMeta,
   FieldValue,
   Suggestion,
@@ -426,6 +427,147 @@ export const mockDraft: ShipmentDraft = {
   documents: mockDocuments,
   fields: mockFields,
   suggestions: mockSuggestions,
+};
+
+// ─────────────────────────────────────────────
+// S1 대시보드 카드용 선적별 요약 (ShipmentStats)
+//
+// mockShipment(#1)은 위 mockFields·mockVerdicts·mockPrediction을 그대로
+// 재사용합니다. 나머지 3건은 지금까지 Shipment 레코드만 있고 fields·
+// verdicts·prediction이 없었어서, 카드에 진짜 값을 보여주려고 각 상태에
+// 맞는 작은 데이터셋을 새로 만들었습니다 — 시안(Claude Design)의 숫자를
+// 베낀 게 아니라 이 픽스처에서 계산돼 나오는 값입니다.
+// ─────────────────────────────────────────────
+
+// #2 DRAFT — 서류 2건만 올라온 상태. 선적항은 낮은 신뢰도라 필수 확인,
+// 선사·항차는 아직 부킹 전이라 값 자체가 없음(bbox null → 미검출)
+const mockFieldsDraft: FieldValue[] = [
+  f('shipper', 'DAEHAN INDUSTRIES CO.,LTD', 0.93, 'DOC-201', 1, [72, 118, 340, 136]),
+  f('consignee', 'NORDSEE TRADING GMBH', 0.91, 'DOC-201', 1, [72, 140, 352, 158]),
+  f('lc_no', 'LC26081300456', 0.97, 'DOC-202', 1, [72, 60, 268, 78], { extractor: 'rule' }),
+  f('port_of_loading', 'BUSAN', 0.55, 'DOC-201', 1, [72, 250, 232, 268]),
+  f('port_of_discharge', null, 0, null, null, null),
+  f('carrier', null, 0, null, null, null),
+  f('vessel_voyage', null, 0, null, null, null),
+];
+
+// #3 VERIFIED — 전부 확정, 필수 확인 0건. carrier/vessel은 BL번호 접두사
+// (MSCUBUS → MSC)에 맞춰 지정, 항로도 #1(BUSAN→HAMBURG)과 다르게 잡음
+const mockFieldsVerified: FieldValue[] = [
+  f('shipper', 'DAEHAN INDUSTRIES CO.,LTD', 0.95, 'DOC-301', 1, [72, 118, 340, 136]),
+  f('consignee', 'ROTTERDAM IMPORT B.V.', 0.94, 'DOC-301', 1, [72, 140, 352, 158]),
+  f('lc_no', 'LC26080900789', 0.98, 'DOC-302', 1, [72, 60, 268, 78], { extractor: 'rule' }),
+  f('bl_no', 'MSCUBUS2608077', 0.97, 'DOC-301', 1, [420, 96, 596, 114]),
+  f('port_of_loading', 'BUSAN', 0.95, 'DOC-301', 1, [72, 250, 232, 268]),
+  f('port_of_discharge', 'ROTTERDAM', 0.94, 'DOC-301', 1, [72, 272, 240, 290], {
+    normalized_value: 'NLRTM',
+  }),
+  f('carrier', 'MSC', 0.93, 'DOC-301', 1, [72, 184, 220, 202]),
+  f('vessel_voyage', 'MSC AGATA / 2608W', 0.92, 'DOC-301', 1, [300, 228, 540, 246]),
+];
+
+const mockVerdictsVerified: Verdict[] = [
+  {
+    verdict_id: 'VD-101',
+    rule_id: 'R-FMT-VESSEL',
+    target_fields: ['vessel_voyage'],
+    result: 'VIOLATION',
+    severity: 'Warning',
+    message: '선박명·항차 표기에 슬래시 구분자 앞뒤 공백이 없습니다.',
+    action_hint: '"MSC AGATA / 2608W"처럼 공백을 넣어 표기하는 것을 권장합니다.',
+    evidence: { clause_text: '사내 표기 가이드 — 선박명/항차는 공백-슬래시-공백으로 구분' },
+    judged_at: '2026-08-09T09:45:00Z',
+    rule_version: 'RC-2026.08.1',
+    model_version: null,
+  },
+  {
+    verdict_id: 'VD-102',
+    rule_id: 'R-LC-EXP-BUFFER',
+    target_fields: ['lc_no'],
+    result: 'PASS',
+    severity: 'Info',
+    message: '선적일로부터 L/C 유효기일까지 여유가 충분합니다.',
+    action_hint: null,
+    evidence: { clause_text: 'UCP600 6(e) — 서류 제시기한 준수 확인' },
+    judged_at: '2026-08-09T09:45:00Z',
+    rule_version: 'RC-2026.08.1',
+    model_version: null,
+  },
+];
+
+const mockPredictionVerified: DefectPrediction = {
+  probability: 0.14,
+  top_factors: [
+    { factor: '선박명 표기 형식 오류', contribution: 0.08 },
+    { factor: 'L/C 유효기일까지 여유 적음', contribution: 0.06 },
+  ],
+  deferred_count: 0,
+};
+
+// #4 SUBMITTED — 이미 제출돼 정정 불가. 위반 1건은 과거 시점 판정 기록
+const mockFieldsSubmitted: FieldValue[] = [
+  f('shipper', 'DAEHAN INDUSTRIES CO.,LTD', 0.96, 'DOC-401', 1, [72, 118, 340, 136]),
+  f('consignee', 'NORDWIND HANDELS GMBH', 0.95, 'DOC-401', 1, [72, 140, 352, 158]),
+  f('lc_no', 'LC26072800321', 0.98, 'DOC-402', 1, [72, 60, 268, 78], { extractor: 'rule' }),
+  f('bl_no', 'ONEYBUS2607512', 0.97, 'DOC-401', 1, [420, 96, 596, 114]),
+  f('port_of_loading', 'BUSAN', 0.96, 'DOC-401', 1, [72, 250, 232, 268]),
+  f('port_of_discharge', 'HAMBURG', 0.95, 'DOC-401', 1, [72, 272, 240, 290], {
+    normalized_value: 'DEHAM',
+  }),
+  f('carrier', 'ONE', 0.94, 'DOC-401', 1, [72, 184, 220, 202]),
+  f('vessel_voyage', 'ONE INNOVATION / 2607N', 0.93, 'DOC-401', 1, [300, 228, 540, 246]),
+  f('shipped_on_board_date', '2026-07-10', 0.97, 'DOC-401', 1, [400, 430, 540, 448], {
+    extractor: 'rule',
+  }),
+];
+
+const mockVerdictsSubmitted: Verdict[] = [
+  {
+    verdict_id: 'VD-103',
+    rule_id: 'R-UCP-14C',
+    target_fields: ['shipped_on_board_date'],
+    result: 'VIOLATION',
+    severity: 'Critical',
+    message: '본선적재일로부터 21일을 초과하여 제출되었습니다 (적재 2026-07-10, 제출 2026-08-01, 경과 22일).',
+    action_hint: '이미 제출된 서류입니다. 개설은행과 조건 변경(amendment) 협의가 필요합니다.',
+    evidence: { clause_text: 'UCP600 14(c) — 서류는 선적일 후 21일보다 늦게 제시되어서는 안 된다.' },
+    judged_at: '2026-08-01T07:15:00Z',
+    rule_version: 'RC-2026.07.2',
+    model_version: null,
+  },
+];
+
+const mockPredictionSubmitted: DefectPrediction = {
+  probability: 0.34,
+  top_factors: [
+    { factor: '제출 기한 초과 (UCP600 14c)', contribution: 0.24 },
+    { factor: 'L/C 유효기일 경과', contribution: 0.1 },
+  ],
+  deferred_count: 0,
+};
+
+/** S1 대시보드가 shipment_id로 찾아 쓰는 요약 데이터 — 선적 4건 전부 포함 */
+export const mockShipmentStatsById: Record<string, ShipmentStats> = {
+  [mockShipment.shipment_id]: {
+    fields: mockFields,
+    verdicts: mockVerdicts,
+    prediction: mockPrediction,
+  },
+  [mockShipmentDraft.shipment_id]: {
+    fields: mockFieldsDraft,
+    verdicts: [],
+    prediction: null, // 검증을 아직 실행한 적 없음
+  },
+  [mockShipmentVerified.shipment_id]: {
+    fields: mockFieldsVerified,
+    verdicts: mockVerdictsVerified,
+    prediction: mockPredictionVerified,
+  },
+  [mockShipmentSubmitted.shipment_id]: {
+    fields: mockFieldsSubmitted,
+    verdicts: mockVerdictsSubmitted,
+    prediction: mockPredictionSubmitted,
+  },
 };
 
 // ─────────────────────────────────────────────
