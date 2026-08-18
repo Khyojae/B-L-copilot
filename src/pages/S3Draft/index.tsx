@@ -50,6 +50,16 @@ export function S3Draft() {
     setResolvedConflicts((prev) => ({ ...prev, [fieldName]: chosenValue }));
   }
 
+  function handleConflictClear(fieldName: string) {
+    // 키를 지워서 원래 충돌 상태(필수 확인)로 되돌립니다. 값을 되돌리는 게
+    // 아니라 "아직 안 골랐다"로 되돌리는 것이라 원본 필드가 그대로 살아납니다.
+    setResolvedConflicts((prev) => {
+      const next = { ...prev };
+      delete next[fieldName];
+      return next;
+    });
+  }
+
   function handleFieldEdit(fieldName: string, value: string | null) {
     setEditedValues((prev) => ({ ...prev, [fieldName]: value }));
   }
@@ -191,6 +201,7 @@ export function S3Draft() {
               onSuggestionReject={handleSuggestionReject}
               resolvedConflicts={resolvedConflicts}
               onConflictResolve={handleConflictResolve}
+              onConflictClear={handleConflictClear}
             />
           </div>
         </div>

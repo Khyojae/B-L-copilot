@@ -1,13 +1,7 @@
-import { AlertCircle, AlertTriangle, HelpCircle, MinusCircle } from 'lucide-react';
-import type { ConfidenceGrade, FieldValue } from '../../types/domain';
+import { AlertTriangle } from 'lucide-react';
+import type { FieldValue } from '../../types/domain';
 import { CONFIDENCE, labelOfField, toConfidenceGrade } from '../../constants/domain';
-
-/** CONFIDENCE.icon 문자열(예: 'help-circle')을 실제 아이콘 컴포넌트로 연결 */
-const ICON_BY_NAME = {
-  'help-circle': HelpCircle,
-  'alert-circle': AlertCircle,
-  'minus-circle': MinusCircle,
-} as const;
+import { GradeBadge } from './GradeBadge';
 
 interface FieldRowProps {
   field: FieldValue;
@@ -54,7 +48,6 @@ export function FieldRow({
   //   건수에서 빠짐). 이게 맞는 규칙인지 팀 확정 대기 중 — CLAUDE.md M-2 참고.
   const grade = isEdited ? 'CONFIRMED' : toConfidenceGrade(field);
   const meta = CONFIDENCE[grade];
-  const Icon = meta.icon !== null ? ICON_BY_NAME[meta.icon as keyof typeof ICON_BY_NAME] : null;
   const isMissing = displayValue === null;
 
   return (
@@ -138,23 +131,7 @@ export function FieldRow({
         </span>
       )}
 
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          flexShrink: 0,
-          padding: '3px 9px',
-          borderRadius: 999,
-          fontSize: 12,
-          fontWeight: 600,
-          color: `var(${GRADE_COLOR_VAR[grade]})`,
-          border: `1px solid var(${GRADE_COLOR_VAR[grade]})`,
-        }}
-      >
-        {Icon !== null && <Icon size={13} aria-hidden="true" />}
-        {meta.label}
-      </span>
+      <GradeBadge grade={grade} />
 
       {field.conflict_flag && (
         <AlertTriangle
@@ -168,16 +145,3 @@ export function FieldRow({
   );
 }
 
-/**
- * 등급 뱃지 색.
- *
- * 확정은 상태색(검증 완료)과 같은 초록, 확인 권고·필수 확인은 심각도 색을
- * 그대로 씁니다. 출처 없음은 잘못이 아니라 "아직 못 찾았다"는 뜻이라 경고색을
- * 주지 않고 중립 회색입니다 — CONFIDENCE의 bgVar 정책과 같은 이유입니다.
- */
-const GRADE_COLOR_VAR: Record<ConfidenceGrade, string> = {
-  CONFIRMED: '--status-verified',
-  ADVISORY: '--severity-warning',
-  REQUIRED: '--severity-critical',
-  NOT_FOUND: '--text-muted',
-};
