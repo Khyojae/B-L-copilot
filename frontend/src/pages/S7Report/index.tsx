@@ -2,7 +2,7 @@ import { ClipboardCheck, FileQuestion, PauseCircle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
-import { StatusBadge } from '../../components/StatusBadge';
+import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { VerdictCard } from '../S4Verdicts/VerdictCard';
 import { findShipmentData } from '../../mocks/shipmentData';
 import { bySeverity } from '../../constants/domain';
@@ -76,52 +76,15 @@ export function S7Report() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        {/* 선적 기본 정보 */}
-        <section
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            padding: 'var(--space-3)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-card)',
-            boxShadow: 'var(--shadow-card)',
-            backgroundColor: 'var(--bg-card)',
-            textAlign: 'left',
-          }}
-        >
-          {/* 항목·순서를 S3 초안 편집기와 맞췄습니다 — B/L · 상태 · L/C · 선적ID.
-              화면 성격상 필요한 화물관리번호만 뒤에 덧붙입니다 */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              flexWrap: 'wrap',
-            }}
-          >
-            {shipment.bl_no !== null ? (
-              <strong style={{ fontSize: 18, letterSpacing: '-0.2px' }}>{shipment.bl_no}</strong>
-            ) : (
-              <span style={{ fontSize: 16, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                B/L 번호 미발급
-              </span>
-            )}
-            <StatusBadge status={shipment.status} />
-            <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-              L/C {shipment.lc_no ?? '-'}
-            </span>
-            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-              {shipment.shipment_id}
-            </span>
-          </div>
+        {/* 선적 기본 정보 — 식별 줄은 S3·S5와 같은 부품 */}
+        <ShipmentHeader shipment={shipment} boxed>
           <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
             화물관리번호 {shipment.cargo_control_no ?? '-'}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             조회 시각: {new Date().toLocaleString('ko-KR')} — 스냅샷이 아닌 현재 데이터 기준입니다
           </span>
-        </section>
+        </ShipmentHeader>
 
         {/* 하자 확률 요약 */}
         <section

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { FileQuestion, SatelliteDish } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { findShipmentData } from '../../mocks/shipmentData';
-import { StatusBadge } from '../../components/StatusBadge';
+import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { SeverityBadge } from '../../components/SeverityBadge';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
@@ -50,51 +50,14 @@ export function S5Timeline() {
       <div style={{ textAlign: 'left' }}>
         <h1 style={{ textAlign: 'left' }}>선적 상세</h1>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: 'var(--space-3)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-card)',
-            boxShadow: 'var(--shadow-card)',
-            backgroundColor: 'var(--bg-card)',
-            marginBottom: 16,
-          }}
-        >
-          {/* 항목·순서를 S3 초안 편집기와 맞췄습니다 — B/L · 상태 · L/C · 선적ID.
-              타임라인은 기한을 같이 봐야 해서 화물관리번호·L/C 유효기일만
-              아랫줄에 덧붙입니다 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                flexWrap: 'wrap',
-              }}
-            >
-              {shipment.bl_no !== null ? (
-                <strong style={{ fontSize: 18, letterSpacing: '-0.2px' }}>{shipment.bl_no}</strong>
-              ) : (
-                <span style={{ fontSize: 16, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  B/L 번호 미발급
-                </span>
-              )}
-              <StatusBadge status={shipment.status} />
-              <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                L/C {shipment.lc_no ?? '-'}
-              </span>
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                {shipment.shipment_id}
-              </span>
-            </div>
-            <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-              화물관리번호 {shipment.cargo_control_no ?? '-'}
-              {shipment.lc_expiry_date !== null && ` · L/C 유효기일 ${shipment.lc_expiry_date}`}
-            </span>
-          </div>
-        </div>
+        <ShipmentHeader shipment={shipment} boxed>
+          <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+            화물관리번호 {shipment.cargo_control_no ?? '-'}
+            {shipment.lc_expiry_date !== null && ` · L/C 유효기일 ${shipment.lc_expiry_date}`}
+          </span>
+        </ShipmentHeader>
+
+        <div style={{ height: 16 }} />
 
         {alerts.length > 0 && (
           <div style={{ marginBottom: 16 }}>

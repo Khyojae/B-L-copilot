@@ -8,7 +8,7 @@ import { ImpactPanel } from './ImpactPanel';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import { findShipmentData } from '../../mocks/shipmentData';
-import { StatusBadge } from '../../components/StatusBadge';
+import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { resolveConflicts, type ResolvedConflicts } from '../../shared/shipmentStats';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
@@ -131,32 +131,8 @@ export function S3Draft() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'left' }}>
             <h1 style={{ margin: 0, fontSize: 22 }}>초안 편집기</h1>
-            {/* 어느 선적을 보고 있는지 — 값은 전부 실제 선적 데이터에서 옵니다 */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                flexWrap: 'wrap',
-              }}
-            >
-              {data.shipment.bl_no !== null ? (
-                <strong style={{ fontSize: 18, letterSpacing: '-0.2px' }}>
-                  {data.shipment.bl_no}
-                </strong>
-              ) : (
-                <span style={{ fontSize: 16, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  B/L 번호 미발급
-                </span>
-              )}
-              <StatusBadge status={data.shipment.status} />
-              <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                L/C {data.shipment.lc_no ?? '-'}
-              </span>
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                {data.shipment.shipment_id}
-              </span>
-            </div>
+            {/* 어느 선적을 보고 있는지 — 세 화면(S3·S5·S7)이 같은 부품을 씁니다 */}
+            <ShipmentHeader shipment={data.shipment} />
           </div>
           <button type="button" className="btn-secondary" onClick={toggleImpactPanel}>
             {isImpactOpen ? '영향 패널 닫기' : '영향 확인'}
