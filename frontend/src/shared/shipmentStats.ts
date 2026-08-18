@@ -150,6 +150,9 @@ export function resolveConflicts(
       bbox: candidate.bbox,
       extractor: candidate.extractor,
       conflict_flag: false,
+      // 후보 목록은 그대로 둡니다. 선택을 되돌릴 때(그리고 다른 후보로 바꿀 때)
+      // 필요하고, 등급 계산은 conflict_flag만 보므로 남아 있어도 영향이 없습니다.
+      candidates: field.candidates,
     };
   });
 }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { DocumentMeta, FieldValue } from '../../types/domain';
-import { DOCUMENT_KIND_LABEL, labelOfField } from '../../constants/domain';
+import { DOCUMENT_KIND_LABEL, labelOfField, toConfidenceGrade } from '../../constants/domain';
+import { GradeBadge } from './GradeBadge';
 import {
   MOCK_DOCUMENT_ORIGINAL_SIZE,
   bboxToScreenRect,
@@ -179,12 +180,14 @@ export function DocumentViewer({ focusedField, documents }: DocumentViewerProps)
               <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {labelOfField(focusedField.field_name)}
               </span>
+              {/* 신뢰도는 숫자(64%)가 아니라 등급으로 보여줍니다 — 판단 기준은
+                  CONFIDENCE_THRESHOLD가 갖고 있으므로 사용자가 숫자를 해석할
+                  필요가 없습니다 */}
+              <GradeBadge grade={toConfidenceGrade(focusedField)} size="sm" />
               <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                 {focusedField.bbox === null
                   ? '원문 근거 없음'
-                  : `${focusedField.source_doc_id} · ${focusedField.page}p · 신뢰도 ${Math.round(
-                      focusedField.confidence * 100,
-                    )}%`}
+                  : `${focusedField.source_doc_id} · ${focusedField.page}p`}
               </span>
             </div>
 
@@ -217,9 +220,18 @@ export function DocumentViewer({ focusedField, documents }: DocumentViewerProps)
                       </span>
                     )}
                   </span>
-                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-                    {candidate.source_doc_id} · {candidate.page}p · 신뢰도{' '}
-                    {Math.round(candidate.confidence * 100)}%
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      flexWrap: 'wrap',
+                      fontSize: 11.5,
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <GradeBadge grade={toConfidenceGrade(candidate)} size="sm" />
+                    {candidate.source_doc_id} · {candidate.page}p
                   </span>
                 </div>
               ))}

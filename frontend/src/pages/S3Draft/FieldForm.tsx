@@ -31,6 +31,8 @@ interface FieldFormProps {
   resolvedConflicts: ResolvedConflicts;
   /** 후보를 골랐을 때 — 값 수정이 아니라 충돌 해소로 따로 다룹니다 */
   onConflictResolve: (fieldName: string, chosenValue: string) => void;
+  /** 후보 선택을 되돌릴 때 */
+  onConflictClear: (fieldName: string) => void;
 }
 
 /**
@@ -54,6 +56,7 @@ export function FieldForm({
   onSuggestionReject,
   resolvedConflicts,
   onConflictResolve,
+  onConflictClear,
 }: FieldFormProps) {
   // 지금 인라인 입력창이 열려 있는 필드 이름. 한 번에 한 행만 편집 상태가 될 수 있음
   const [editingFieldName, setEditingFieldName] = useState<string | null>(null);
@@ -101,6 +104,10 @@ export function FieldForm({
             // 검증을 막는 등급(필수 확인)만 펼친 채 시작합니다 — 상수를 따르므로
             // blocksVerify 규칙이 바뀌면 여기도 자동으로 따라갑니다
             defaultOpen={CONFIDENCE[grade].blocksVerify}
+            // 방금 충돌을 해소한 필드가 이 그룹으로 옮겨왔다면 펼쳐 둡니다
+            forceOpen={groupFields.some(
+              (field) => resolvedConflicts[field.field_name] !== undefined,
+            )}
           >
             {groupFields.map((field) => (
               <FieldCard key={field.field_name} grade={grade}>
@@ -118,11 +125,14 @@ export function FieldForm({
                   onClick={onFieldFocus ? () => onFieldFocus(field) : undefined}
                 />
 
-                {field.conflict_flag && (
+                {/* 아직 충돌 상태이거나, 이미 골라서 해소한 필드. 후자도 계속
+                    보여줘야 "선택 취소"로 되돌릴 수 있습니다 */}
+                {(field.conflict_flag || resolvedConflicts[field.field_name] !== undefined) && (
                   <CandidateChooser
                     field={field}
                     onChoose={(value) => onConflictResolve(field.field_name, value)}
                     chosenValue={resolvedConflicts[field.field_name] ?? null}
+                    onClear={() => onConflictClear(field.field_name)}
                     {...hintForField(verdicts, field.field_name)}
                   />
                 )}

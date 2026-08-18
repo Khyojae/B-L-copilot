@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ConfidenceGrade } from '../../types/domain';
@@ -17,6 +17,14 @@ interface FieldGroupProps {
   count: number;
   /** 처음부터 펼쳐둘지. 필수 확인만 true입니다 */
   defaultOpen: boolean;
+  /**
+   * true가 되면 접혀 있어도 자동으로 펼칩니다.
+   *
+   * 충돌을 해소한 필드는 등급이 바뀌면서 다른 그룹으로 옮겨갑니다. 그 그룹이
+   * 접혀 있으면 방금 고른 필드가 화면에서 사라져 되돌릴 수가 없어서, 그럴
+   * 때만 그룹을 열어 둡니다.
+   */
+  forceOpen?: boolean;
   children: ReactNode;
 }
 
@@ -28,8 +36,12 @@ interface FieldGroupProps {
  * 나머지는 건수와 뜻만 보여주고 접어둡니다 — 뜻 문구(hint)는 CONFIDENCE 상수에
  * 이미 있는 것을 그대로 씁니다.
  */
-export function FieldGroup({ grade, count, defaultOpen, children }: FieldGroupProps) {
+export function FieldGroup({ grade, count, defaultOpen, forceOpen = false, children }: FieldGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (forceOpen) setIsOpen(true);
+  }, [forceOpen]);
   const meta = CONFIDENCE[grade];
   const colorVar = GRADE_COLOR_VAR[grade];
   const Chevron = isOpen ? ChevronDown : ChevronRight;

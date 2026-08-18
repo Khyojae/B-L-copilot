@@ -1,5 +1,7 @@
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, Undo2 } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
+import { toConfidenceGrade } from '../../constants/domain';
+import { GradeBadge } from './GradeBadge';
 
 interface CandidateChooserProps {
   field: FieldValue;
@@ -11,6 +13,8 @@ interface CandidateChooserProps {
   ruleId: string | null;
   /** 지금 골라져 있는 후보 값. 아직 안 골랐으면 null */
   chosenValue: string | null;
+  /** 선택을 되돌립니다 — 잘못 골랐을 때 빠져나갈 길 */
+  onClear: () => void;
 }
 
 /**
@@ -28,6 +32,7 @@ export function CandidateChooser({
   actionHint,
   ruleId,
   chosenValue,
+  onClear,
 }: CandidateChooserProps) {
   const candidates = field.candidates ?? [];
   if (candidates.length === 0) return null;
@@ -43,9 +48,25 @@ export function CandidateChooser({
         backgroundColor: 'var(--bg-card)',
       }}
     >
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-        후보 {candidates.length}건 — 하나를 확정하세요
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+          {chosenValue === null
+            ? `후보 ${candidates.length}건 — 하나를 확정하세요`
+            : `${chosenValue}(으)로 확정했습니다`}
+        </span>
+        {chosenValue !== null && (
+          // 잘못 골랐을 때 빠져나갈 길. 되돌리면 다시 충돌 상태(필수 확인)로 갑니다
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onClear}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', fontSize: 12 }}
+          >
+            <Undo2 size={12} aria-hidden="true" />
+            선택 취소
+          </button>
+        )}
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
         {candidates.map((candidate) => {
@@ -76,9 +97,10 @@ export function CandidateChooser({
                 {candidate.normalized_value}
               </span>
             )}
+            {/* 신뢰도는 숫자가 아니라 등급으로 — 고르면 이 등급이 그대로 적용됩니다 */}
+            <GradeBadge grade={toConfidenceGrade(candidate)} size="sm" />
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-              {candidate.source_doc_id} · {candidate.page}p · 신뢰도{' '}
-              {Math.round(candidate.confidence * 100)}%
+              {candidate.source_doc_id} · {candidate.page}p
             </span>
           </button>
           );
