@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { DocumentMeta, FieldValue } from '../../types/domain';
 import { DOCUMENT_KIND_LABEL, labelOfField, toConfidenceGrade } from '../../constants/domain';
-import { GradeBadge } from './GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 import {
   MOCK_DOCUMENT_ORIGINAL_SIZE,
   bboxToScreenRect,

@@ -2,7 +2,7 @@ import { ArrowRight, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Alert, FieldValue, RealityEvent, Suggestion } from '../../types/domain';
 import { SeverityBadge } from '../../components/SeverityBadge';
-import { GradeBadge } from '../S3Draft/GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 import { SEVERITY, UNSETTLED_LABEL, labelOfField } from '../../constants/domain';
 import { effectiveGradeOf } from '../../shared/shipmentStats';
 import { EvidenceColumns, EvidencePanel, formatEventTime } from './AlertParts';

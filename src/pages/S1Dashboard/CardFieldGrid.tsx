@@ -1,5 +1,5 @@
 import type { ConfidenceGrade, FieldValue, Shipment } from '../../types/domain';
-import { GradeBadge } from '../S3Draft/GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 import {
   NO_SOURCE_LABEL,
   countSourceDocuments,

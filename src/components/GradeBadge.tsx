@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, HelpCircle, MinusCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { ConfidenceGrade } from '../../types/domain';
-import { CONFIDENCE } from '../../constants/domain';
+import type { ConfidenceGrade } from '../types/domain';
+import { CONFIDENCE } from '../constants/domain';
 
 /**
  * 등급 뱃지 색.
