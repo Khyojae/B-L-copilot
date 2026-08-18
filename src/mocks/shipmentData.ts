@@ -438,19 +438,29 @@ export function findShipmentData(shipmentId: string | undefined): ShipmentMockDa
 /**
  * 새로 업로드된 선적의 묶음을 만듭니다 (S2 → S3 흐름).
  *
- * ⚠ 목 추출은 가짜라 어떤 파일을 올려도 결과가 같습니다. 기존 DRAFT 선적과
- *   같은 필드 프로필(SI·L/C에서 나오는 6개만 값 있음)을 씁니다 — "업로드한
- *   파일에서 뽑은 척"하는 셈이라 여기에 명시합니다. 실제 추출이 붙으면
- *   이 함수는 사라지고 백엔드 응답을 그대로 씁니다.
+ * `extracted`(백엔드 /extract 응답을 번역한 필드 목록)를 주면 그걸 쓰고,
+ * 없으면 예전처럼 목 필드로 채웁니다 — 추출 서버가 안 떠 있어도 화면은
+ * 돌아가야 하기 때문입니다.
+ *
+ * ⚠ 목 필드로 채우는 쪽은 가짜라 어떤 파일을 올려도 결과가 같습니다. 기존
+ *   DRAFT 선적과 같은 필드 프로필(SI·L/C에서 나오는 6개만 값 있음)을 씁니다.
+ *
+ * ⚠ 실제 추출로 만든 선적에는 **교정 제안을 붙이지 않습니다.** 목 제안은
+ *   픽스처의 특정 값에 맞춰 손으로 쓴 것이라, 방금 올린 다른 서류에 그대로
+ *   붙이면 근거 없는 제안이 됩니다 (규약 §2.4). F2 가 백엔드에 생기면 그때
+ *   연결합니다.
  *
  * 검증 전이므로 판정·하자확률·경보·현실 이벤트는 전부 비어 있습니다.
  */
-export function buildNewDraftData(shipment: Shipment): ShipmentMockData {
-  const fields = toDraftFields(withIdentityOf(shipment));
+export function buildNewDraftData(
+  shipment: Shipment,
+  extracted?: FieldValue[] | null,
+): ShipmentMockData {
+  const fields = extracted ?? toDraftFields(withIdentityOf(shipment));
   return {
     shipment,
     fields,
-    suggestions: suggestionsFor(fields),
+    suggestions: extracted ? [] : suggestionsFor(fields),
     verdicts: [],
     prediction: null,
     realityEvents: [],

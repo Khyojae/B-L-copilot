@@ -75,3 +75,56 @@ export async function postJson<TRes>(
 
   return (await res.json()) as TRes;
 }
+
+/**
+ * 파일 하나를 올리고 JSON 을 받습니다 (F1 인테이크 `/extract*`).
+ *
+ * 용어: `FormData` 는 "파일 첨부가 가능한 요청 본문"입니다. JSON 과 달리
+ * 파일 원본 바이트를 그대로 실어 보낼 수 있습니다.
+ *
+ * 백엔드(FastAPI)는 `file` 이라는 이름의 첨부를 기대합니다
+ * (`api/main.py` 의 `file: UploadFile = File(...)`).
+ */
+export async function postFile<TRes>(
+  path: string,
+  file: File,
+  signal?: AbortSignal,
+): Promise<TRes> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const res = await fetch(`${AI_API_BASE_URL}${path}`, {
+    method: 'POST',
+    // ⚠ Content-Type 을 직접 넣으면 안 됩니다. multipart 는 본문을 나누는
+    //   경계 문자열이 헤더에 같이 들어가야 하는데, 그건 브라우저만 압니다.
+    body: form,
+    signal,
+  });
+
+  if (!res.ok) {
+    const detail = await res
+      .json()
+      .then((j: { detail?: unknown }) => readDetail(j.detail) ?? res.statusText)
+      .catch(() => res.statusText);
+    throw new ApiError(res.status, detail);
+  }
+
+  return (await res.json()) as TRes;
+}
+
+/**
+ * FastAPI 의 `detail` 을 사람이 읽을 한 줄로 바꿉니다.
+ *
+ * 보통은 문자열이지만, 422(스키마 불일치)일 때만 배열로 옵니다
+ * (`[{ loc, msg, type }, ...]`). 배열을 그대로 화면에 쓰면 "[object Object]"
+ * 가 되므로 `msg` 만 뽑아 이어 붙입니다.
+ */
+function readDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item: { msg?: string }) => item.msg ?? JSON.stringify(item))
+      .join(' · ');
+  }
+  return null;
+}
