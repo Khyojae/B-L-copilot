@@ -178,7 +178,11 @@ export function ImpactPanel({ impact, editedValues, resolvedConflicts }: ImpactP
             gap: 6,
             padding: 'var(--space-2)',
             borderRadius: 6,
-            backgroundColor: 'var(--confidence-not-found-bg)',
+            // 신뢰도 등급과 무관한 안내인데 --confidence-not-found-bg를 빌려
+            // 쓰고 있었습니다. 신뢰도 토큰 값이 바뀌면 이 박스도 같이 흔들려서,
+            // 중립 배경 + 테두리로 바꿉니다 (패널 배경이 --bg-card라 대비가 남)
+            backgroundColor: 'var(--bg)',
+            border: '1px solid var(--border-default)',
           }}
         >
           <AlertTriangle size={14} color="var(--text-muted)" aria-hidden="true" />
