@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { FieldValue, Shipment, Verdict } from '../../types/domain';
-import { GradeBadge } from '../S3Draft/GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 import { UNSETTLED_LABEL, VERDICT_RESULT_LABEL, labelOfField } from '../../constants/domain';
 import { effectiveGradeOf } from '../../shared/shipmentStats';
 import { EvidenceColumns, EvidencePanel, InfoTip } from './AlertParts';

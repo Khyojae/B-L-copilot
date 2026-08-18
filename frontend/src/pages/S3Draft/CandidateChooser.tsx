@@ -1,7 +1,7 @@
 import { AlertTriangle, Check, Undo2 } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
 import { toConfidenceGrade } from '../../constants/domain';
-import { GradeBadge } from './GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 
 interface CandidateChooserProps {
   field: FieldValue;

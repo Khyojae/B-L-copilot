@@ -6,7 +6,7 @@ import {
   labelOfField,
   toConfidenceGrade,
 } from '../../constants/domain';
-import { GradeBadge } from './GradeBadge';
+import { GradeBadge } from '../../components/GradeBadge';
 
 interface FieldRowProps {
   field: FieldValue;

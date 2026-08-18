@@ -3,14 +3,9 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ConfidenceGrade } from '../../types/domain';
 import { CONFIDENCE } from '../../constants/domain';
-
-/** 등급별 헤더 색 — FieldRow의 뱃지와 같은 규칙 */
-const GRADE_COLOR_VAR: Record<ConfidenceGrade, string> = {
-  CONFIRMED: '--status-verified',
-  ADVISORY: '--severity-warning',
-  REQUIRED: '--severity-critical',
-  NOT_FOUND: '--text-muted',
-};
+// 등급 색은 GradeBadge가 정의한 것을 그대로 씁니다 — 뱃지와 그룹 헤더가
+// 다른 색을 쓰면 같은 등급인데 화면에서 달라 보입니다
+import { GRADE_COLOR_VAR } from '../../components/GradeBadge';
 
 interface FieldGroupProps {
   grade: ConfidenceGrade;
