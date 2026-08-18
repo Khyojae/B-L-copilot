@@ -71,12 +71,20 @@ export function FieldRow({
         boxShadow: isFocused ? 'inset 0 0 0 1.5px var(--brand-primary)' : 'none',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'keep-all' }}>
-          {labelOfField(field.field_name)}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{field.field_name}</span>
-      </div>
+      {/* 한글 라벨만 보여줍니다 — FIELD_LABEL을 만든 목적이 영문 식별자를
+          화면에서 치우는 것이었습니다. 식별자가 필요하면 개발자 도구에서
+          FIELD_LABEL 매핑을 보면 됩니다 */}
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          wordBreak: 'keep-all',
+          minWidth: 0,
+        }}
+      >
+        {labelOfField(field.field_name)}
+      </span>
 
       {isEditing ? (
         <input

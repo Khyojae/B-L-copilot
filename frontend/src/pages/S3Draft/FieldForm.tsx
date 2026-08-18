@@ -6,9 +6,9 @@ import { CandidateChooser } from './CandidateChooser';
 import { SuggestionCard } from './SuggestionCard';
 import { displayValueOf, isEditedField } from './fieldEditing';
 import {
-  countFieldsByGrade,
   effectiveGradeOf,
   type EditedValues,
+  type ResolvedConflicts,
 } from '../../shared/shipmentStats';
 import { CONFIDENCE } from '../../constants/domain';
 
@@ -27,6 +27,10 @@ interface FieldFormProps {
   onFieldEdit: (fieldName: string, value: string | null) => void;
   onSuggestionAccept: (suggestion: Suggestion, applyToAllInScope: boolean) => void;
   onSuggestionReject: (suggestion: Suggestion, reason: string) => void;
+  /** 지금 충돌이 해소된 필드들 (필드 이름 → 고른 후보 값) */
+  resolvedConflicts: ResolvedConflicts;
+  /** 후보를 골랐을 때 — 값 수정이 아니라 충돌 해소로 따로 다룹니다 */
+  onConflictResolve: (fieldName: string, chosenValue: string) => void;
 }
 
 /**
@@ -48,6 +52,8 @@ export function FieldForm({
   onFieldEdit,
   onSuggestionAccept,
   onSuggestionReject,
+  resolvedConflicts,
+  onConflictResolve,
 }: FieldFormProps) {
   // 지금 인라인 입력창이 열려 있는 필드 이름. 한 번에 한 행만 편집 상태가 될 수 있음
   const [editingFieldName, setEditingFieldName] = useState<string | null>(null);
@@ -64,10 +70,6 @@ export function FieldForm({
     setEditingFieldName(null);
   }
 
-  const counts = countFieldsByGrade(fields, editedValues);
-  // "확인 필요"는 확정을 뺀 나머지 — 사용자가 한 번은 봐야 하는 필드 수입니다
-  const needsAttention = fields.length - counts.CONFIRMED;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 16 }}>
       <div
@@ -80,12 +82,10 @@ export function FieldForm({
         }}
       >
         <h2 style={{ margin: 0, fontSize: 15 }}>추출 필드</h2>
-        {/* 총 건수는 fields.length 하나만 씁니다 — 헤더와 그룹 합계가 어긋날 수 없습니다 */}
+        {/* 총 건수만 둡니다. 등급별 건수는 아래 그룹 헤더에 이미 다 있고,
+            전에 있던 "확인 필요 N" 칩은 그룹명 "확인 권고"와 헷갈리는 데다
+            검증을 막지 않는 "출처 없음"까지 섞여 있어서 뺐습니다 */}
         <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{fields.length}건</span>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-          확인 필요 {needsAttention} · 확정 {counts.CONFIRMED}
-        </span>
       </div>
 
       {GROUP_ORDER.map((grade) => {
@@ -121,7 +121,8 @@ export function FieldForm({
                 {field.conflict_flag && (
                   <CandidateChooser
                     field={field}
-                    onChoose={(value) => onFieldEdit(field.field_name, value)}
+                    onChoose={(value) => onConflictResolve(field.field_name, value)}
+                    chosenValue={resolvedConflicts[field.field_name] ?? null}
                     {...hintForField(verdicts, field.field_name)}
                   />
                 )}

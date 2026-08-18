@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { DocumentMeta, FieldValue } from '../../types/domain';
-import { DOCUMENT_KIND_LABEL } from '../../constants/domain';
+import { DOCUMENT_KIND_LABEL, labelOfField } from '../../constants/domain';
 import {
   MOCK_DOCUMENT_ORIGINAL_SIZE,
   bboxToScreenRect,
@@ -154,6 +154,76 @@ export function DocumentViewer({ focusedField, documents }: DocumentViewerProps)
               borderRadius: 2,
             }}
           />
+        )}
+      </div>
+
+      {/* 뷰어 아래 근거 정보 — 실제 PDF가 없어 회색 박스가 비어 보이는 자리를
+          "지금 무엇을 보고 있는지"로 채웁니다. 값은 전부 선택된 필드에서 옵니다 */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          width: '100%',
+          padding: 'var(--space-2) 0 0',
+          textAlign: 'left',
+        }}
+      >
+        {focusedField === undefined ? (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            오른쪽에서 필드를 누르면 그 값을 어느 서류 어디에서 읽었는지 여기 표시됩니다.
+          </span>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {labelOfField(focusedField.field_name)}
+              </span>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                {focusedField.bbox === null
+                  ? '원문 근거 없음'
+                  : `${focusedField.source_doc_id} · ${focusedField.page}p · 신뢰도 ${Math.round(
+                      focusedField.confidence * 100,
+                    )}%`}
+              </span>
+            </div>
+
+            {/* 다른 서류에 다른 값이 있으면 그것도 밝힙니다 (시안의 "충돌 후보" 카드) */}
+            {(focusedField.candidates ?? [])
+              .filter((candidate) => candidate.value !== focusedField.value)
+              .map((candidate) => (
+                <div
+                  key={`${candidate.source_doc_id}-${candidate.value}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-default)',
+                    borderLeft: '4px solid var(--severity-critical)',
+                    borderRadius: 6,
+                    backgroundColor: 'var(--bg-card)',
+                  }}
+                >
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--severity-critical)' }}>
+                    다른 서류의 충돌 후보
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {candidate.value}
+                    {candidate.normalized_value !== null && (
+                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
+                        {' '}
+                        {candidate.normalized_value}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                    {candidate.source_doc_id} · {candidate.page}p · 신뢰도{' '}
+                    {Math.round(candidate.confidence * 100)}%
+                  </span>
+                </div>
+              ))}
+          </>
         )}
       </div>
     </div>
