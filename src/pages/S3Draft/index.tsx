@@ -189,8 +189,12 @@ export function S3Draft() {
             <DocumentViewer focusedField={focusedField ?? undefined} documents={data.documents} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
+            {/* fields는 원본(data.fields)을 넘깁니다 — FieldForm이 그룹 배치를
+                원본 등급으로 정해야 후보를 고른 카드가 다른 그룹으로 튀어나가지
+                않습니다. 아래 VerifyBar에는 해소된 fields를 넘겨서 "남은 필수
+                확인 건수"와 검증 버튼 조건이 즉시 반영되게 합니다. */}
             <FieldForm
-              fields={fields}
+              fields={data.fields}
               suggestions={data.suggestions}
               verdicts={data.verdicts}
               focusedFieldName={focusedField?.field_name ?? null}
