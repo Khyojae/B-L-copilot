@@ -3,7 +3,6 @@ import { FileQuestion } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FieldForm } from './FieldForm';
 import { DocumentViewer, DISPLAY_SIZE } from './DocumentViewer';
-import { SuggestionCard } from './SuggestionCard';
 import { VerifyBar } from './VerifyBar';
 import { ImpactPanel } from './ImpactPanel';
 import { EmptyState } from '../../components/EmptyState';
@@ -138,30 +137,15 @@ export function S3Draft() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <FieldForm
               fields={data.fields}
+              suggestions={data.suggestions}
+              verdicts={data.verdicts}
               focusedFieldName={focusedField?.field_name ?? null}
               onFieldFocus={setFocusedField}
               editedValues={editedValues}
               onFieldEdit={handleFieldEdit}
+              onSuggestionAccept={handleSuggestionAccept}
+              onSuggestionReject={handleSuggestionReject}
             />
-
-            <h2 style={{ textAlign: 'left', padding: '0 16px' }}>교정 제안</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-              {data.suggestions.length === 0 ? (
-                // 제목만 남고 아래가 비면 고장난 것처럼 보여서 한 줄 안내를 둡니다
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-                  지금 제안할 교정 항목이 없습니다.
-                </p>
-              ) : (
-                data.suggestions.map((suggestion) => (
-                  <SuggestionCard
-                    key={suggestion.suggestion_id}
-                    suggestion={suggestion}
-                    onAccept={handleSuggestionAccept}
-                    onReject={handleSuggestionReject}
-                  />
-                ))
-              )}
-            </div>
           </div>
         </div>
 

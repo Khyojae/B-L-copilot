@@ -1,6 +1,7 @@
 import { Anchor, MapPin, Ship } from 'lucide-react';
 import type { DefectPrediction, FieldValue, Severity, Verdict } from '../../types/domain';
 import { SEVERITY } from '../../constants/domain';
+import { worstSeverity } from '../../shared/shipmentStats';
 import { NO_SOURCE_LABEL, normalizedOf, valueOf } from './cardFields';
 
 interface CardRouteBandProps {
@@ -89,25 +90,8 @@ export function CardRouteBand({ fields, loadedOnBoard, prediction, verdicts }: C
         />
       </div>
 
-      <DefectProbability prediction={prediction} severity={barSeverity(verdicts)} />
+      <DefectProbability prediction={prediction} severity={worstSeverity(verdicts)} />
     </div>
-  );
-}
-
-/**
- * 막대 색을 정할 심각도.
- *
- * "확률 몇 % 이상이면 빨강" 같은 기준선은 어디에도 정의돼 있지 않아서 임의로
- * 만들지 않았습니다 (CLAUDE.md 1·4번). 대신 이미 내려진 판정 중 가장 심각한
- * 등급을 그대로 씁니다 — 위반이 있으면 빨강, 주의까지면 주황, 판정이 없으면
- * null. 숫자에 색을 새로 매기는 대신 판정 결과를 따라가는 셈입니다.
- */
-function barSeverity(verdicts: Verdict[]): Severity | null {
-  if (verdicts.length === 0) return null;
-  const order = (severity: Severity) => SEVERITY[severity].order;
-  return verdicts.reduce<Severity>(
-    (worst, verdict) => (order(verdict.severity) < order(worst) ? verdict.severity : worst),
-    'Info',
   );
 }
 
