@@ -27,12 +27,19 @@ export function DeferredCard({ verdict, fields, shipmentId }: DeferredCardProps)
   const targetField = fields.find((field) => field.field_name === targetName);
 
   // 보류 원인 — 아직 확인되지 않아 검사를 막고 있는 필드.
-  // action_hint가 그 필드를 가리키므로, 필드 이름이 문구에 들어 있는지로 찾습니다.
-  // 못 찾으면 원인 칸을 그리지 않습니다 (지어내지 않음).
+  //
+  // ⚠ 임시 우회: Verdict에 "무엇 때문에 보류됐는가"를 담는 자리가 없어서,
+  //   판정 메시지에 그 필드 이름이 들어 있는지로 찾습니다. 문구가 바뀌면
+  //   원인 칸이 사라지는 취약한 방식입니다 — 실제로 메시지를 영문 필드명에서
+  //   한글 라벨로 바꾸자마자 한 번 깨졌습니다.
+  //   한글 라벨과 영문 식별자를 모두 확인해서 어느 쪽 표기든 잡히게 했지만,
+  //   근본 해결은 백엔드가 원인 필드를 따로 내려주는 것입니다.
+  //   → BE_판정메시지_필드표기.md 참고
   const blockingField = fields.find(
     (field) =>
       field.field_name !== targetName &&
-      verdict.message.includes(field.field_name) &&
+      (verdict.message.includes(labelOfField(field.field_name)) ||
+        verdict.message.includes(field.field_name)) &&
       effectiveGradeOf(field, {}) === 'REQUIRED',
   );
 
