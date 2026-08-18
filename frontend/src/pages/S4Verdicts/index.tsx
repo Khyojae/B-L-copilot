@@ -89,7 +89,11 @@ export function S4Verdicts() {
 
         <VerdictSummary verdicts={verdicts} />
         {[...verdicts].sort(bySeverity).map((verdict) => (
-          <VerdictCard key={verdict.verdict_id} verdict={verdict} />
+          <VerdictCard
+            key={verdict.verdict_id}
+            verdict={verdict}
+            shipmentId={shipment.shipment_id}
+          />
         ))}
 
         <SkippedList skipped={skipped} />

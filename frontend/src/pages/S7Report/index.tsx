@@ -164,7 +164,11 @@ export function S7Report() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <h2 style={{ textAlign: 'left', margin: '8px 0 0' }}>판정 목록</h2>
           {sortedVerdicts.map((verdict) => (
-            <VerdictCard key={verdict.verdict_id} verdict={verdict} />
+            <VerdictCard
+              key={verdict.verdict_id}
+              verdict={verdict}
+              shipmentId={shipment.shipment_id}
+            />
           ))}
         </div>
       </div>

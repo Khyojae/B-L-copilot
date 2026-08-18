@@ -276,6 +276,16 @@ export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
   UNKNOWN: '분류 전',
 };
 
+/**
+ * 값 충돌이 아직 안 풀린 필드의 값 자리에 쓰는 문구.
+ *
+ * conflict_flag가 켜진 필드는 후보가 둘 이상이라 어느 쪽도 확정된 값이
+ * 아닙니다. 그런데 FieldValue.value에는 후보 중 하나가 들어 있어서, 그대로
+ * 보여주면 "이 값으로 정해졌다"로 읽힙니다. 화면에서는 값 대신 이 문구를
+ * 쓰고 후보 목록을 따로 보여줍니다 (규약 §2.4 — 근거 없는 확정 표시 금지).
+ */
+export const UNSETTLED_LABEL = '미확정';
+
 /** 한글 표시명. 매핑에 없는 필드는 영문 식별자를 그대로 씁니다 (지어내지 않음) */
 export function labelOfField(fieldName: string): string {
   return FIELD_LABEL[fieldName] ?? fieldName;

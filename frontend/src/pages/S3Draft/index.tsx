@@ -32,8 +32,15 @@ export function S3Draft() {
     setSearchParams(next);
   }
 
-  // 지금 문서 뷰어에서 하이라이트할 필드. FieldRow를 클릭하면 여기로 들어옴
-  const [focusedField, setFocusedField] = useState<FieldValue | null>(null);
+  // 지금 문서 뷰어에서 하이라이트할 필드. FieldRow를 클릭하면 여기로 들어옴.
+  //
+  // 초기값은 URL의 ?focus=<field_name>에서 옵니다 — 화면전이_정의.md §6에
+  // 정의된 규칙으로, S4 판정과 S6 경보가 "이 필드 고치러 가기"로 넘어올 때
+  // 어느 필드를 볼지 지정합니다. 없으면 null(아무것도 선택 안 함).
+  const focusParam = searchParams.get('focus');
+  const [focusedField, setFocusedField] = useState<FieldValue | null>(
+    () => data?.fields.find((field) => field.field_name === focusParam) ?? null,
+  );
 
   // 필드별로 사용자가 고친 값 (필드 이름 → 새 값). FieldRow에서 직접 타이핑해서
   // 고치는 것과 SuggestionCard에서 교정 제안을 승인하는 것, 둘 다 결국 "이 필드

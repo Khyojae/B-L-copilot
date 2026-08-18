@@ -1,6 +1,11 @@
 import { AlertTriangle } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
-import { CONFIDENCE, labelOfField, toConfidenceGrade } from '../../constants/domain';
+import {
+  CONFIDENCE,
+  UNSETTLED_LABEL,
+  labelOfField,
+  toConfidenceGrade,
+} from '../../constants/domain';
 import { GradeBadge } from './GradeBadge';
 
 interface FieldRowProps {
@@ -48,6 +53,9 @@ export function FieldRow({
   //   건수에서 빠짐). 이게 맞는 규칙인지 팀 확정 대기 중 — CLAUDE.md M-2 참고.
   const grade = isEdited ? 'CONFIRMED' : toConfidenceGrade(field);
   const meta = CONFIDENCE[grade];
+  // 충돌이 아직 안 풀린 필드는 value에 후보 하나가 들어 있어도 확정값이
+  // 아닙니다. 그대로 쓰면 "정해졌다"로 읽혀서 아래 후보 목록과 어긋납니다.
+  const isUnsettled = field.conflict_flag && !isEdited;
   const isMissing = displayValue === null;
 
   return (
@@ -113,14 +121,15 @@ export function FieldRow({
             fontWeight: 600,
             textAlign: 'left',
             cursor: 'text',
-            color: isMissing ? 'var(--text-muted)' : 'var(--text-primary)',
+            color: isMissing || isUnsettled ? 'var(--text-muted)' : 'var(--text-primary)',
             wordBreak: 'keep-all',
             overflowWrap: 'break-word',
           }}
         >
-          {displayValue ?? meta.label}
-          {/* 정규화 표기는 값이 바뀐 게 아니라 표시 단위만 다른 것이라 따로 밝힙니다 */}
-          {!isEdited && field.normalized_value !== null && field.normalized_value !== field.value && (
+          {isUnsettled ? UNSETTLED_LABEL : (displayValue ?? meta.label)}
+          {/* 정규화 표기는 값이 바뀐 게 아니라 표시 단위만 다른 것이라 따로 밝힙니다.
+              충돌 중일 때는 후보마다 정규화값이 달라서 여기에 안 씁니다 */}
+          {!isEdited && !isUnsettled && field.normalized_value !== null && field.normalized_value !== field.value && (
             <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-muted)' }}>
               표시 단위 {field.normalized_value} · 값 변경 아님
             </span>
