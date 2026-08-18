@@ -44,7 +44,7 @@ export function AlertCard({ alert, fields, realityEvents, suggestions }: AlertCa
         display: 'flex',
         border: '1px solid var(--border-default)',
         borderLeft: `5px solid var(${meta.colorVar})`,
-        borderRadius: 'var(--radius-card)',
+        // 모서리는 .alert-group이 정합니다 (그룹 안에서만 쓰이는 카드입니다)
         boxShadow: 'var(--shadow-card)',
         backgroundColor: 'var(--bg)',
         overflow: 'hidden',

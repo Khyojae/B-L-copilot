@@ -71,10 +71,8 @@ export function S6Alerts() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {withAlerts.map(({ data, alerts }) => (
-            <section
-              key={data.shipment.shipment_id}
-              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}
-            >
+            // 헤더와 카드들을 한 덩어리로 붙입니다 (index.css의 .alert-group)
+            <section key={data.shipment.shipment_id} className="alert-group">
               <ShipmentGroupHeader data={data} count={`경보 ${alerts.length}건`} />
               {alerts.map((alert) => (
                 <AlertCard
@@ -145,7 +143,8 @@ function ShipmentGroupHeader({ data, count }: { data: ShipmentMockData; count: s
         flexWrap: 'wrap',
         padding: '12px 18px',
         border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-card)',
+        // 모서리는 .alert-group이 정합니다 — 여기서 인라인으로 주면 첫/마지막
+        // 카드만 깎는 규칙을 덮어버립니다
         backgroundColor: 'var(--bg-card)',
       }}
     >
