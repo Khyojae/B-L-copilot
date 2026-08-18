@@ -12,11 +12,11 @@ import { InfoTip } from '../../components/InfoTip';
 /** 근거 두 칸 배치. 좁은 화면에서는 자동으로 위아래로 쌓입니다 */
 export function EvidenceColumns({ children }: { children: ReactNode }) {
   return (
+    // 두 칸 배치와 세로 구분선은 index.css의 .evidence-columns가 맡습니다 —
+    // 인라인 style로는 "두 번째 칸에만 왼쪽 선"이나 미디어쿼리를 못 씁니다
     <div
+      className="evidence-columns"
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 'var(--space-3)',
         padding: '16px 20px',
         borderTop: '1px solid var(--border-default)',
         backgroundColor: 'var(--bg-card)',
