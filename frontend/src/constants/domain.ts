@@ -9,6 +9,7 @@
  */
 
 import type {
+  DocumentKind,
   Severity,
   ShipmentStatus,
   ConfidenceGrade,
@@ -263,6 +264,16 @@ export const FIELD_LABEL: Record<string, string> = {
   no_of_original_bl: '원본 B/L 통수',
   shipped_on_board_date: '본선적재일',
   place_and_date_of_issue: '발행지·발행일',
+};
+
+/** 서류 종류 표시명 — S3 문서 뷰어 탭에서 씁니다 (DocumentKind와 1:1) */
+export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
+  BL: '선하증권',
+  INVOICE: '상업송장',
+  PACKING: '포장명세서',
+  LC: '신용장',
+  SI: '선적요청서',
+  UNKNOWN: '분류 전',
 };
 
 /** 한글 표시명. 매핑에 없는 필드는 영문 식별자를 그대로 씁니다 (지어내지 않음) */
