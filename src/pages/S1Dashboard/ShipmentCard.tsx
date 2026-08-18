@@ -127,7 +127,11 @@ export function ShipmentCard({ data, now }: ShipmentCardProps) {
 
       <CardFieldGrid shipment={shipment} fields={fields} now={now} />
 
-      <CardVerdictBand verdicts={verdicts} requiredFieldCount={requiredFieldCount} />
+      <CardVerdictBand
+        verdicts={verdicts}
+        requiredFieldCount={requiredFieldCount}
+        shipmentId={shipment.shipment_id}
+      />
 
       {/* ── 바닥: 판정 기준 + 이동 ── */}
       <div

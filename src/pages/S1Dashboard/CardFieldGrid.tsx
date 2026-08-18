@@ -1,10 +1,10 @@
-import { AlertCircle } from 'lucide-react';
-import type { FieldValue, Shipment } from '../../types/domain';
+import type { ConfidenceGrade, FieldValue, Shipment } from '../../types/domain';
+import { GradeBadge } from '../S3Draft/GradeBadge';
 import {
   NO_SOURCE_LABEL,
   countSourceDocuments,
   daysUntil,
-  isBlocking,
+  gradeOf,
   joinValues,
   normalizedOf,
   valueOf,
@@ -24,8 +24,14 @@ interface Cell {
   value: string | null;
   /** 값 뒤에 덧붙는 강조 문구 (예: D-20) */
   suffix?: { text: string; colorVar: string };
-  /** 이 칸이 지금 검증을 막고 있는 필드인지 — 경고 아이콘을 붙입니다 */
-  blocking?: boolean;
+  /**
+   * 이 칸의 신뢰도 등급. 확정이 아니면 등급 뱃지를 붙입니다.
+   *
+   * 전에는 "검증을 막는가"만 보고 빨간 느낌표 아이콘 하나를 달았는데,
+   * 아이콘만으로는 무슨 뜻인지 알 수 없어 색·아이콘에 텍스트를 병기하라는
+   * 규약 §6.2에 어긋났습니다. S3와 같은 GradeBadge를 씁니다.
+   */
+  grade?: ConfidenceGrade | null;
 }
 
 /**
@@ -46,7 +52,7 @@ export function CardFieldGrid({ shipment, fields, now }: CardFieldGridProps) {
       label: '컨테이너',
       // 정규화값(MSKU1234565)을 먼저 씁니다 — 원문은 공백이 섞여 있을 수 있어서
       value: normalizedOf(fields, 'container_no') ?? valueOf(fields, 'container_no'),
-      blocking: isBlocking(fields, 'container_no'),
+      grade: gradeOf(fields, 'container_no'),
     },
     {
       label: '화물',
@@ -141,10 +147,12 @@ function GridCell({ cell }: { cell: Cell }) {
           overflowWrap: 'break-word',
         }}
       >
-        {cell.blocking === true && (
-          <AlertCircle size={14} color="var(--severity-critical)" aria-hidden="true" />
-        )}
         {cell.value ?? NO_SOURCE_LABEL}
+        {/* 확정이면 뱃지를 안 답니다 — 정상인 값에까지 표식을 붙이면 무엇이
+            문제인지 오히려 안 보입니다 */}
+        {cell.grade !== undefined && cell.grade !== null && cell.grade !== 'CONFIRMED' && (
+          <GradeBadge grade={cell.grade} size="sm" />
+        )}
         {cell.suffix !== undefined && (
           <strong style={{ color: `var(${cell.suffix.colorVar})` }}>{cell.suffix.text}</strong>
         )}

@@ -1,5 +1,6 @@
 import { AlertCircle, AlertOctagon, AlertTriangle, CircleCheck, Info, PauseCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Severity, Verdict } from '../../types/domain';
 import { SEVERITY, VERDICT_RESULT_LABEL, bySeverity } from '../../constants/domain';
 import { SEVERITIES_IN_ORDER, summarizeVerdicts } from '../../shared/shipmentStats';
@@ -15,6 +16,8 @@ interface CardVerdictBandProps {
   verdicts: Verdict[];
   /** 지금 검증을 막고 있는 필수 확인 필드 수 */
   requiredFieldCount: number;
+  /** 요약 줄에서 해당 화면으로 넘어가기 위한 선적 id */
+  shipmentId: string;
 }
 
 /**
@@ -23,7 +26,11 @@ interface CardVerdictBandProps {
  * 목록 화면에서 "이 선적을 지금 열어봐야 하나"를 판단하는 자리라, 건수만 세지
  * 않고 제일 심각한 판정의 문장을 하나 보여줍니다. 나머지는 S4에서 봅니다.
  */
-export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBandProps) {
+export function CardVerdictBand({
+  verdicts,
+  requiredFieldCount,
+  shipmentId,
+}: CardVerdictBandProps) {
   // 아직 검증 전. "위반 0건"으로 적으면 "검사했는데 깨끗하다"로 읽히므로
   // (S4에서 이미 같은 판단을 했습니다) 검증을 안 했다고 그대로 씁니다
   if (verdicts.length === 0) {
@@ -42,7 +49,7 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
           아직 검증을 실행하지 않았습니다
         </span>
         {requiredFieldCount > 0 && (
-          <BlockingNote count={requiredFieldCount} />
+          <BlockingNote count={requiredFieldCount} shipmentId={shipmentId} />
         )}
       </Band>
     );
@@ -110,12 +117,14 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
               style={{ width: 1, height: 14, backgroundColor: 'var(--border-default)' }}
               aria-hidden="true"
             />
-            <BlockingNote count={requiredFieldCount} />
+            <BlockingNote count={requiredFieldCount} shipmentId={shipmentId} />
           </>
         )}
       </div>
 
-      <div
+      {/* 가장 심각한 판정 한 줄 — 누르면 그 선적의 검증 결과(S4)로 갑니다 */}
+      <Link
+        to={`/shipments/${shipmentId}/verdicts`}
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -135,7 +144,7 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
           {topVerdict.message}{' '}
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{topVerdict.rule_id}</span>
         </span>
-      </div>
+      </Link>
     </Band>
   );
 }
@@ -168,9 +177,16 @@ function SeverityCount({ severity, count }: { severity: Severity; count: number 
   );
 }
 
-function BlockingNote({ count }: { count: number }) {
+/**
+ * "필수 확인 필드 N건" — 누르면 그 선적의 초안 편집기로 갑니다.
+ *
+ * 필드 단위로 바로 가려면 ?field= 같은 URL 규칙이 필요한데, 화면전이_정의.md에
+ * 정의된 게 없어서 선적 단위 링크까지만 겁니다. 필드 딥링크는 팀 합의 후 별건.
+ */
+function BlockingNote({ count, shipmentId }: { count: number; shipmentId: string }) {
   return (
-    <span
+    <Link
+      to={`/shipments/${shipmentId}/draft`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -181,7 +197,7 @@ function BlockingNote({ count }: { count: number }) {
     >
       <AlertCircle size={13} color="var(--severity-warning)" aria-hidden="true" />
       필수 확인 필드 {count}건
-    </span>
+    </Link>
   );
 }
 
