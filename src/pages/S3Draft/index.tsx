@@ -8,6 +8,8 @@ import { ImpactPanel } from './ImpactPanel';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import { findShipmentData } from '../../mocks/shipmentData';
+import { StatusBadge } from '../../components/StatusBadge';
+import { resolveConflicts, type ResolvedConflicts } from '../../shared/shipmentStats';
 import type { FieldValue, Suggestion } from '../../types/domain';
 
 export function S3Draft() {
@@ -37,6 +39,16 @@ export function S3Draft() {
   // 고치는 것과 SuggestionCard에서 교정 제안을 승인하는 것, 둘 다 결국 "이 필드
   // 값을 이걸로 바꾼다"는 같은 동작이라서 여기 하나의 상태로 합쳐서 관리합니다.
   const [editedValues, setEditedValues] = useState<Record<string, string | null>>({});
+
+  // 값 충돌 필드에서 사용자가 고른 후보. editedValues와 따로 두는 이유는
+  // "직접 새 값을 입력한 것"과 "이미 읽어낸 후보 중 고른 것"이 다른 행동이기
+  // 때문입니다 — 후자는 원문의 인식 품질을 바꾸지 않으므로 등급도 그 후보의
+  // 신뢰도를 그대로 따릅니다 (M1_M2_팀확정요청.md 참고).
+  const [resolvedConflicts, setResolvedConflicts] = useState<ResolvedConflicts>({});
+
+  function handleConflictResolve(fieldName: string, chosenValue: string) {
+    setResolvedConflicts((prev) => ({ ...prev, [fieldName]: chosenValue }));
+  }
 
   function handleFieldEdit(fieldName: string, value: string | null) {
     setEditedValues((prev) => ({ ...prev, [fieldName]: value }));
@@ -86,6 +98,10 @@ export function S3Draft() {
     paddingRight: isImpactOpen ? 344 : 0,
   };
 
+  // 충돌이 해소된 필드는 고른 후보의 값·신뢰도로 갈아끼운 뒤 아래로 내려보냅니다.
+  // 그래야 등급 계산·필수 확인 건수·검증 게이트가 전부 같은 필드를 보고 움직입니다.
+  const fields = resolveConflicts(data.fields, resolvedConflicts);
+
   return (
     <PageContainer>
       <div style={contentStyle}>
@@ -96,7 +112,35 @@ export function S3Draft() {
             justifyContent: 'space-between',
           }}
         >
-          <h1>초안 편집기</h1>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'left' }}>
+            <h1 style={{ margin: 0, fontSize: 22 }}>초안 편집기</h1>
+            {/* 어느 선적을 보고 있는지 — 값은 전부 실제 선적 데이터에서 옵니다 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                flexWrap: 'wrap',
+              }}
+            >
+              {data.shipment.bl_no !== null ? (
+                <strong style={{ fontSize: 18, letterSpacing: '-0.2px' }}>
+                  {data.shipment.bl_no}
+                </strong>
+              ) : (
+                <span style={{ fontSize: 16, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  B/L 번호 미발급
+                </span>
+              )}
+              <StatusBadge status={data.shipment.status} />
+              <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+                L/C {data.shipment.lc_no ?? '-'}
+              </span>
+              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                {data.shipment.shipment_id}
+              </span>
+            </div>
+          </div>
           <button type="button" className="btn-secondary" onClick={toggleImpactPanel}>
             {isImpactOpen ? '영향 패널 닫기' : '영향 확인'}
           </button>
@@ -136,7 +180,7 @@ export function S3Draft() {
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <FieldForm
-              fields={data.fields}
+              fields={fields}
               suggestions={data.suggestions}
               verdicts={data.verdicts}
               focusedFieldName={focusedField?.field_name ?? null}
@@ -145,13 +189,27 @@ export function S3Draft() {
               onFieldEdit={handleFieldEdit}
               onSuggestionAccept={handleSuggestionAccept}
               onSuggestionReject={handleSuggestionReject}
+              resolvedConflicts={resolvedConflicts}
+              onConflictResolve={handleConflictResolve}
             />
           </div>
         </div>
 
-        <div style={{ marginTop: 24 }}>
+        {/* 이 화면의 핵심 동작이라 스크롤과 무관하게 항상 보이도록 하단에
+            고정합니다. sticky는 부모에 overflow가 없어야 동작하므로 여기서만
+            감싸고, 겹치는 내용이 비쳐 보이지 않게 배경색을 채웁니다 */}
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 10,
+            marginTop: 'var(--space-4)',
+            paddingBottom: 'var(--space-3)',
+            backgroundColor: 'var(--bg)',
+          }}
+        >
           <VerifyBar
-            fields={data.fields}
+            fields={fields}
             verdicts={data.verdicts}
             prediction={data.prediction}
             editedValues={editedValues}

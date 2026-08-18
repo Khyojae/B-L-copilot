@@ -1,3 +1,4 @@
+import { AlertTriangle, Check } from 'lucide-react';
 import type { FieldValue } from '../../types/domain';
 
 interface CandidateChooserProps {
@@ -8,6 +9,8 @@ interface CandidateChooserProps {
   actionHint: string | null;
   /** 그 가이드를 낸 룰 id (근거 표시용) */
   ruleId: string | null;
+  /** 지금 골라져 있는 후보 값. 아직 안 골랐으면 null */
+  chosenValue: string | null;
 }
 
 /**
@@ -19,7 +22,13 @@ interface CandidateChooserProps {
  *
  * 후보는 field.candidates에 실제로 들어 있는 것만 그립니다 — 지어내지 않습니다.
  */
-export function CandidateChooser({ field, onChoose, actionHint, ruleId }: CandidateChooserProps) {
+export function CandidateChooser({
+  field,
+  onChoose,
+  actionHint,
+  ruleId,
+  chosenValue,
+}: CandidateChooserProps) {
   const candidates = field.candidates ?? [];
   if (candidates.length === 0) return null;
 
@@ -39,7 +48,9 @@ export function CandidateChooser({ field, onChoose, actionHint, ruleId }: Candid
       </span>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-        {candidates.map((candidate) => (
+        {candidates.map((candidate) => {
+          const isChosen = candidate.value === chosenValue;
+          return (
           <button
             key={`${candidate.source_doc_id}-${candidate.value}`}
             type="button"
@@ -49,13 +60,14 @@ export function CandidateChooser({ field, onChoose, actionHint, ruleId }: Candid
               alignItems: 'center',
               gap: 'var(--space-2)',
               padding: '10px 13px',
-              border: '1px solid var(--border-default)',
+              border: `1.5px solid ${isChosen ? 'var(--brand-primary)' : 'var(--border-default)'}`,
               borderRadius: 6,
-              backgroundColor: 'var(--bg)',
+              backgroundColor: isChosen ? 'var(--brand-primary-light)' : 'var(--bg)',
               textAlign: 'left',
               flexWrap: 'wrap',
             }}
           >
+            {isChosen && <Check size={14} color="var(--brand-primary)" aria-hidden="true" />}
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
               {candidate.value}
             </span>
@@ -69,7 +81,22 @@ export function CandidateChooser({ field, onChoose, actionHint, ruleId }: Candid
               {Math.round(candidate.confidence * 100)}%
             </span>
           </button>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* M-1과 같은 방식으로, 이 규칙도 팀 확정 전임을 화면에 남깁니다 */}
+      <div style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 6 }}>
+        <AlertTriangle
+          size={13}
+          color="var(--severity-warning)"
+          aria-hidden="true"
+          style={{ flexShrink: 0, marginTop: 2 }}
+        />
+        <span style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--text-muted)', wordBreak: 'keep-all' }}>
+          M-2 미결 — 후보를 고르면 그 후보의 원래 신뢰도를 따릅니다(고른다고 확정이 되지는
+          않습니다). 이 규칙은 팀 확정 전 임시안입니다.
+        </span>
       </div>
 
       {actionHint !== null && (
