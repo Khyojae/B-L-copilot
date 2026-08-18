@@ -1,7 +1,8 @@
-import { AlertCircle, AlertOctagon, AlertTriangle, CircleCheck, Info } from 'lucide-react';
+import { AlertCircle, AlertOctagon, AlertTriangle, CircleCheck, Info, PauseCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Severity, Verdict } from '../../types/domain';
-import { SEVERITY, bySeverity } from '../../constants/domain';
+import { SEVERITY, VERDICT_RESULT_LABEL, bySeverity } from '../../constants/domain';
+import { SEVERITIES_IN_ORDER, summarizeVerdicts } from '../../shared/shipmentStats';
 
 /** SEVERITY.icon 문자열을 실제 아이콘으로 연결 — SeverityBadge와 같은 방식 */
 const ICON_BY_NAME: Record<string, LucideIcon> = {
@@ -9,11 +10,6 @@ const ICON_BY_NAME: Record<string, LucideIcon> = {
   'alert-triangle': AlertTriangle,
   info: Info,
 };
-
-/** 심각도를 정렬 순서(위반 → 주의 → 참고)대로 나열 */
-const SEVERITIES_IN_ORDER = (Object.keys(SEVERITY) as Severity[]).sort(
-  (a, b) => SEVERITY[a].order - SEVERITY[b].order,
-);
 
 interface CardVerdictBandProps {
   verdicts: Verdict[];
@@ -55,14 +51,16 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
   const topVerdict = [...verdicts].sort(bySeverity)[0];
   const topMeta = SEVERITY[topVerdict.severity];
   const TopIcon = ICON_BY_NAME[topMeta.icon] ?? Info;
-  const criticalCount = verdicts.filter((verdict) => verdict.severity === 'Critical').length;
+  // 집계는 shared/shipmentStats가 맡습니다 — S3·S4와 같은 숫자를 쓰기 위해서입니다.
+  // 판정 보류는 심각도 건수에서 빠지고 따로 셉니다.
+  const counts = summarizeVerdicts(verdicts);
 
   return (
     <Band>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
         {/* Critical이 0건이면 "통과"임을 따로 밝힙니다 — 건수 0을 읽어내라고
             하지 않고 문장으로 알려주는 편이 오해가 적습니다 */}
-        {criticalCount === 0 && (
+        {counts.bySeverity.Critical === 0 && (
           <span
             style={{
               display: 'inline-flex',
@@ -82,10 +80,29 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
         )}
 
         {SEVERITIES_IN_ORDER.map((severity) => {
-          const count = verdicts.filter((verdict) => verdict.severity === severity).length;
+          const count = counts.bySeverity[severity];
           if (count === 0) return null;
           return <SeverityCount key={severity} severity={severity} count={count} />;
         })}
+
+        {counts.deferred > 0 && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '3px 10px',
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-default)',
+            }}
+          >
+            <PauseCircle size={14} aria-hidden="true" />
+            {VERDICT_RESULT_LABEL.DEFERRED} {counts.deferred}
+          </span>
+        )}
 
         {requiredFieldCount > 0 && (
           <>

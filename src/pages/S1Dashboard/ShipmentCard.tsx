@@ -7,7 +7,7 @@ import { CardFieldGrid } from './CardFieldGrid';
 import { CardRouteBand } from './CardRouteBand';
 import { CardVerdictBand } from './CardVerdictBand';
 import { NO_SOURCE_LABEL, formatShortDate, formatShortDateTime, valueOf } from './cardFields';
-import { countRequiredFields } from '../S3Draft/fieldEditing';
+import { countRequiredFields } from '../../shared/shipmentStats';
 
 interface ShipmentCardProps {
   /** 선적 1건의 목데이터 묶음 — Shipment만으로는 판정·필드를 그릴 수 없어서 통째로 받습니다 */

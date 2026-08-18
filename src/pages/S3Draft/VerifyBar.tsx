@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { canTransitionToVerified } from '../../constants/domain';
 import type { DefectPrediction, FieldValue, Verdict } from '../../types/domain';
-import { countRequiredFields } from './fieldEditing';
+import { countRequiredFields } from '../../shared/shipmentStats';
 
 interface VerifyBarProps {
   /** 이 선적의 필드 — 필수 확인 건수를 셀 대상 */
