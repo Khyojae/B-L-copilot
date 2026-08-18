@@ -68,15 +68,15 @@ export function CardVerdictBand({ verdicts, requiredFieldCount }: CardVerdictBan
               display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
-              padding: '2px 8px',
+              padding: '3px 10px',
               borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 600,
+              fontSize: 13,
+              fontWeight: 700,
               color: 'var(--status-verified)',
-              backgroundColor: 'var(--brand-primary-light)',
+              border: '1px solid var(--status-verified)',
             }}
           >
-            <CircleCheck size={13} aria-hidden="true" />
+            <CircleCheck size={14} aria-hidden="true" />
             위반 없음
           </span>
         )}
@@ -134,15 +134,18 @@ function SeverityCount({ severity, count }: { severity: Severity; count: number 
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        padding: '2px 8px',
+        padding: '3px 10px',
         borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
+        fontSize: 13,
+        fontWeight: 700,
         color: `var(${meta.colorVar})`,
         backgroundColor: `var(${meta.bgVar})`,
+        // 배경이 10% 불투명도라 카드 배경(--bg-card) 위에서는 거의 안 보였습니다.
+        // 같은 색 테두리를 얇게 둘러 알약의 윤곽을 살립니다.
+        border: `1px solid var(${meta.colorVar})`,
       }}
     >
-      <Icon size={13} aria-hidden="true" />
+      <Icon size={14} aria-hidden="true" />
       {meta.label} {count}
     </span>
   );
