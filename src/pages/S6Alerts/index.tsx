@@ -3,8 +3,8 @@ import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import { StatusBadge } from '../../components/StatusBadge';
 import { bySeverity } from '../../constants/domain';
-import { mockShipments } from '../../mocks/shipment.fixture';
-import { findShipmentData, type ShipmentMockData } from '../../mocks/shipmentData';
+import type { ShipmentMockData } from '../../mocks/shipmentData';
+import { useShipmentList } from '../../shared/shipmentStore';
 import type { Alert } from '../../types/domain';
 import { AlertCard } from './AlertCard';
 import { DeferredCard } from './DeferredCard';
@@ -26,15 +26,12 @@ function byUnacknowledgedThenSeverity(a: Alert, b: Alert): number {
 export function S6Alerts() {
   // 목록 순서는 S1과 같은 mockShipments를 따릅니다 — 두 화면의 선적 순서가
   // 다르면 같은 데이터인데 다른 목록처럼 보입니다.
-  const groups = mockShipments
-    .map((shipment) => findShipmentData(shipment.shipment_id))
-    .filter((data): data is ShipmentMockData => data !== null)
-    .map((data) => ({
+  const groups = useShipmentList().map((data) => ({
       data,
       alerts: [...data.alerts].sort(byUnacknowledgedThenSeverity),
       // 판정 보류는 아래 별도 구역에서 다룹니다
       deferred: data.verdicts.filter((verdict) => verdict.result === 'DEFERRED'),
-    }));
+  }));
 
   const withAlerts = groups.filter((group) => group.alerts.length > 0);
   const withDeferred = groups.filter((group) => group.deferred.length > 0);

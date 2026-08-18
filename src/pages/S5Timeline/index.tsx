@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { FileQuestion, SatelliteDish } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { findShipmentData } from '../../mocks/shipmentData';
+import { useShipmentData } from '../../shared/shipmentStore';
 import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { SeverityBadge } from '../../components/SeverityBadge';
 import { EmptyState } from '../../components/EmptyState';
@@ -16,7 +16,7 @@ function formatEventTime(event: RealityEvent): string {
 
 export function S5Timeline() {
   const { id } = useParams();
-  const data = findShipmentData(id);
+  const data = useShipmentData(id);
 
   // 화면전이_정의.md: "경보 카드 클릭 → /shipments/:id?event=<event_id> →
   // 타임라인에서 해당 마커로 스크롤". 이 페이지가 그 "스크롤"을 담당함

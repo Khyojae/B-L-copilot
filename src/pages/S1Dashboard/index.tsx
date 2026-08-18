@@ -2,18 +2,12 @@ import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
-import { mockShipments } from '../../mocks/shipment.fixture';
-import { findShipmentData } from '../../mocks/shipmentData';
+import { useShipmentList } from '../../shared/shipmentStore';
 import { ShipmentCard } from './ShipmentCard';
 
 export function S1Dashboard() {
-  // 카드가 판정·필드까지 보여주므로 Shipment만으로는 부족합니다. 목록 순서는
-  // mockShipments가 정하고, 각 건의 내용은 묶음에서 찾아옵니다.
-  // findShipmentData가 null을 주는 건 목록에만 있고 묶음엔 없는 경우인데,
-  // 지금은 없습니다 — 나중에 어긋나면 그 카드만 조용히 빠지게 해뒀습니다.
-  const items = mockShipments
-    .map((shipment) => findShipmentData(shipment.shipment_id))
-    .filter((data): data is NonNullable<typeof data> => data !== null);
+  // 픽스처 4건 + 이번 세션에 업로드로 만든 선적. 저장소가 합쳐서 돌려줍니다
+  const items = useShipmentList();
 
   // D-day 계산 기준 시각을 한 번만 만들어 모든 카드에 같은 "지금"을 넘깁니다.
   // 카드마다 new Date()를 부르면 자정 전후로 카드끼리 D-day가 하루 어긋납니다.

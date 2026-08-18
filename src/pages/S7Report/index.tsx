@@ -4,7 +4,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import { ShipmentHeader } from '../../components/ShipmentHeader';
 import { VerdictCard } from '../S4Verdicts/VerdictCard';
-import { findShipmentData } from '../../mocks/shipmentData';
+import { useShipmentData } from '../../shared/shipmentStore';
 import { bySeverity } from '../../constants/domain';
 import { summarizeVerdicts } from '../../shared/shipmentStats';
 
@@ -22,7 +22,7 @@ import { summarizeVerdicts } from '../../shared/shipmentStats';
 export function S7Report() {
   // S4와 마찬가지로 URL의 :id로 선적을 찾습니다 (/shipments/:id/report)
   const { id } = useParams();
-  const data = findShipmentData(id);
+  const data = useShipmentData(id);
 
   function handleExportPdf() {
     // 설계만 — 실제 PDF 렌더링(§10.5 REPORT_PDF 목표 30s)은 이번 기간 범위 밖.

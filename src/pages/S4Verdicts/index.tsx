@@ -6,7 +6,7 @@ import { DataSourceNotice } from './DataSourceNotice';
 import { SkippedList } from './SkippedList';
 import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
-import { findShipmentData } from '../../mocks/shipmentData';
+import { useShipmentData } from '../../shared/shipmentStore';
 import { bySeverity } from '../../constants/domain';
 import { useVerify } from '../../api/useVerify';
 
@@ -14,7 +14,7 @@ export function S4Verdicts() {
   // URL이 /shipments/:id/verdicts 라서, useParams()로 그 :id 자리의 값을 꺼냅니다.
   // (App.tsx의 <Route path="/shipments/:id/verdicts"> 와 이름이 같아야 합니다)
   const { id } = useParams();
-  const data = findShipmentData(id);
+  const data = useShipmentData(id);
 
   // 백엔드 aiService 의 /verify 를 부릅니다.
   //
