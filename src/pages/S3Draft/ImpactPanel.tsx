@@ -2,7 +2,9 @@ import type { CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { SeverityBadge } from '../../components/SeverityBadge';
-import { REISSUE_PATH_LABEL } from '../../constants/domain';
+import { REISSUE_PATH_LABEL, labelOfField } from '../../constants/domain';
+import { InfoTip } from '../../components/InfoTip';
+import type { ResolvedConflicts } from '../../shared/shipmentStats';
 import type { ConstraintType, ImpactItem, ImpactResult } from '../../types/domain';
 
 /** 이번 기간 렌더 대상 제약 3종 (§10.1). 타입 자체는 6종 유지하되 나머지는 숨김 */
@@ -26,6 +28,15 @@ interface ImpactPanelProps {
    * 이벤트만 구독한다. 편집기 내부 상태에 접근하지 않는다")
    */
   editedValues: Record<string, string | null>;
+  /**
+   * 값 충돌을 해소한 필드.
+   *
+   * ⚠ editedValues만 보면 안 됩니다. 후보 선택은 "값 수정"이 아니라 "충돌
+   *   해소"로 따로 다루기로 하면서(M-2) resolvedConflicts로 빠졌는데, 이
+   *   패널이 editedValues만 구독하고 있어서 후보를 골라도 영향분석이 열리지
+   *   않았습니다. 사용자 입장에서는 값을 정했는데 패널이 반응을 안 한 셈입니다.
+   */
+  resolvedConflicts: ResolvedConflicts;
 }
 
 // 뷰어(480px 고정)+필드폼(가변)+패널을 한 flex 줄에 같이 넣으면 셋이 폭을
@@ -87,13 +98,24 @@ function ImpactItemCard({ item }: { item: ImpactItem }) {
 
       <p style={{ margin: 0 }}>{item.action}</p>
 
-      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-        {item.affected_doc} · {item.affected_field} · 담당 {item.party}
+      {/* 화면에는 사람이 읽을 값만 — 문서 ID·룰 코드는 ⓘ로 접습니다 (S6과 같은 방식) */}
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          flexWrap: 'wrap',
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
+        {labelOfField(item.affected_field)} · 담당 {item.party}
+        <InfoTip
+          text={[item.affected_doc, item.rule_id, `제약 ${item.constraint_type}`]
+            .filter((part): part is string => part !== null)
+            .join(' · ')}
+        />
       </span>
-
-      {item.rule_id !== null && (
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.rule_id}</span>
-      )}
     </div>
   );
 }
@@ -106,21 +128,25 @@ function ImpactItemCard({ item }: { item: ImpactItem }) {
  * 그 쿼리 파라미터를 직접 읽습니다 — 부모(S3Draft)가 열림 상태를 따로
  * 내려줄 필요가 없습니다.
  */
-export function ImpactPanel({ impact, editedValues }: ImpactPanelProps) {
+export function ImpactPanel({ impact, editedValues, resolvedConflicts }: ImpactPanelProps) {
   const [searchParams] = useSearchParams();
   const isOpen = searchParams.get('impact') === '1';
 
   if (!isOpen) return null;
 
-  const hasWatchedEdit = WATCHED_FIELD in editedValues;
+  // 직접 입력이든 후보 선택이든 "이 필드 값이 정해졌다"는 점은 같습니다
+  const chosenValue = resolvedConflicts[WATCHED_FIELD];
+  const changedValue =
+    WATCHED_FIELD in editedValues ? editedValues[WATCHED_FIELD] : chosenValue ?? null;
+  const hasWatchedChange = WATCHED_FIELD in editedValues || chosenValue !== undefined;
 
-  if (!hasWatchedEdit) {
+  if (!hasWatchedChange) {
     return (
       <div style={panelBaseStyle}>
         <h2 style={{ margin: 0, fontSize: 16 }}>정정 영향분석</h2>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-          아직 영향분석과 연결된 필드를 고치지 않았습니다. <code>{WATCHED_FIELD}</code> 필드 값을
-          바꾸면 여기에 영향 범위가 표시됩니다.
+          아직 영향분석과 연결된 필드를 고치지 않았습니다. {labelOfField(WATCHED_FIELD)} 필드 값을
+          정하면 여기에 영향 범위가 표시됩니다.
         </p>
       </div>
     );
@@ -136,7 +162,7 @@ export function ImpactPanel({ impact, editedValues }: ImpactPanelProps) {
     <div style={panelBaseStyle}>
       <h2 style={{ margin: 0, fontSize: 16 }}>정정 영향분석</h2>
       <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-        {WATCHED_FIELD} 값을 "{editedValues[WATCHED_FIELD] ?? '(빈 값)'}"으로 바꾸면 아래 항목을
+        {labelOfField(WATCHED_FIELD)} 값을 "{changedValue ?? '(빈 값)'}"으로 정하면 아래 항목을
         다시 확인해야 합니다.
       </p>
 
