@@ -346,8 +346,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* 실제 폭은 DashboardPreview.tsx의 FRAME_WIDTH가 인라인으로 정합니다 —
+     여기서 값을 박아두면 배율(SCALE)을 바꿀 때마다 둘을 같이 고쳐야 합니다 */
   flex: 0 0 auto;
-  width: 440px;
   margin: 0;
 }
 
