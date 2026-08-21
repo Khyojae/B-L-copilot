@@ -2,9 +2,8 @@ import type { CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { SeverityBadge } from '../../components/SeverityBadge';
-import { mockImpactResult } from '../../mocks/shipment.fixture';
 import { REISSUE_PATH_LABEL } from '../../constants/domain';
-import type { ConstraintType, ImpactItem } from '../../types/domain';
+import type { ConstraintType, ImpactItem, ImpactResult } from '../../types/domain';
 
 /** 이번 기간 렌더 대상 제약 3종 (§10.1). 타입 자체는 6종 유지하되 나머지는 숨김 */
 const RENDERED_CONSTRAINT_TYPES: ConstraintType[] = ['EQ', 'SUM', 'REF'];
@@ -14,6 +13,12 @@ const RENDERED_CONSTRAINT_TYPES: ConstraintType[] = ['EQ', 'SUM', 'REF'];
 const WATCHED_FIELD = 'port_of_loading';
 
 interface ImpactPanelProps {
+  /**
+   * 이 선적의 영향분석 결과. 선적 상태에 따라 정정의 무게가 달라서
+   * (초안이면 다시 쓰면 되지만, 제출됐으면 조건 변경·재발행까지 필요)
+   * S3Draft가 URL의 :id로 찾아 넘겨줍니다.
+   */
+  impact: ImpactResult;
   /**
    * S3Draft가 들고 있는 "필드별 수정값" 상태 — 이 패널이 구독하는 유일한 입력.
    * 편집기 내부 상태(포커스된 필드, 인라인 입력창 열림 여부 등)에는 직접
@@ -101,7 +106,7 @@ function ImpactItemCard({ item }: { item: ImpactItem }) {
  * 그 쿼리 파라미터를 직접 읽습니다 — 부모(S3Draft)가 열림 상태를 따로
  * 내려줄 필요가 없습니다.
  */
-export function ImpactPanel({ editedValues }: ImpactPanelProps) {
+export function ImpactPanel({ impact, editedValues }: ImpactPanelProps) {
   const [searchParams] = useSearchParams();
   const isOpen = searchParams.get('impact') === '1';
 
@@ -121,11 +126,11 @@ export function ImpactPanel({ editedValues }: ImpactPanelProps) {
     );
   }
 
-  const renderedItems = mockImpactResult.items.filter((item) =>
+  const renderedItems = impact.items.filter((item) =>
     RENDERED_CONSTRAINT_TYPES.includes(item.constraint_type),
   );
   const directItems = renderedItems.filter((item) => !item.indirect);
-  const indirectCount = mockImpactResult.indirect_count;
+  const indirectCount = impact.indirect_count;
 
   return (
     <div style={panelBaseStyle}>
@@ -165,8 +170,8 @@ export function ImpactPanel({ editedValues }: ImpactPanelProps) {
           paddingTop: 8,
         }}
       >
-        재발행 경로: {REISSUE_PATH_LABEL[mockImpactResult.reissue_path]}
-        {mockImpactResult.requires_amendment && <span> · 조건 변경(amendment) 필요</span>}
+        재발행 경로: {REISSUE_PATH_LABEL[impact.reissue_path]}
+        {impact.requires_amendment && <span> · 조건 변경(amendment) 필요</span>}
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
-import { PauseCircle } from 'lucide-react';
+import { ClipboardCheck, FileQuestion, PauseCircle } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { EmptyState } from '../../components/EmptyState';
 import { PageContainer } from '../../components/PageContainer';
 import { StatusBadge } from '../../components/StatusBadge';
 import { VerdictCard } from '../S4Verdicts/VerdictCard';
-import { mockShipment, mockPrediction, mockVerdicts } from '../../mocks/shipment.fixture';
+import { findShipmentData } from '../../mocks/shipmentData';
 import { bySeverity } from '../../constants/domain';
 
 /**
@@ -17,14 +19,42 @@ import { bySeverity } from '../../constants/domain';
  * "PDF로 내보내기"는 자리만 두고 실제 내보내기는 구현하지 않습니다.
  */
 export function S7Report() {
-  const sortedVerdicts = [...mockVerdicts].sort(bySeverity);
-  const deferredVerdicts = mockVerdicts.filter((verdict) => verdict.result === 'DEFERRED');
+  // S4와 마찬가지로 URL의 :id로 선적을 찾습니다 (/shipments/:id/report)
+  const { id } = useParams();
+  const data = findShipmentData(id);
 
   function handleExportPdf() {
     // 설계만 — 실제 PDF 렌더링(§10.5 REPORT_PDF 목표 30s)은 이번 기간 범위 밖.
     // 버튼은 남겨두되 클릭해도 아무 일도 안 일어나면 헷갈리니 짧게 안내만 띄움
     window.alert('PDF 내보내기는 준비 중입니다');
   }
+
+  if (data === null) {
+    return (
+      <PageContainer narrow>
+        <EmptyState icon={FileQuestion} message={`선적 ${id ?? ''}을(를) 찾을 수 없습니다.`} />
+      </PageContainer>
+    );
+  }
+
+  const { shipment, verdicts, prediction } = data;
+
+  // 검증 전이면 리포트에 담을 판정도 하자 확률도 없습니다. 빈 리포트를 껍데기만
+  // 그리는 대신 안내로 대체합니다 — 하자 확률을 0%로 채워 넣으면 "안전하다"는
+  // 근거 없는 값을 보여주는 셈이라 규약 §2.4(추정 생성 금지)에 어긋납니다.
+  if (verdicts.length === 0 || prediction === null) {
+    return (
+      <PageContainer narrow>
+        <EmptyState
+          icon={ClipboardCheck}
+          message="검증을 실행한 뒤에 리포트를 만들 수 있습니다."
+        />
+      </PageContainer>
+    );
+  }
+
+  const sortedVerdicts = [...verdicts].sort(bySeverity);
+  const deferredVerdicts = verdicts.filter((verdict) => verdict.result === 'DEFERRED');
 
   return (
     <PageContainer narrow>
@@ -58,12 +88,12 @@ export function S7Report() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <strong style={{ fontSize: 18 }}>{mockShipment.bl_no ?? '-'}</strong>
-            <StatusBadge status={mockShipment.status} />
+            <strong style={{ fontSize: 18 }}>{shipment.bl_no ?? '-'}</strong>
+            <StatusBadge status={shipment.status} />
           </div>
-          <span style={{ color: 'var(--text)' }}>L/C {mockShipment.lc_no ?? '-'}</span>
+          <span style={{ color: 'var(--text)' }}>L/C {shipment.lc_no ?? '-'}</span>
           <span style={{ color: 'var(--text)' }}>
-            Cargo Control No. {mockShipment.cargo_control_no ?? '-'}
+            Cargo Control No. {shipment.cargo_control_no ?? '-'}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             조회 시각: {new Date().toLocaleString('ko-KR')} — 스냅샷이 아닌 현재 데이터 기준입니다
@@ -86,16 +116,16 @@ export function S7Report() {
         >
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>하자 확률 요약</p>
           <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
-            예상 하자 확률 {Math.round(mockPrediction.probability * 100)}%
-            {mockPrediction.deferred_count > 0 && (
+            예상 하자 확률 {Math.round(prediction.probability * 100)}%
+            {prediction.deferred_count > 0 && (
               <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>
                 {' '}
-                (판정 보류 {mockPrediction.deferred_count}건 제외)
+                (판정 보류 {prediction.deferred_count}건 제외)
               </span>
             )}
           </p>
           <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}>
-            {mockPrediction.top_factors.map((factor) => (
+            {prediction.top_factors.map((factor) => (
               <li key={factor.factor}>
                 {factor.factor} ({Math.round(factor.contribution * 100)}%)
               </li>

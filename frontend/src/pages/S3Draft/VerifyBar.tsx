@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { mockFields, mockPrediction, mockVerdicts } from '../../mocks/shipment.fixture';
 import { canTransitionToVerified } from '../../constants/domain';
+import type { DefectPrediction, FieldValue, Verdict } from '../../types/domain';
 import { countRequiredFields } from './fieldEditing';
 
 interface VerifyBarProps {
+  /** 이 선적의 필드 — 필수 확인 건수를 셀 대상 */
+  fields: FieldValue[];
+  /** 이 선적의 판정 — 미해결 Critical 건수를 셀 대상. 검증 전이면 빈 배열 */
+  verdicts: Verdict[];
+  /** 이 선적의 하자 확률. 아직 검증 전이면 null이라 리스크 요약을 못 그립니다 */
+  prediction: DefectPrediction | null;
   /** FieldForm·SuggestionCard와 공유하는 "필드별 수정값" — 필수 확인 건수 계산에 필요 */
   editedValues: Record<string, string | null>;
 }
@@ -18,16 +24,16 @@ interface VerifyBarProps {
  *   확정 전까지는 이 컴포넌트를 실제 상태 전이(DRAFT → VERIFIED)에 연결하지
  *   않습니다 — "검증 실행"·"강제 실행" 모두 지금은 콘솔 로그만 남깁니다.
  */
-export function VerifyBar({ editedValues }: VerifyBarProps) {
+export function VerifyBar({ fields, verdicts, prediction, editedValues }: VerifyBarProps) {
   const [showOverrideForm, setShowOverrideForm] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const [overrideRecorded, setOverrideRecorded] = useState<string | null>(null);
 
-  const requiredCount = countRequiredFields(mockFields, editedValues);
-  // 판정(Verdict)은 아직 안 만들어서(S4에서 다룸) 여기선 mock 판정 중
-  // "미해결" Critical만 셉니다. DEFERRED는 필수 확인 필드 쪽에서 이미
-  // 세고 있는 문제라 여기서 또 세면 같은 문제를 두 번 반영하게 됩니다.
-  const unresolvedCriticalCount = mockVerdicts.filter(
+  const requiredCount = countRequiredFields(fields, editedValues);
+  // 이 선적의 판정 중 "미해결" Critical만 셉니다. DEFERRED는 필수 확인 필드
+  // 쪽에서 이미 세고 있는 문제라 여기서 또 세면 같은 문제를 두 번 반영하게
+  // 됩니다. 아직 검증 전인 선적은 판정이 0건이라 이 값도 0입니다.
+  const unresolvedCriticalCount = verdicts.filter(
     (verdict) => verdict.severity === 'Critical' && verdict.result === 'VIOLATION',
   ).length;
 
@@ -71,22 +77,34 @@ export function VerifyBar({ editedValues }: VerifyBarProps) {
 
       <div>
         <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--text-muted)' }}>리스크 요약</p>
-        <p style={{ margin: 0 }}>
-          예상 하자 확률 <strong>{Math.round(mockPrediction.probability * 100)}%</strong>
-          {mockPrediction.deferred_count > 0 && (
-            <span style={{ color: 'var(--text-muted)' }}>
-              {' '}
-              (판정 보류 {mockPrediction.deferred_count}건 제외)
-            </span>
-          )}
-        </p>
-        <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}>
-          {mockPrediction.top_factors.map((factor) => (
-            <li key={factor.factor}>
-              {factor.factor} ({Math.round(factor.contribution * 100)}%)
-            </li>
-          ))}
-        </ul>
+        {prediction === null ? (
+          // 아직 검증 전이라 하자 확률이 없습니다. 0%로 채우면 "안전하다"는
+          // 근거 없는 값을 보여주는 셈이라, 없다는 사실을 그대로 씁니다 (§2.4)
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+            아직 검증을 실행하지 않아 하자 확률이 없습니다.
+          </p>
+        ) : (
+          <>
+            <p style={{ margin: 0 }}>
+              예상 하자 확률 <strong>{Math.round(prediction.probability * 100)}%</strong>
+              {prediction.deferred_count > 0 && (
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {' '}
+                  (판정 보류 {prediction.deferred_count}건 제외)
+                </span>
+              )}
+            </p>
+            <ul
+              style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-muted)' }}
+            >
+              {prediction.top_factors.map((factor) => (
+                <li key={factor.factor}>
+                  {factor.factor} ({Math.round(factor.contribution * 100)}%)
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

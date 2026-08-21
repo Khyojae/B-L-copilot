@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { mockFields } from '../../mocks/shipment.fixture';
 import type { FieldValue } from '../../types/domain';
 import { FieldRow } from './FieldRow';
 import { countRequiredFields, displayValueOf, isEditedField } from './fieldEditing';
 
 interface FieldFormProps {
+  /**
+   * 보여줄 필드 목록. 예전에는 mockFields를 직접 가져다 썼지만, 선적마다 필드가
+   * 달라지면서 S3Draft가 URL의 :id로 찾아 넘겨주는 방식으로 바꿨습니다.
+   */
+  fields: FieldValue[];
   /** 지금 문서 뷰어에서 하이라이트되고 있는 필드 이름 */
   focusedFieldName?: string | null;
   /** 행을 클릭했을 때 그 필드를 부모(S3Draft)에 알려줌 */
@@ -21,6 +25,7 @@ interface FieldFormProps {
 }
 
 export function FieldForm({
+  fields,
   focusedFieldName = null,
   onFieldFocus,
   editedValues,
@@ -47,7 +52,7 @@ export function FieldForm({
     setEditingFieldName(null);
   }
 
-  const requiredCount = countRequiredFields(mockFields, editedValues);
+  const requiredCount = countRequiredFields(fields, editedValues);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 16 }}>
@@ -55,7 +60,7 @@ export function FieldForm({
         필수 확인 {requiredCount}건
       </p>
 
-      {mockFields.map((field) => (
+      {fields.map((field) => (
         <FieldRow
           key={field.field_name}
           field={field}
