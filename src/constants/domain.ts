@@ -9,6 +9,7 @@
  */
 
 import type {
+  DocumentKind,
   Severity,
   ShipmentStatus,
   ConfidenceGrade,
@@ -216,6 +217,78 @@ export function canTransitionToVerified(input: {
     overridable: true,   // 사유 기록 시 강제 진행 가능 (§5.8)
     blockers,
   };
+}
+
+// ─────────────────────────────────────────────
+// 추출 필드 표시명 (§5.1)
+//
+// FieldValue.field_name은 API·bbox와 맞물린 식별자라 영문 그대로 둡니다.
+// 화면에 보여줄 한글 이름만 여기서 매핑합니다. 화면마다 다르게 부르지
+// 않도록(예: measurement를 어디선 "용적", 어디선 "체적") 이 파일이 유일한
+// 정의처입니다.
+//
+// mockFields의 26개 필드를 모두 담고 있습니다. 새 필드가 생기면 여기에도
+// 추가해야 하며, 빠지면 labelOfField가 영문 식별자를 그대로 돌려줍니다.
+// ─────────────────────────────────────────────
+
+export const FIELD_LABEL: Record<string, string> = {
+  // 당사자
+  shipper: '송하인',
+  consignee: '수하인',
+  notify_party: '통지처',
+  carrier: '운송인',
+  // 식별번호
+  bl_no: 'B/L 번호',
+  booking_no: '부킹 번호',
+  lc_no: '신용장 번호',
+  cargo_control_no: '화물관리번호',
+  // 운송구간
+  place_of_receipt: '수탁지',
+  port_of_loading: '선적항',
+  port_of_discharge: '양륙항',
+  place_of_delivery: '인도지',
+  vessel_voyage: '선박·항차',
+  // 화물
+  marks_and_numbers: '화인 및 번호',
+  no_of_packages: '포장 수량',
+  description_of_goods: '물품 명세',
+  hs_code: 'HS 부호',
+  gross_weight: '총중량',
+  measurement: '용적',
+  // 컨테이너
+  container_no: '컨테이너 번호',
+  seal_no: '봉인번호',
+  // 조건 · 발행
+  freight_terms: '운임 조건',
+  incoterms: '인코텀즈',
+  no_of_original_bl: '원본 B/L 통수',
+  shipped_on_board_date: '본선적재일',
+  place_and_date_of_issue: '발행지·발행일',
+};
+
+/** 서류 종류 표시명 — S3 문서 뷰어 탭에서 씁니다 (DocumentKind와 1:1) */
+export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
+  BL: '선하증권',
+  INVOICE: '상업송장',
+  PACKING: '포장명세서',
+  LC: '신용장',
+  SI: '선적요청서',
+  UNKNOWN: '분류 전',
+};
+
+/**
+ * 값 충돌이 아직 안 풀린 필드의 값 자리에 쓰는 문구.
+ *
+ * conflict_flag가 켜진 필드는 후보가 둘 이상이라 어느 쪽도 확정된 값이
+ * 아닙니다. 그런데 FieldValue.value에는 후보 중 하나가 들어 있어서, 그대로
+ * 보여주면 "이 값으로 정해졌다"로 읽힙니다. 화면에서는 값 대신 이 문구를
+ * 쓰고 후보 목록을 따로 보여줍니다 (규약 §2.4 — 근거 없는 확정 표시 금지).
+ */
+export const UNSETTLED_LABEL = '미확정';
+
+/** 한글 표시명. 매핑에 없는 필드는 영문 식별자를 그대로 씁니다 (지어내지 않음) */
+export function labelOfField(fieldName: string): string {
+  return FIELD_LABEL[fieldName] ?? fieldName;
 }
 
 // ─────────────────────────────────────────────

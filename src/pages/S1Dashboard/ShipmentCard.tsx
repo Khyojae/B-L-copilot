@@ -7,7 +7,7 @@ import { CardFieldGrid } from './CardFieldGrid';
 import { CardRouteBand } from './CardRouteBand';
 import { CardVerdictBand } from './CardVerdictBand';
 import { NO_SOURCE_LABEL, formatShortDate, formatShortDateTime, valueOf } from './cardFields';
-import { countRequiredFields } from '../S3Draft/fieldEditing';
+import { countRequiredFields } from '../../shared/shipmentStats';
 
 interface ShipmentCardProps {
   /** 선적 1건의 목데이터 묶음 — Shipment만으로는 판정·필드를 그릴 수 없어서 통째로 받습니다 */
@@ -42,6 +42,10 @@ export function ShipmentCard({ data, now }: ShipmentCardProps) {
     <div
       style={{
         border: '1px solid var(--border-default)',
+        // 왼쪽에 상태색 띠를 둡니다 — 목록을 훑을 때 상태 뱃지를 읽기 전에
+        // 색만으로 구분이 되고, 뱃지 글자가 함께 있으니 색만으로 뜻을
+        // 전달하는 것도 아닙니다 (규약 §6.2)
+        borderLeft: `4px solid var(${statusMeta.colorVar})`,
         borderRadius: 'var(--radius-card)',
         boxShadow: 'var(--shadow-card)',
         backgroundColor: 'var(--bg)',
@@ -59,17 +63,6 @@ export function ShipmentCard({ data, now }: ShipmentCardProps) {
           flexWrap: 'wrap',
         }}
       >
-        <span
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: 999,
-            flexShrink: 0,
-            backgroundColor: `var(${statusMeta.colorVar})`,
-          }}
-          aria-hidden="true"
-        />
-
         {shipment.bl_no !== null ? (
           <strong style={{ fontSize: 17, letterSpacing: '-0.2px', color: 'var(--text-primary)' }}>
             {shipment.bl_no}
@@ -125,11 +118,20 @@ export function ShipmentCard({ data, now }: ShipmentCardProps) {
         </span>
       </div>
 
-      <CardRouteBand fields={fields} loadedOnBoard={loadedOnBoardLabel(fields)} />
+      <CardRouteBand
+        fields={fields}
+        loadedOnBoard={loadedOnBoardLabel(fields)}
+        prediction={prediction}
+        verdicts={verdicts}
+      />
 
-      <CardFieldGrid shipment={shipment} fields={fields} prediction={prediction} now={now} />
+      <CardFieldGrid shipment={shipment} fields={fields} now={now} />
 
-      <CardVerdictBand verdicts={verdicts} requiredFieldCount={requiredFieldCount} />
+      <CardVerdictBand
+        verdicts={verdicts}
+        requiredFieldCount={requiredFieldCount}
+        shipmentId={shipment.shipment_id}
+      />
 
       {/* ── 바닥: 판정 기준 + 이동 ── */}
       <div

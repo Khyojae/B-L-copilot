@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
-import type { FieldValue } from '../../types/domain';
+import type { DocumentMeta, FieldValue } from '../../types/domain';
+import { DOCUMENT_KIND_LABEL, labelOfField, toConfidenceGrade } from '../../constants/domain';
+import { GradeBadge } from '../../components/GradeBadge';
 import {
   MOCK_DOCUMENT_ORIGINAL_SIZE,
   bboxToScreenRect,
@@ -20,6 +22,14 @@ export const DISPLAY_SIZE: DocumentDisplaySize = {
 interface DocumentViewerProps {
   /** 지금 사용자가 보고 있는 필드. bbox가 있으면 문서 위에 노란 박스로 표시합니다 */
   focusedField?: FieldValue;
+  /**
+   * 이 선적에 붙어 있는 서류. 탭으로 그립니다.
+   *
+   * 시안은 4개(신용장·선적요청서·상업송장·포장명세서)를 고정으로 그렸지만,
+   * 여기서는 넘어온 목록 그대로만 그립니다 — 서류가 2건뿐인 선적은 탭도
+   * 2개가 뜨는 게 맞습니다.
+   */
+  documents: DocumentMeta[];
 }
 
 /**
@@ -34,7 +44,14 @@ interface DocumentViewerProps {
  * 페이지를 그리는 컴포넌트로 바꿔치기하면 됩니다. 하이라이트를 그리는
  * bboxToScreenRect 계산과 DISPLAY_SIZE는 그대로 재사용할 수 있습니다.
  */
-export function DocumentViewer({ focusedField }: DocumentViewerProps) {
+export function DocumentViewer({ focusedField, documents }: DocumentViewerProps) {
+  // 어느 탭을 보여줄지는 지금 선택된 필드가 정합니다 — 필드를 누르면 그 값이
+  // 나온 서류로 자동으로 넘어갑니다. 아직 아무 필드도 안 눌렀으면 첫 서류.
+  // (탭을 직접 누르는 기능은 필드 클릭과 규칙이 충돌할 수 있어 뒤로 미룹니다)
+  const activeDocument =
+    documents.find((document) => document.document_id === focusedField?.source_doc_id) ??
+    documents[0] ??
+    null;
   const bbox = focusedField?.bbox ?? null;
   const highlightRect =
     bbox !== null ? bboxToScreenRect(bbox, MOCK_DOCUMENT_ORIGINAL_SIZE, DISPLAY_SIZE) : null;
@@ -71,6 +88,55 @@ export function DocumentViewer({ focusedField }: DocumentViewerProps) {
         top: 'var(--space-5)',
       }}
     >
+      {documents.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 2,
+              borderBottom: '1px solid var(--border-default)',
+            }}
+          >
+            {documents.map((document) => {
+              const isActive = document.document_id === activeDocument?.document_id;
+              return (
+                <span
+                  key={document.document_id}
+                  style={{
+                    padding: '8px 11px',
+                    fontSize: 12.5,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    borderBottom: `2px solid ${isActive ? 'var(--brand-primary)' : 'transparent'}`,
+                    marginBottom: -1,
+                  }}
+                >
+                  {DOCUMENT_KIND_LABEL[document.kind]}
+                </span>
+              );
+            })}
+          </div>
+          {activeDocument !== null && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 'var(--space-2)',
+                fontSize: 11.5,
+                color: 'var(--text-muted)',
+              }}
+            >
+              <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                {activeDocument.file_name}
+              </span>
+              <span style={{ flexShrink: 0 }}>{activeDocument.page_count}p</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 실제 문서를 대신하는 회색 사각형 자리. 나중에 여기를 PDF 렌더링으로 교체 */}
       <div className="s3-viewer-box" style={documentAreaStyle}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>문서 미리보기 (목업)</span>
@@ -89,6 +155,87 @@ export function DocumentViewer({ focusedField }: DocumentViewerProps) {
               borderRadius: 2,
             }}
           />
+        )}
+      </div>
+
+      {/* 뷰어 아래 근거 정보 — 실제 PDF가 없어 회색 박스가 비어 보이는 자리를
+          "지금 무엇을 보고 있는지"로 채웁니다. 값은 전부 선택된 필드에서 옵니다 */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          width: '100%',
+          padding: 'var(--space-2) 0 0',
+          textAlign: 'left',
+        }}
+      >
+        {focusedField === undefined ? (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            오른쪽에서 필드를 누르면 그 값을 어느 서류 어디에서 읽었는지 여기 표시됩니다.
+          </span>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {labelOfField(focusedField.field_name)}
+              </span>
+              {/* 신뢰도는 숫자(64%)가 아니라 등급으로 보여줍니다 — 판단 기준은
+                  CONFIDENCE_THRESHOLD가 갖고 있으므로 사용자가 숫자를 해석할
+                  필요가 없습니다 */}
+              <GradeBadge grade={toConfidenceGrade(focusedField)} size="sm" />
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                {focusedField.bbox === null
+                  ? '원문 근거 없음'
+                  : `${focusedField.source_doc_id} · ${focusedField.page}p`}
+              </span>
+            </div>
+
+            {/* 다른 서류에 다른 값이 있으면 그것도 밝힙니다 (시안의 "충돌 후보" 카드) */}
+            {(focusedField.candidates ?? [])
+              .filter((candidate) => candidate.value !== focusedField.value)
+              .map((candidate) => (
+                <div
+                  key={`${candidate.source_doc_id}-${candidate.value}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-default)',
+                    borderLeft: '4px solid var(--severity-critical)',
+                    borderRadius: 6,
+                    backgroundColor: 'var(--bg-card)',
+                  }}
+                >
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--severity-critical)' }}>
+                    다른 서류의 충돌 후보
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {candidate.value}
+                    {candidate.normalized_value !== null && (
+                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>
+                        {' '}
+                        {candidate.normalized_value}
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      flexWrap: 'wrap',
+                      fontSize: 11.5,
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <GradeBadge grade={toConfidenceGrade(candidate)} size="sm" />
+                    {candidate.source_doc_id} · {candidate.page}p
+                  </span>
+                </div>
+              ))}
+          </>
         )}
       </div>
     </div>
