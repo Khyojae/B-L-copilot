@@ -320,3 +320,100 @@ button:disabled {
     max-width: 480px;
   }
 }
+
+/* S3 필드 그룹 헤더 — 등급별로 필드를 묶어 접었다 펴는 줄.
+   인라인 style로 border/background를 주면 위 button:hover 규칙을 덮어써서
+   마우스를 올려도 반응이 없기 때문에, 이 두 규칙만 클래스로 뺐습니다. */
+.field-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 13px 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  background: var(--bg);
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+/* 검증을 막고 있는 그룹(필수 확인)만 눈에 띄게. 나머지 세 줄과 글자색만
+   다르면 "지금 할 일"이 안 읽혀서, 배경·테두리·왼쪽 띠로 구분합니다. */
+.field-group-head--blocking {
+  background: var(--severity-critical-bg);
+  border-color: var(--severity-critical);
+  border-left-width: 4px;
+}
+
+/* 랜딩 히어로의 대시보드 미리보기 — 장식이라 좁은 화면에서는 숨깁니다.
+   숨겨도 정보가 사라지지 않습니다(실제 대시보드는 "시작하기"로 갑니다).
+   인라인 style로는 미디어쿼리를 못 써서 이 규칙만 클래스로 뺐습니다. */
+.landing-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* 실제 폭은 DashboardPreview.tsx의 FRAME_WIDTH가 인라인으로 정합니다 —
+     여기서 값을 박아두면 배율(SCALE)을 바꿀 때마다 둘을 같이 고쳐야 합니다 */
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .landing-preview {
+    display: none;
+  }
+}
+
+/* S6 경보 그룹 — 선적별 헤더와 그 아래 카드들을 한 덩어리로 붙입니다.
+   전에는 헤더가 8px 떨어진 별개 둥근 박스라, 그룹이 하나뿐일 때 "묶어주는
+   머리"가 아니라 "카드 중 첫 번째"처럼 보였습니다.
+   맞닿는 테두리가 2px로 겹치지 않도록 -1px씩 당겨 올립니다. */
+.alert-group {
+  display: flex;
+  flex-direction: column;
+}
+.alert-group > * + * {
+  margin-top: -1px;
+}
+/* 모서리는 여기서 정합니다. 자식이 인라인 style로 border-radius를 주면
+   이 규칙을 덮어버려서 첫/마지막 카드 모서리가 안 깎입니다. */
+.alert-group > * {
+  border-radius: var(--radius-card);
+}
+.alert-group > :first-child {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.alert-group > :last-child {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+.alert-group > :not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+/* 경보·판정 보류 카드의 근거 두 칸 — 서류측 | 현실측.
+   사이에 세로 구분선을 둡니다. 간격만으로는 두 칸이 하나의 목록처럼
+   이어져 보여서, 무엇과 무엇을 대조하는지가 안 읽힙니다. */
+.evidence-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.evidence-columns > * + * {
+  border-inline-start: 1px solid var(--border-default);
+  padding-inline-start: var(--space-3);
+}
+
+/* 좁아지면 두 칸을 위아래로 쌓고, 구분선도 가로로 눕힙니다 */
+@media (max-width: 640px) {
+  .evidence-columns {
+    grid-template-columns: 1fr;
+  }
+  .evidence-columns > * + * {
+    border-inline-start: none;
+    padding-inline-start: 0;
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--space-3);
+  }
+}

@@ -7,12 +7,29 @@
  *   · 아직 추출되지 않음(NOT_FOUND) → 근거가 없으니 값을 지어내면 안 됨
  *   · 추출됐지만 확인이 필요함(ADVISORY·REQUIRED) → 값은 보여주되 그대로 믿지 말 것
  *
- * 그래서 등급 판정은 toConfidenceGrade 하나로만 하고(규약 §2.4 / CLAUDE.md 5번),
- * 카드는 여기서 돌려주는 결과만 그립니다.
+ * 그래서 등급 판정은 shared/shipmentStats의 effectiveGradeOf 하나로만 하고
+ * (규약 §2.4 / CLAUDE.md 5번), 카드는 여기서 돌려주는 결과만 그립니다.
  */
 
-import { CONFIDENCE, toConfidenceGrade } from '../../constants/domain';
-import type { FieldValue } from '../../types/domain';
+import { CONFIDENCE } from '../../constants/domain';
+import { effectiveGradeOf, type EditedValues } from '../../shared/shipmentStats';
+import type { ConfidenceGrade, FieldValue } from '../../types/domain';
+
+/**
+ * S1에는 편집 상태가 없어서 빈 객체를 씁니다.
+ *
+ * 그래도 toConfidenceGrade를 직접 부르지 않고 effectiveGradeOf를 거치는 이유:
+ * M-2("사람이 고친 값을 어떤 등급으로 볼 것인가") 규칙이 바뀌면 S3만 따라가고
+ * S1은 옛 규칙에 남는 일을 막기 위해서입니다. 지금은 결과가 같지만, 규칙이
+ * 한 곳에만 있어야 어긋나지 않습니다.
+ */
+const NO_EDITS: EditedValues = {};
+
+/** 이 필드가 지금 갖는 신뢰도 등급 */
+export function gradeOf(fields: FieldValue[], fieldName: string): ConfidenceGrade | null {
+  const field = findField(fields, fieldName);
+  return field === undefined ? null : effectiveGradeOf(field, NO_EDITS);
+}
 
 /** 근거가 없어 값을 못 보여줄 때 쓰는 문구. CONFIDENCE에 정의된 것을 그대로 씁니다 */
 export const NO_SOURCE_LABEL = CONFIDENCE.NOT_FOUND.label;
@@ -28,7 +45,7 @@ function findField(fields: FieldValue[], fieldName: string): FieldValue | undefi
 export function valueOf(fields: FieldValue[], fieldName: string): string | null {
   const field = findField(fields, fieldName);
   if (field === undefined) return null;
-  if (toConfidenceGrade(field) === 'NOT_FOUND') return null;
+  if (effectiveGradeOf(field, NO_EDITS) === 'NOT_FOUND') return null;
   return field.value;
 }
 
@@ -41,15 +58,14 @@ export function valueOf(fields: FieldValue[], fieldName: string): string | null 
 export function normalizedOf(fields: FieldValue[], fieldName: string): string | null {
   const field = findField(fields, fieldName);
   if (field === undefined) return null;
-  if (toConfidenceGrade(field) === 'NOT_FOUND') return null;
+  if (effectiveGradeOf(field, NO_EDITS) === 'NOT_FOUND') return null;
   return field.normalized_value;
 }
 
-/** 이 필드가 지금 "필수 확인"이라 검증을 막고 있는지 (카드에서 경고 표시용) */
+/** 이 필드가 지금 "필수 확인"이라 검증을 막고 있는지 */
 export function isBlocking(fields: FieldValue[], fieldName: string): boolean {
-  const field = findField(fields, fieldName);
-  if (field === undefined) return false;
-  return CONFIDENCE[toConfidenceGrade(field)].blocksVerify;
+  const grade = gradeOf(fields, fieldName);
+  return grade === null ? false : CONFIDENCE[grade].blocksVerify;
 }
 
 /**

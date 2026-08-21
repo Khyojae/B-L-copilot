@@ -303,8 +303,13 @@ export const mockVerdicts: Verdict[] = [
     target_fields: ['no_of_packages'],
     result: 'DEFERRED',
     severity: 'Critical',
-    message: '포장 수량 교차 검사가 보류되었습니다. measurement 필드가 필수 확인 상태입니다.',
-    action_hint: 'measurement 값을 확인하면 검사가 재개됩니다.',
+    // ⚠ 판정 메시지에는 영문 필드명 대신 한글 표시명(FIELD_LABEL)을 씁니다.
+    //   화면은 한글 라벨로 통일했는데 메시지만 measurement처럼 영문이 섞이면
+    //   같은 필드가 두 이름으로 보입니다.
+    //   실제 API가 붙으면 이 문자열은 백엔드가 만들어 내려주므로 같은 문제가
+    //   다시 생깁니다 — BE_판정메시지_필드표기.md 참고.
+    message: '포장 수량 교차 검사가 보류되었습니다. 용적 필드가 필수 확인 상태입니다.',
+    action_hint: '용적 값을 확인하면 검사가 재개됩니다.',
     evidence: {
       clause_text: '서류 간 정합성 — B/L·포장명세서·송장의 포장 수량 합계 일치',
     },
