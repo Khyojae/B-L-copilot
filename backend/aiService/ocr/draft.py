@@ -383,23 +383,29 @@ def _review_reason(
     if _echoes_label(value):
         return ReviewReason.LABEL_ECHOED
 
-    # 앵커 추출은 OCR 신뢰도가 높아도 매핑이 틀렸을 수 있다.
-    # 핵심 필드에 한해서만 확인을 요구한다 — 전 필드에 걸면
-    # 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다.
-    if is_critical and fields.provenance.get(name) == "anchor":
-        return ReviewReason.ANCHOR_DERIVED
-
-    # 구역 좌표를 보정하지 않은 형식에서 구역으로 잡힌 핵심 필드.
+    # 구역 좌표를 보정하지 않은 형식(pdf-text·excel·email-body)의 핵심 필드.
     #
-    # 위 세 검사가 전부 통과해도 값이 틀릴 수 있다. 신뢰도는 1.0 으로 고정이고,
-    # 항목명이 섞이지 않은 채 **옆 칸 값이 통째로 들어오는** 경우가 남는다.
-    # 그런 값은 겉보기에 정상이라 사람이 보지 않으면 걸러지지 않는다.
+    # 이 형식은 `field_parser.FieldParser` 가 **앵커를 먼저** 본다(구역 좌표를
+    # 믿을 수 없어서) — 그래서 이 형식의 값은 대부분 `provenance == "anchor"`
+    # 로 온다. 아래 ANCHOR_DERIVED 보다 이 검사를 먼저 두는 이유가 그것이다 —
+    # 같은 "anchor" 출처라도 이 형식에서는 **의도된** 선택이라 사유가 다르고,
+    # 화면 문구도 "이 형식은 필드 위치가 서식마다 다릅니다"가 더 구체적이다.
+    # 신뢰도는 1.0 으로 고정이라 그런 값은 겉보기에 정상이라 사람이 보지
+    # 않으면 걸러지지 않는다.
     #
     # 핵심 필드로 한정하는 이유는 ANCHOR_DERIVED 와 같다 — 전 필드에 걸면
     # 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다. 5개면 화면에서
     # 훑을 만하고, 이 다섯이 틀리면 하자 검증 결과 전체가 무의미해진다.
     if is_critical and source in _UNCALIBRATED_SOURCES:
         return ReviewReason.UNCALIBRATED_LAYOUT
+
+    # 앵커 추출은 OCR 신뢰도가 높아도 매핑이 틀렸을 수 있다. 위에서 걸리지
+    # 않은 나머지 경우(보정된 레이아웃인데 구역이 비어 앵커로 떨어진 경우)만
+    # 여기 남는다.
+    # 핵심 필드에 한해서만 확인을 요구한다 — 전 필드에 걸면
+    # 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다.
+    if is_critical and fields.provenance.get(name) == "anchor":
+        return ReviewReason.ANCHOR_DERIVED
 
     if confidence is not None and confidence < threshold:
         return ReviewReason.LOW_CONFIDENCE

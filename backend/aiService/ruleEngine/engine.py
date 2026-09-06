@@ -148,6 +148,14 @@ class RuleEngine:
                 f"bl 은 dict 또는 BLFields 여야 합니다 (받은 형: {type(bl).__name__})"
             )
 
+        # parse_date()가 만드는 서류상 날짜는 항상 naive(tzinfo 없음)다.
+        # as_of가 tz-aware로 들어오면(JS toISOString()의 "Z" 접미 등)
+        # 날짜 룰의 aware-naive 뺄셈이 TypeError를 던지고, 룰 루프의
+        # 예외 흡수 때문에 조용히 '평가불가'로 사라진다. 여기서 한 번만
+        # naive로 맞춰 모든 날짜 룰이 이 문제를 피하게 한다.
+        if as_of is not None and as_of.tzinfo is not None:
+            as_of = as_of.replace(tzinfo=None)
+
         lc = lc or LCTerms()
         # 어떤 카탈로그로 판정했는지를 결과에 박아 둔다(기획안 5.3·5.8).
         # 판정 시점에 붙이지 않으면 나중에 되짚을 방법이 없다 — 그때 남아
@@ -298,7 +306,26 @@ def _validate_catalog(rules: List[dict]) -> None:
         )
 
 
+# 형식 오류 위반의 고정 가중치. 룰 자신의 weight(critical 룰은 0.30~0.40)를
+# 그대로 쓰면 "날짜를 못 읽었다"는 약한 신호가 실제 위반과 같은 크기로
+# defect_probability에 반영된다 — 이 카탈로그의 warning 룰들(0.08~0.15)과
+# 같은 대역으로 맞춘다(P1-15).
+_FORMAT_ERROR_WEIGHT = 0.10
+
+
 def _to_violation(rule: dict, outcome: CheckOutcome) -> Violation:
+    if outcome.format_error:
+        return Violation(
+            rule_id=rule["id"],
+            severity=Severity.WARNING,
+            title="날짜 형식 오류",
+            message=outcome.reason,
+            fields=list(rule.get("fields") or []),
+            source=rule.get("source", ""),
+            remedy="날짜 형식을 확인하고 다시 추출하거나 직접 입력하세요.",
+            weight=_FORMAT_ERROR_WEIGHT,
+            observed=outcome.observed or {},
+        )
     return Violation(
         rule_id=rule["id"],
         severity=Severity(rule["severity"]),
