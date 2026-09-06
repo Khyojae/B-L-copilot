@@ -1,0 +1,26 @@
+# 이 카탈로그 버전의 정체와 계보.
+#
+# 옛 버전 디렉터리를 이미지에서 지우면 그 시기의 판정을 재현할 수 없다.
+# deprecates 로 계보를 남기고, 기동 시 모든 버전을 검증한다.
+version: 1
+catalog_version: std-2026.1
+effective_date: 2026-01-01
+deprecates: []
+files:
+  - glossary.yaml
+  - locode.yaml
+sources:
+  - authority: UN/LOCODE
+    note: 항구·지명. locode.yaml
+  - authority: UN/ECE Rec 20
+    note: 수량·용적 단위 코드
+  - authority: Incoterms 2020
+    note: 가격조건. 장소 병기 필수
+  - authority: ISBP 745
+    note: 관행 문구
+  - authority: ISO 6346
+    note: 컨테이너 번호. 체크디지트는 알고리즘이므로 사전 항목은 선사 접두뿐
+  - authority: DCSA · 업계 관행
+    note: 운송서류 용어·인도 관련
+  - authority: HS
+    note: 품목 분류. 예시 코드만. 관세율표 미적재

@@ -1,0 +1,773 @@
+# 표준 용어 사전 — 항구·지명 (UN/LOCODE)
+#
+# bl_form: 선하증권(B/L) 면에 실제로 인쇄되는 대문자 영문 항구명이다.
+#          canonical(UN/LOCODE 코드)은 EDIFACT·세관 매니페스트·DCSA eBL
+#          데이터 레이어에만 쓰이고 선박회사가 발행하는 B/L 면에는 절대
+#          인쇄되지 않는다 — F2 는 항구 제안 시 canonical 이 아니라 이
+#          필드를 쓴다(UCP 600 제20조: 서류는 L/C 문언과 일치해야 한다).
+#
+# 룰 카탈로그(f3_rules/rules.yaml)와 같은 이유로 데이터다 — 화면·리포트가
+# 근거를 인용해야 하고, 코드에 하드코딩하면 리포트가 출처를 지어내게 된다.
+#
+# verified: 이 항목의 UN/LOCODE 인용을 무역 실무자가 실제 출처와 대조해
+#           확인했는지. 생략하면 미검증이다.
+#           GET /glossary 와 기동 로그가 미검증 건수를 보고한다.
+#
+# 2026-08-16 1차 감사: 명백한 오류(공항 코드 오용, 내륙 도시, 존재하지 않는
+# 코드)를 제거·교정했다. 확신이 없는 항목은 채우지 않고 삭제했다. (63→52건)
+# 동음이의 쌍: PORTLAND(USPDX/AUPTJ), NEWCASTLE(GBNCL/AUNTL),
+# VICTORIA(CAVIC/SCVIC), TRIPOLI(LYTIP/LBKYE).
+#
+# 2026-08-16 T20a 출처 검증(52건 전수): UNECE UN/LOCODE 공식 디렉터리
+# (unlocode.unece.org) 라이브 조회로 전수 대조했다. China 8건 전부와
+# AUPTL·ESVAL 총 10건이 실제로는 다른 지명(공항 코드 또는 완전히 다른
+# 도시)을 가리키고 있어 올바른 코드로 교정했다 — canonical·term_id·display
+# 를 함께 고쳤다. 나머지 42건은 대조 후 verified: true 를 달았다. IDTPP 는
+# 코드-지명 일치는 확인됐으나 UNECE 라이브 데이터의 Function 필드 자체가
+# 이상해 각 항목의 note 에 남겨 뒀다 — 항목별 note 참조.
+
+version: 1
+catalog_version: std-2026.1
+effective_date: 2026-01-01
+
+terms:
+  # === 한국 (9개) ===
+  - term_id: PORT.KRPUS
+    canonical: KRPUS
+    display: KRPUS (Busan)
+    bl_form: BUSAN
+    category: port
+    lang: code
+    country: KR
+    aliases: [부산, 부산항, BUSAN, PUSAN, PUS, "BUSAN, KOREA", "PUSAN, KOREA", BUSAN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리(unlocode.unece.org) 라이브 조회 — Function 1234567- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRINC
+    canonical: KRINC
+    display: KRINC (Incheon)
+    bl_form: INCHEON
+    category: port
+    lang: code
+    country: KR
+    aliases: [인천, 인천항, INCHEON, INCHON, "INCHEON, KOREA", INCHEON PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 123----- (Port 포함) 확인. KRICN(인천공항)과 별개 코드임을 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRKPO
+    canonical: KRKPO
+    display: KRKPO (Pohang)
+    bl_form: POHANG
+    category: port
+    lang: code
+    country: KR
+    aliases: [포항, 포항항, POHANG, "POHANG, KOREA", POHANG PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1234---- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRUSN
+    canonical: KRUSN
+    display: KRUSN (Ulsan)
+    bl_form: ULSAN
+    category: port
+    lang: code
+    country: KR
+    aliases: [울산, 울산항, ULSAN, "ULSAN, KOREA", ULSAN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1234---- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRMAS
+    canonical: KRMAS
+    display: KRMAS (Masan)
+    bl_form: MASAN
+    category: port
+    lang: code
+    country: KR
+    aliases: [마산, 마산항, MASAN, "MASAN, KOREA", MASAN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 123----- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRKAN
+    canonical: KRKAN
+    display: KRKAN (Gwangyang)
+    bl_form: GWANGYANG
+    category: port
+    lang: code
+    country: KR
+    aliases: [광양, 광양항, GWANGYANG, KWANGYANG, "GWANGYANG, KOREA", GWANGYANG PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 123----- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRTGH
+    canonical: KRTGH
+    display: KRTGH (Donghae)
+    bl_form: DONGHAE
+    category: port
+    lang: code
+    country: KR
+    aliases: [동해, 동해항, DONGHAE, TONGHAE, "DONGHAE, KOREA", DONGHAE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 123----- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.KRCHA
+    canonical: KRCHA
+    display: KRCHA (Jeju)
+    bl_form: JEJU
+    category: port
+    lang: code
+    country: KR
+    aliases: [제주, 제주항, JEJU, CHEJU, "JEJU, KOREA", JEJU PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 이전 감사가 locode.info 2019-2 데이터셋으로만 확인한 항목 — 이번에 UNECE 공식 디렉터리 라이브 조회로 재확인. Function 1-34---- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.KRSHO
+    canonical: KRSHO
+    display: KRSHO (Sokcho)
+    bl_form: SOKCHO
+    category: port
+    lang: code
+    country: KR
+    aliases: [속초, 속초항, SOKCHO, "SOKCHO, KOREA", SOKCHO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1-3----- (Port 포함) 확인 · locode.info 교차 확인 (2026-08-16)
+
+  # === 중국 (8개) ===
+  # 2026-08-16 T20a 검증에서 8건 전부 오류로 확인됐다. 기존 코드(SHA·TAO·NGB·TSN·
+  # XMN·CAN·DLC·WUH)는 UNECE 공식 디렉터리(unlocode.unece.org) 라이브 조회 결과
+  # 전부 Function=---4---- (Air transport 전용) — 즉 항구가 아니라 같은 이름의
+  # "국제공항" 코드였다(IATA 코드와 그대로 일치). 실제 항구는 별도 3자리 코드를
+  # 쓴다. 이전 감사(63→52건)가 잡아낸 MYKUL·IDCGK·JPHND 와 동일한 유형의 오류가
+  # 중국 8건 전체에 남아 있었던 것 — 그 감사 패스가 놓친 항목이다.
+  - term_id: PORT.CNSHG
+    canonical: CNSHG
+    display: CNSHG (Shanghai)
+    bl_form: SHANGHAI
+    category: port
+    lang: code
+    country: CN
+    aliases: [상하이, 상해, SHANGHAI, "SHANGHAI, CHINA", SHANGHAI PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNSHA 는 UNECE 공식 데이터상 "Shanghai Hongqiao International Apt"(Function ---4----, 공항 전용) — 해항 코드가 아니다. 실제 항구는 CNSHG "Shanghai Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + Wikipedia(Port of Shanghai 인포박스가 CNSHG 명시) 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNQDG
+    canonical: CNQDG
+    display: CNQDG (Qingdao)
+    bl_form: QINGDAO
+    category: port
+    lang: code
+    country: CN
+    aliases: [칭다오, 청도, QINGDAO, TSINGTAO, "QINGDAO, CHINA", QINGDAO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNTAO 는 UNECE 공식 데이터상 "Qingdao Jiaodong International Apt"(공항 전용) — 해항 코드가 아니다. 실제 항구는 CNQDG "Qingdao Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + MagicPort·FluentCargo 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNNBG
+    canonical: CNNBG
+    display: CNNBG (Ningbo)
+    bl_form: NINGBO
+    category: port
+    lang: code
+    country: CN
+    aliases: [닝보, 영파, NINGBO, "NINGBO, CHINA", NINGBO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNNGB 는 UNECE 공식 데이터상 "Ningbo Lishe International Apt"(공항 전용) — 해항 코드가 아니다. 실제 항구는 CNNBG "Ningbo Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + MagicPort 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNTXG
+    canonical: CNTXG
+    display: CNTXG (Tianjin Xingang)
+    bl_form: TIANJIN XINGANG
+    category: port
+    lang: code
+    country: CN
+    aliases: [톈진, 천진, 신강, TIANJIN, TIENTSIN, XINGANG, "TIANJIN, CHINA", TIANJIN PORT, TIANJIN XINGANG]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNTSN 은 UNECE 공식 데이터상 "Tianjin Binhai International Apt"(공항 전용) — 해항 코드가 아니다. 실제 컨테이너 주력 터미널은 CNTXG "Tianjin Xingang Pt"(신강, Function 1-------)로 정정 — Tianjin 시내 일반 항구 코드 CNTNG 보다 신강이 실무 컨테이너 물동량 주력. UNECE 공식 디렉터리 + Wikipedia(Port of Tianjin) + Cogoport·Flexport 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNXMG
+    canonical: CNXMG
+    display: CNXMG (Xiamen)
+    bl_form: XIAMEN
+    category: port
+    lang: code
+    country: CN
+    aliases: [샤먼, 아모이, XIAMEN, AMOY, "XIAMEN, CHINA", XIAMEN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNXMN 은 UNECE 공식 데이터상 "Xiamen Gaoqi International Apt"(공항 전용) — 해항 코드가 아니다. 실제 항구는 CNXMG "Xiamen Pt"(Function 1-------)로 정정 — 여러 트레이드 소스가 CNXMG 를 실무 표준 코드로 명시. UNECE 공식 디렉터리 + FreightAmigo·FluentCargo 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNGZG
+    canonical: CNGZG
+    display: CNGZG (Guangzhou)
+    bl_form: GUANGZHOU
+    category: port
+    lang: code
+    country: CN
+    aliases: [광저우, GUANGZHOU, CANTON, "GUANGZHOU, CHINA", "CANTON, CHINA", GUANGZHOU PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNCAN 은 UNECE 공식 데이터상 "Guangzhou Baiyun International Apt"(공항 전용) — 해항 코드가 아니다. 실제 항구는 CNGZG "Guangzhou Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + MagicPort 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNDAG
+    canonical: CNDAG
+    display: CNDAG (Dalian)
+    bl_form: DALIAN
+    category: port
+    lang: code
+    country: CN
+    aliases: [다롄, 대련, DALIAN, DAIREN, "DALIAN, CHINA", DALIAN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNDLC 는 UNECE 공식 데이터상 "Dalian Zhoushuizi International Apt"(공항 전용) — 해항 코드가 아니다. 실제 항구는 CNDAG "Dalian Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + MarineTraffic·RatesAgent 교차 확인 (2026-08-16)
+
+  - term_id: PORT.CNWHG
+    canonical: CNWHG
+    display: CNWHG (Wuhan)
+    bl_form: WUHAN
+    category: port
+    lang: code
+    country: CN
+    aliases: [우한, WUHAN, "WUHAN, CHINA", WUHAN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 CNWUH 는 UNECE 공식 데이터상 "Wuhan Tianhe International Apt"(공항 전용) — 해항조차 아니었다. 실제 항구는 CNWHG "Wuhan Pt"(Function 1-------)로 정정. UNECE 공식 디렉터리 + MarineTraffic·locode.info 교차 확인 (2026-08-16). 단, Wuhan 자체는 여전히 양쯔강 하천항(Wikipedia 표현으로 "natural river port")이라 해상 B/L 용도 적합성은 별도 실무 확인이 필요 — 코드 정확성과 용도 적합성은 별개 문제다
+
+  # === 일본 (5개) ===
+  - term_id: PORT.JPYOK
+    canonical: JPYOK
+    display: JPYOK (Yokohama)
+    bl_form: YOKOHAMA
+    category: port
+    lang: code
+    country: JP
+    aliases: [요코하마, YOKOHAMA, "YOKOHAMA, JAPAN", YOKOHAMA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.JPTYO
+    canonical: JPTYO
+    display: JPTYO (Tokyo)
+    bl_form: TOKYO
+    category: port
+    lang: code
+    country: JP
+    aliases: [도쿄, 동경, TOKYO, "TOKYO, JAPAN", TOKYO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인. JPHND(하네다)는 별개의 공항 전용 코드임을 재확인 (2026-08-16)
+
+  - term_id: PORT.JPUKB
+    canonical: JPUKB
+    display: JPUKB (Kobe)
+    bl_form: KOBE
+    category: port
+    lang: code
+    country: JP
+    aliases: [고베, KOBE, "KOBE, JAPAN", KOBE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.JPNGO
+    canonical: JPNGO
+    display: JPNGO (Nagoya)
+    bl_form: NAGOYA
+    category: port
+    lang: code
+    country: JP
+    aliases: [나고야, NAGOYA, "NAGOYA, JAPAN", NAGOYA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.JPOSA
+    canonical: JPOSA
+    display: JPOSA (Osaka)
+    bl_form: OSAKA
+    category: port
+    lang: code
+    country: JP
+    aliases: [오사카, OSAKA, "OSAKA, JAPAN", OSAKA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  # === 동남아 (8개) ===
+  - term_id: PORT.SGSIN
+    canonical: SGSIN
+    display: SGSIN (Singapore)
+    bl_form: SINGAPORE
+    category: port
+    lang: code
+    country: SG
+    aliases: [싱가포르, SINGAPORE, "SINGAPORE, SINGAPORE", SINGAPORE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.HKHKG
+    canonical: HKHKG
+    display: HKHKG (Hong Kong)
+    bl_form: HONG KONG
+    category: port
+    lang: code
+    country: HK
+    aliases: [홍콩, HONG KONG, "HONG KONG, HONG KONG", HONG KONG PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.PHMNL
+    canonical: PHMNL
+    display: PHMNL (Manila)
+    bl_form: MANILA
+    category: port
+    lang: code
+    country: PH
+    aliases: [마닐라, MANILA, "MANILA, PHILIPPINES", MANILA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.THBKK
+    canonical: THBKK
+    display: THBKK (Bangkok)
+    bl_form: BANGKOK
+    category: port
+    lang: code
+    country: TH
+    aliases: [방콕, BANGKOK, "BANGKOK, THAILAND", BANGKOK PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.THLCH
+    canonical: THLCH
+    display: THLCH (Laem Chabang)
+    bl_form: LAEM CHABANG
+    category: port
+    lang: code
+    country: TH
+    aliases: [람차방, LAEM CHABANG, "LAEM CHABANG, THAILAND", LAEM CHABANG PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1-3----- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.MYPKG
+    canonical: MYPKG
+    display: MYPKG (Port Klang)
+    bl_form: PORT KLANG
+    category: port
+    lang: code
+    country: MY
+    aliases: [포트클랑, PORT KLANG, PORT KELANG, "PORT KLANG, MALAYSIA"]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 123-5--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.IDTPP
+    canonical: IDTPP
+    display: IDTPP (Tanjung Priok / Jakarta)
+    bl_form: TANJUNG PRIOK
+    category: port
+    lang: code
+    country: ID
+    aliases: [탄중프리옥, TANJUNG PRIOK, 자카르타, JAKARTA, "JAKARTA, INDONESIA", "TANJUNG PRIOK, INDONESIA"]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 코드-지명 일치는 확인됨(UNECE 공식 디렉터리상 Tanjung Priok, 자카르타 JK 관할, 실좌표 일치) — Wikipedia·MagicPort·SeaRates·ShipNext 등 8곳 이상이 IDTPP 를 인도네시아 최대 해항으로 일관 확인. 단, UNECE 라이브 데이터의 Function 필드가 "--3-----"(도로만)로 표기돼 있어 항만(1) 플래그가 누락된 것으로 보인다 — 코드·지명 매칭은 확실하나 이 필드 자체의 정합성은 다음 사람이 재확인할 것 (2026-08-16)
+
+  - term_id: PORT.VNSGN
+    canonical: VNSGN
+    display: VNSGN (Ho Chi Minh City)
+    bl_form: HO CHI MINH CITY
+    category: port
+    lang: code
+    country: VN
+    aliases: [호찌민, 사이공, HO CHI MINH, SAIGON, "HO CHI MINH, VIETNAM", "SAIGON, VIETNAM", HO CHI MINH PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1-3456-- (Port 포함) 확인 (2026-08-16)
+
+  # === 미주 (8개) ===
+  - term_id: PORT.USLAX
+    canonical: USLAX
+    display: USLAX (Los Angeles)
+    bl_form: LOS ANGELES
+    category: port
+    lang: code
+    country: US
+    aliases: [로스앤젤레스, LOS ANGELES, "LOS ANGELES, CALIFORNIA", "LOS ANGELES, USA", LOS ANGELES PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.USSFO
+    canonical: USSFO
+    display: USSFO (San Francisco)
+    bl_form: SAN FRANCISCO
+    category: port
+    lang: code
+    country: US
+    aliases: [샌프란시스코, SAN FRANCISCO, "SAN FRANCISCO, CALIFORNIA", "SAN FRANCISCO, USA", SAN FRANCISCO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 코드는 UNECE 공식 디렉터리상 Function 1--45--- (Port 포함) 확인. 단, 실제 컨테이너 물동량 주력항은 오클랜드(USOAK, 동일 방식으로 Function 1--45--- 확인됨)다 — 샌프란시스코만 자체는 여객·소규모 화물 위주라 실무에서는 USOAK 을 더 흔히 쓴다는 점을 다음 사람이 참고할 것 (2026-08-16)
+
+  - term_id: PORT.USPDX
+    canonical: USPDX
+    display: USPDX (Portland, US-OR)
+    bl_form: PORTLAND
+    category: port
+    lang: code
+    country: US
+    aliases: [포틀랜드, PORTLAND, "PORTLAND, OREGON", "PORTLAND, USA", PORTLAND PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--4---- (Port 포함) 확인. 동음이의 쌍 PORTLAND 의 미국측 코드로 유효 (2026-08-16)
+
+  - term_id: PORT.USNYC
+    canonical: USNYC
+    display: USNYC (New York)
+    bl_form: NEW YORK
+    category: port
+    lang: code
+    country: US
+    aliases: [뉴욕, NEW YORK, NYC, "NEW YORK, NEW YORK", "NEW YORK, USA", NEW YORK PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.USHOU
+    canonical: USHOU
+    display: USHOU (Houston)
+    bl_form: HOUSTON
+    category: port
+    lang: code
+    country: US
+    aliases: [휴스턴, HOUSTON, "HOUSTON, TEXAS", "HOUSTON, USA", HOUSTON PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1-345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.CAVAN
+    canonical: CAVAN
+    display: CAVAN (Vancouver)
+    bl_form: VANCOUVER
+    category: port
+    lang: code
+    country: CA
+    aliases: [밴쿠버, VANCOUVER, "VANCOUVER, BRITISH COLUMBIA", "VANCOUVER, CANADA", VANCOUVER PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--45--- (Port 포함) 확인. CAYVR(밴쿠버 공항)는 별개 코드임을 재확인 (2026-08-16)
+
+  - term_id: PORT.CAVIC
+    canonical: CAVIC
+    display: CAVIC (Victoria, CA-BC)
+    bl_form: VICTORIA
+    category: port
+    lang: code
+    country: CA
+    aliases: [빅토리아, VICTORIA, "VICTORIA, BRITISH COLUMBIA", "VICTORIA, CANADA", VICTORIA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--4---- (Port 포함) 확인. 동음이의 쌍 VICTORIA 의 캐나다측 코드로 유효 (2026-08-16)
+
+  - term_id: PORT.CLVAP
+    canonical: CLVAP
+    display: CLVAP (Valparaiso)
+    bl_form: VALPARAISO
+    category: port
+    lang: code
+    country: CL
+    aliases: [발파라이소, VALPARAISO, "VALPARAISO, CHILE", VALPARAISO PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1234---- (Port 포함) 확인 (2026-08-16)
+
+  # === 유럽·오세아니아 (12개) ===
+  - term_id: PORT.AUSYD
+    canonical: AUSYD
+    display: AUSYD (Sydney)
+    bl_form: SYDNEY
+    category: port
+    lang: code
+    country: AU
+    aliases: [시드니, SYDNEY, "SYDNEY, NEW SOUTH WALES", "SYDNEY, AUSTRALIA", SYDNEY PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.AUMEL
+    canonical: AUMEL
+    display: AUMEL (Melbourne)
+    bl_form: MELBOURNE
+    category: port
+    lang: code
+    country: AU
+    aliases: [멜버른, MELBOURNE, "MELBOURNE, VICTORIA", "MELBOURNE, AUSTRALIA", MELBOURNE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.AUNTL
+    canonical: AUNTL
+    display: AUNTL (Newcastle, AU-NSW)
+    bl_form: NEWCASTLE
+    category: port
+    lang: code
+    country: AU
+    aliases: [뉴캐슬, NEWCASTLE, "NEWCASTLE, NEW SOUTH WALES", "NEWCASTLE, AUSTRALIA", NEWCASTLE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--4---- (Port 포함) 확인. 동음이의 쌍 NEWCASTLE 의 호주측 코드로 유효 (2026-08-16)
+
+  - term_id: PORT.AUPTJ
+    canonical: AUPTJ
+    display: AUPTJ (Portland, AU-VIC)
+    bl_form: PORTLAND
+    category: port
+    lang: code
+    country: AU
+    aliases: [포틀랜드, PORTLAND, "PORTLAND, VICTORIA", "PORTLAND, AUSTRALIA", PORTLAND PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 AUPTL 은 UNECE 공식 데이터상 퀸즐랜드주의 전혀 다른 항구 "Port Alma"(AU PTL, QLD)를 가리킨다 — 빅토리아주 포틀랜드가 아니다. 동음이의 쌍 PORTLAND 의 호주측 코드가 완전히 틀려 있었던 것. 실제 빅토리아주 포틀랜드 항은 AUPTJ(Function 1--4----, Port 포함)로 정정. UNECE 공식 디렉터리 + MagicPort·SeaRates·locode.info 교차 확인 (2026-08-16)
+
+  - term_id: PORT.NLAMS
+    canonical: NLAMS
+    display: NLAMS (Amsterdam)
+    bl_form: AMSTERDAM
+    category: port
+    lang: code
+    country: NL
+    aliases: [암스테르담, AMSTERDAM, "AMSTERDAM, NETHERLANDS", AMSTERDAM PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.NLRTM
+    canonical: NLRTM
+    display: NLRTM (Rotterdam)
+    bl_form: ROTTERDAM
+    category: port
+    lang: code
+    country: NL
+    aliases: [로테르담, ROTTERDAM, "ROTTERDAM, NETHERLANDS", ROTTERDAM PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.BEANR
+    canonical: BEANR
+    display: BEANR (Antwerp)
+    bl_form: ANTWERP
+    category: port
+    lang: code
+    country: BE
+    aliases: [앤트워프, ANTWERP, ANTWERPEN, "ANTWERP, BELGIUM", ANTWERP PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.DEHAM
+    canonical: DEHAM
+    display: DEHAM (Hamburg)
+    bl_form: HAMBURG
+    category: port
+    lang: code
+    country: DE
+    aliases: [함부르크, HAMBURG, "HAMBURG, GERMANY", HAMBURG PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인 (2026-08-16)
+
+  - term_id: PORT.DEBRE
+    canonical: DEBRE
+    display: DEBRE (Bremen)
+    bl_form: BREMEN
+    category: port
+    lang: code
+    country: DE
+    aliases: [브레멘, BREMEN, "BREMEN, GERMANY", BREMEN PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 12345--- (Port 포함) 확인. 코드 자체는 정확하나, 실제 컨테이너 물동량 주력은 브레머하펜(DEBRV, 동일 방식으로 Function 1234---- 확인됨)이다 — "브레멘항"이라는 통칭이 시내 부두보다 브레머하펜을 가리키는 경우가 실무상 더 많다는 점을 다음 사람이 참고할 것 (2026-08-16)
+
+  - term_id: PORT.ESVLC
+    canonical: ESVLC
+    display: ESVLC (Valencia, ES)
+    bl_form: VALENCIA
+    category: port
+    lang: code
+    country: ES
+    aliases: [발렌시아, VALENCIA, "VALENCIA, SPAIN", VALENCIA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: 구 코드 ESVAL 은 UNECE 공식 데이터상 발렌시아가 아니라 갈리시아의 소도시 "Valga"(Function --3--6--, 항만 기능 없음)를 가리킨다 — 완전히 다른 지명이었다. 발렌시아 항의 실제 코드는 ESVLC(Function 12345----, Port 포함)로 정정. UNECE 공식 디렉터리 + MagicPort·MarineTraffic·Wikipedia(Port Authority of Valencia) 교차 확인 (2026-08-16)
+
+  - term_id: PORT.GBNCL
+    canonical: GBNCL
+    display: GBNCL (Newcastle, GB)
+    bl_form: NEWCASTLE
+    category: port
+    lang: code
+    country: GB
+    aliases: [뉴캐슬, NEWCASTLE, "NEWCASTLE, UNITED KINGDOM", NEWCASTLE PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1-34---- (Port 포함) 확인. 동음이의 쌍 NEWCASTLE 의 영국측 코드로 유효 (2026-08-16)
+
+  - term_id: PORT.SCVIC
+    canonical: SCVIC
+    display: SCVIC (Victoria, SC)
+    bl_form: VICTORIA
+    category: port
+    lang: code
+    country: SC
+    aliases: [빅토리아, VICTORIA, "VICTORIA, SEYCHELLES", VICTORIA PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE 공식 디렉터리 확인 결과 SCVIC(Function 1-3-----, status RL, 좌표 있음)·SCPOV "Port Victoria"(Function 1-------, status QQ=원출처 미검증, 좌표 없음) 둘 다 실재한다. SCVIC 쪽이 더 최근 관리되는 항목이고 실무 트레이드 사이트(MagicPort·ShipNext 등)도 둘 다 세이셸의 같은 항만권을 가리키는 실재 해항으로 취급 — 동음이의 쌍 VICTORIA 의 세이셸측 코드로 SCVIC 유효, SCPOV 는 동일 항만의 대체 코드로 병기해 둘 것 (2026-08-16)
+
+  # === 중동·아프리카 (2개) ===
+  - term_id: PORT.LYTIP
+    canonical: LYTIP
+    display: LYTIP (Tripoli, LY)
+    bl_form: TRIPOLI
+    category: port
+    lang: code
+    country: LY
+    aliases: [트리폴리, TRIPOLI, "TRIPOLI, LIBYA", TRIPOLI PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--4---- (Port 포함) 확인. 동음이의 쌍 TRIPOLI 의 리비아측 코드로 유효 (2026-08-16)
+
+  - term_id: PORT.LBKYE
+    canonical: LBKYE
+    display: LBKYE (Tripoli, LB)
+    bl_form: TRIPOLI
+    category: port
+    lang: code
+    country: LB
+    aliases: [트리폴리, TRIPOLI, "TRIPOLI, LEBANON", TRIPOLI PORT]
+    authority: UN/LOCODE
+    version: std-2026.1
+    effective_date: 2026-01-01
+    verified: true
+    note: UNECE UN/LOCODE 공식 디렉터리 대조 — Function 1--4---- (Port 포함) 확인. 동음이의 쌍 TRIPOLI 의 레바논측 코드로 유효 (2026-08-16)
