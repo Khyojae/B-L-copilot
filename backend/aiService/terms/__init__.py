@@ -1,13 +1,13 @@
 """F2 표준 용어 교정 — 공개 표면.
 
-`f3_rules/__init__.py` 와 같은 규약이다. 각 하위 모듈이 이미 손으로 쓴
+`ruleEngine/__init__.py` 와 같은 규약이다. 각 하위 모듈이 이미 손으로 쓴
 `__all__` 을 갖고 있고(§"모듈별 `__all__`" 규약, `types.py`·`glossary.py` 등
 머리말 참고), 여기서는 그 이름들을 패키지 최상위로 다시 노출할 뿐이다 — 새
 공개 규칙을 여기서 만들지 않는다. 묶음 순서는 파일명 알파벳순(`apply` →
 `cascade` → `glossary` → `keys` → `llm_select` → `policy` → `similarity` →
 `types` → `validators`)이고, 묶음 **안**에서는 각 모듈의 `__all__` 이 이미
 따르는 정렬(파이썬 기본 문자열 정렬 — 대문자가 소문자보다 먼저)을 그대로
-옮긴다. `f3_rules/__init__.py` 를 눈으로 비교하면 같은 모양이 보일 것이다.
+옮긴다. `ruleEngine/__init__.py` 를 눈으로 비교하면 같은 모양이 보일 것이다.
 
 ## `normalize_key`·`loose_key` 를 F6 을 위해 여기 명시로 둔다
 

@@ -182,7 +182,7 @@ def allows(term_class: str, stage: str) -> bool:
 
 # ── 필드 → 클래스 매핑 ───────────────────────────────────────────
 #
-# `f1_intake/types.py:BL_FIELD_NAMES` 와 `f1_intake/doc_types.py:SPECS` 의 실제 필드
+# `ocr/types.py:BL_FIELD_NAMES` 와 `ocr/doc_types.py:SPECS` 의 실제 필드
 # 이름을 확인하고 썼다(추측하지 않았다). 세 서류(선하증권·상업송장·
 # 포장명세서)에서 필드명이 겹치는 경우(`shipper`/`seller`, `consignee`/
 # `buyer`, `gross_weight`, `measurement`, `description_of_goods` 등)는 같은
@@ -320,7 +320,7 @@ TOP_K = 5
 def _env_flag(name: str) -> bool:
     """환경변수를 불리언으로. 미설정은 거짓이다.
 
-    `f1_intake/pipeline.py:27` 에 이미 같은 함수가 있지만 **임포트하지 않고
+    `ocr/pipeline.py:27` 에 이미 같은 함수가 있지만 **임포트하지 않고
     복사했다.** `ocr.pipeline` 을 임포트하면 그 파일이 끌고 오는
     `OCRExtractor`/`LLMFieldExtractor` 등 무거운 체인이 `terms` 에도
     따라붙는데, `terms` 는 F6 이 `ocr` 를 몰라도 가볍게 끌어 쓸 자리다

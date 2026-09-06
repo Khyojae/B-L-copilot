@@ -8,7 +8,7 @@
 실제로 기여했는지, 아니면 룰이 다 한 건지 구분할 수 없다.
 
 실행:
-    python -m f3_model.evaluate --count 2000
+    python -m mlModel.evaluate --count 2000
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from f3_rules.engine import RuleEngine
+from ruleEngine.engine import RuleEngine
 
 from .features import FEATURE_NAMES, RAW_FEATURE_NAMES, extract_features
 from .predictor import DefectPredictor

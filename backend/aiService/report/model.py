@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Dict, List, Optional
 
-from f3_rules.deadline import PresentationDeadline
+from ruleEngine.deadline import PresentationDeadline
 
 
 @dataclass

@@ -60,7 +60,7 @@ class TemplateNarrator:
 
         # 점수를 낸 주체를 문장에 박지 않는다 — 모델이 켜져 있으면
         # `defect_probability` 는 룰 가중치 합이 아니라 모델 확률이고
-        # (f4_report/builder.py), '규칙 기반'이라고 적으면 리포트 본문이
+        # (report/builder.py), '규칙 기반'이라고 적으면 리포트 본문이
         # 아래 상세표(산출: {model})와 어긋난 말을 하게 된다.
         parts = [
             f"위험도는 '{report.risk_level}'이며, 위험 점수는 "

@@ -1,7 +1,7 @@
 """
 F2 표준 용어사전 로더.
 
-`f3_rules/engine.py` 를 그대로 본뜬다 — `rules.yaml` 을 읽어 검증하고
+`ruleEngine/engine.py` 를 그대로 본뜬다 — `rules.yaml` 을 읽어 검증하고
 `RuleEngine` 을 만드는 자리에, 여기서는 `catalogs/<version>/*.yaml` 을 읽어
 검증하고 `Glossary`/`GlossaryStack` 을 만든다. 대응 관계:
 
@@ -20,7 +20,7 @@ F2 표준 용어사전 로더.
 
 `docs/ai-service/f2-standard-terms.md` §스키마가 정한 YAML 항목에는
 `lang`·`authority`·`version`(출처 표준의 판)·`effective_date`·`source` 가
-있지만, `f2_terms/types.py:GlossaryTerm` 은 이 중 어느 것도 필드로 갖지 않는다
+있지만, `terms/types.py:GlossaryTerm` 은 이 중 어느 것도 필드로 갖지 않는다
 (수정 금지 지시에 따라 이 파일은 `types.py` 를 고치지 않는다). 그래서:
 
 - 필수 키 검사(§스키마 9필드 포함)는 **원본 dict** 단계에서만 가능하다 —

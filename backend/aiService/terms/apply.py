@@ -84,7 +84,7 @@ _REASON_WHOLE_VS_SPAN = "같은 필드에 전체 치환 제안이 있어 부분 
 def suggestion_id(s: Suggestion) -> str:
     """제안 카드 하나를 결정론적으로 식별하는 id 를 만든다.
 
-    **HMAC 이 아니라 순수 해시다.** `f4_report/share.py` 의 서명키는
+    **HMAC 이 아니라 순수 해시다.** `report/share.py` 의 서명키는
     `secret_is_ephemeral` 규약대로 프로세스마다 달라질 수 있어 재현성이
     깨진다. 이 함수의 목적은 위조 방지가 아니라 **같은 입력에 같은 이름**
     이므로 표준 라이브러리 `hashlib` 만 쓴다(위조 자체는 `verify_suggestion_id`

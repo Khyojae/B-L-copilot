@@ -14,8 +14,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
-from f3_rules import deadline as deadline_rules
-from f3_rules.types import LCTerms, Verdict
+from ruleEngine import deadline as deadline_rules
+from ruleEngine.types import LCTerms, Verdict
 
 from .model import (
     ChecklistItem,

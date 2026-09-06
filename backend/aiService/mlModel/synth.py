@@ -28,8 +28,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional, Sequence, Tuple
 
-from f1_intake.types import BLFields
-from f3_rules.types import LCTerms
+from ocr.types import BLFields
+from ruleEngine.types import LCTerms
 
 from .corpus import BLRecord, CorpusSampler
 
@@ -282,7 +282,7 @@ class SyntheticGenerator:
         판정 경로를 무시하면 둘이 따로 놀아, `anchor_derived_ratio` 와
         `mean_confidence` 의 상관이 실물과 달라진다.
         """
-        from f1_intake.types import ANCHOR_CONFIDENCE_PENALTY
+        from ocr.types import ANCHOR_CONFIDENCE_PENALTY
 
         for name in bl.to_dict():
             if not getattr(bl, name):
@@ -545,7 +545,7 @@ def _reformat(original: str, moment: datetime) -> str:
     파서가 실제로 만나는 형식 다양성이 데이터에서 사라진다 — 실물을 쓰는
     이유 중 하나가 그것이다.
     """
-    from f3_rules.checks import DATE_FORMATS
+    from ruleEngine.checks import DATE_FORMATS
 
     cleaned = re.sub(r"\s+", " ", str(original).strip().upper())
     for fmt in DATE_FORMATS:
@@ -564,7 +564,7 @@ def _rule_engine():
     """기준 서류 검증용 룰엔진. 한 번만 만든다 (YAML 파싱이 매번 들어간다)."""
     global _RULE_ENGINE
     if _RULE_ENGINE is None:
-        from f3_rules import RuleEngine
+        from ruleEngine import RuleEngine
 
         _RULE_ENGINE = RuleEngine()
     return _RULE_ENGINE
@@ -609,7 +609,7 @@ def _lc_incoterms(value: Optional[str]) -> Optional[str]:
     """
     if not value:
         return None
-    from f3_rules.checks import INCOTERMS
+    from ruleEngine.checks import INCOTERMS
 
     upper = value.upper()
     for term in INCOTERMS:
@@ -621,7 +621,7 @@ def _lc_incoterms(value: Optional[str]) -> Optional[str]:
 def _parse_kg(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
-    from f3_rules.checks import parse_quantity
+    from ruleEngine.checks import parse_quantity
 
     return parse_quantity(value, "KG")
 
@@ -629,7 +629,7 @@ def _parse_kg(value: Optional[str]) -> Optional[float]:
 def _parse_money(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
-    from f3_rules.checks import parse_amount
+    from ruleEngine.checks import parse_amount
 
     amount = parse_amount(value)
     return amount if amount else None
@@ -640,6 +640,6 @@ def _fmt(dt: datetime) -> str:
 
 
 def parse_or(value: Optional[str], fallback: datetime) -> datetime:
-    from f3_rules.checks import parse_date
+    from ruleEngine.checks import parse_date
 
     return parse_date(value) or fallback if value else fallback

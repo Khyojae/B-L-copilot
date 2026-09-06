@@ -11,7 +11,7 @@ F2 ④유사도 단계 — 문자 3-gram Dice 랭커.
 
 임베딩이 들어올 자리를 `Ranker` Protocol 하나로 못박아 둔다. 이 파일이 그 유일한
 자리이고, 임베딩 구현이 들어와도 의존성은 **그 구현 파일 안에만** 들어간다 —
-`f4_report/llm_providers.py` 가 LLM 프로바이더를 `(system, user) -> str` 콜러블
+`report/llm_providers.py` 가 LLM 프로바이더를 `(system, user) -> str` 콜러블
 하나로 좁혀 둔 것과 같은 형태다. 폐쇄망 프로파일은 기본 `NGramRanker` 로 계속
 돈다. `Versions.ranker`(`types.py`)가 어느 구현이 돌았는지를 응답에 싣는다.
 

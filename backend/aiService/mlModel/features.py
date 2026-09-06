@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from f3_rules.checks import field_value, parse_date
-from f3_rules.types import LCTerms, Severity, Verdict
+from ruleEngine.checks import field_value, parse_date
+from ruleEngine.types import LCTerms, Severity, Verdict
 
 # 피처 순서는 학습·추론에서 반드시 같아야 한다. XGBoost 는 위치로 읽는다.
 FEATURE_NAMES: List[str] = [
@@ -129,7 +129,7 @@ def _ratio(numerator: int, denominator: int) -> float:
 
 
 def _bl_field_names(bl) -> List[str]:
-    from f1_intake.types import BL_FIELD_NAMES
+    from ocr.types import BL_FIELD_NAMES
 
     return list(BL_FIELD_NAMES)
 
