@@ -1,0 +1,45 @@
+# AI 검증 서비스 의존성 (Python 3.12)
+
+# ── 코어 ─────────────────────────────────────────────────────────
+# 라벨 JSON 경로(from_json)만 쓴다면 아래 코어만으로 F1 이 동작한다.
+# OCR·ML 은 무겁고 플랫폼을 타므로 아래 선택 그룹으로 분리했다.
+pydantic>=2.9,<3.0
+
+# ── OCR (F1) ─────────────────────────────────────────────────────
+# 3.x 는 2.x 와 반환 구조가 다르다(rec_texts/dt_polys/rec_scores).
+# extractor.py 는 3.x 만 지원하므로 하한을 고정한다.
+paddleocr>=3.6.0
+paddlepaddle>=3.0.0
+opencv-python>=4.10.0
+numpy>=1.26,<3.0
+# PDF 입력(`/extract/pdf`). 텍스트 레이어가 있는 PDF 는 이것만으로 끝나고
+# PaddleOCR 을 타지 않으므로, 위 두 줄 없이도 PDF 경로는 동작한다.
+# 리포트 PDF 본문 검증(test_report.py)에서도 쓴다.
+PyMuPDF>=1.24.0
+# 엑셀 입력(`/extract/excel`). 이메일 첨부가 엑셀인 경로도 이걸 탄다.
+# 이메일 자체는 표준 라이브러리(email)로 읽으므로 별도 의존성이 없다.
+openpyxl>=3.1.0
+
+# ── 하자 예측 (F3) ───────────────────────────────────────────────
+xgboost>=3.3.0
+scikit-learn>=1.5.0
+PyYAML>=6.0
+
+# ── 리포트 (F4) ──────────────────────────────────────────────────
+reportlab>=4.2.0
+
+# ── API ──────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+# api/main.py 가 기동 시 .env 를 읽는다. uvicorn[standard] 에 딸려 오기는
+# 하지만 그건 uvicorn 의 사정이므로, 직접 쓰는 이상 명시한다.
+python-dotenv>=1.0.0
+
+# ── 테스트 ───────────────────────────────────────────────────────
+# fastapi.testclient(=starlette TestClient)가 요구한다.
+# starlette 1.6.0 이 httpx2>=2.0.0 을 선언하므로 그 하한에 맞춘다.
+# (httpx2 는 pydantic/httpx2 — httpx 의 후속 프로젝트다)
+pytest>=8.3.0
+httpx2>=2.0.0
+# PyMuPDF 는 위 OCR 그룹에 있다 — PDF 입력과 리포트 PDF 검증이 같은 것을 쓴다.
