@@ -13,12 +13,14 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  /* 브랜드 색상 — 진한 남색/인디고. 버튼·링크·선택 상태에 씀.
+  /* 브랜드 색상 — 스카이블루 계열 (2026-08-18, S1 대시보드 시안 반영해 남색→
+     스카이블루로 전면 교체. 새 토큰 추가가 아니라 이 토큰 자체의 값 교체라
+     버튼·링크·활성 탭 등 이 변수를 쓰는 곳은 전부 자동으로 같이 바뀜).
      ⚠ --severity-info(파랑)와는 다른 색조라 서로 안 겹침. 심각도/신뢰도/상태
      색상(SEVERITY·CONFIDENCE·SHIPMENT_STATUS)은 절대 이 색으로 바꾸지 않음 */
-  --brand-primary: #1e3a5f;
-  --brand-primary-hover: #16293f;
-  --brand-primary-light: rgba(30, 58, 95, 0.08);
+  --brand-primary: #1f6b93;
+  --brand-primary-hover: #17567a;
+  --brand-primary-light: rgba(47, 134, 180, 0.12);
 
   /* 중립 색상 — 기존 --text/--text-h/--bg/--card-bg/--border의 별칭.
      원본 값은 그대로 두고 이름만 의미 단위로 하나 더 붙인 것이라, 다크모드
@@ -103,9 +105,13 @@
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 
-    --brand-primary: #5b84ac;
-    --brand-primary-hover: #75a0c4;
-    --brand-primary-light: rgba(91, 132, 172, 0.15);
+    /* 시안엔 다크 모드가 없음. 처음엔 라이트값을 밝힌 색을 계산해 넣었는데
+       흰 버튼 글씨 대비가 2.6:1로 너무 낮아서(기존 네이비 다크값은 4.07:1),
+       대신 시안이 링크·테두리에 쓰던 좀 더 밝은 액센트(#2f86b4)를 그대로
+       가져다 씀 — 대비 약 4.16:1로 기존 수준 유지 */
+    --brand-primary: #2f86b4;
+    --brand-primary-hover: #4a9dc7;
+    --brand-primary-light: rgba(47, 134, 180, 0.18);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
 
     --severity-critical: #f87171;
@@ -346,8 +352,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* 실제 폭은 DashboardPreview.tsx의 FRAME_WIDTH가 인라인으로 정합니다 —
+     여기서 값을 박아두면 배율(SCALE)을 바꿀 때마다 둘을 같이 고쳐야 합니다 */
   flex: 0 0 auto;
-  width: 440px;
   margin: 0;
 }
 
