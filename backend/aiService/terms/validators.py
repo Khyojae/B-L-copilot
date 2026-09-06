@@ -25,7 +25,7 @@ F2 결정론 검증기 — ISO 6346·Rec 20·Incoterms 2020·HS/HSK·UN/LOCODE·
 
 표준 라이브러리(`re`·`unicodedata`·`dataclasses`·`typing`)만 쓴다.
 `ruleEngine`·`ocr`·`yaml` 을 모듈 최상단에서 임포트하지 않는다 —
-`f2_terms/keys.py` 모듈 docstring 과 같은 이유로, F6 이 `terms` 를 가볍게
+`terms/keys.py` 모듈 docstring 과 같은 이유로, F6 이 `terms` 를 가볍게
 끌어 쓸 수 있어야 한다. 유일한 예외는
 `incoterms_consistent_with_checks()` 인데, 이 함수는 T13 테스트가 두
 INCOTERMS 튜플의 정합성을 잡기 위해서만 존재하고 함수 안에서 지연
@@ -34,7 +34,7 @@ INCOTERMS 튜플의 정합성을 잡기 위해서만 존재하고 함수 안에�
 
 ## `_LEGAL_SUFFIXES` 를 복사하는 이유
 
-`f3_rules/checks.py:_LEGAL_SUFFIXES` 를 **임포트하지 않고 복사**한다.
+`ruleEngine/checks.py:_LEGAL_SUFFIXES` 를 **임포트하지 않고 복사**한다.
 `ruleEngine` 을 임포트하면 그 파일이 끌고 오는 `.types`(`LCTerms`) 등이
 `terms` 에도 딸려 오는데, `terms` 는 F6 이 `ruleEngine` 을 몰라도 가볍게
 끌어 쓸 자리다(`keys.py`·`policy.py` 와 같은 논거). 20단어 남짓의 상수
@@ -353,7 +353,7 @@ def incoterms_consistent_with_checks() -> bool:
     쓰는 경로)에서 `ruleEngine` 을 끌어오지 않기 위해서다. 이 함수를
     실제로 부르는 것은 정합성 테스트뿐이다.
     """
-    from f3_rules.checks import INCOTERMS as _checks_incoterms
+    from ruleEngine.checks import INCOTERMS as _checks_incoterms
 
     return set(INCOTERMS_2020) == set(_checks_incoterms)
 
@@ -437,7 +437,7 @@ def locode_ok(text: str) -> bool:
 # 상호 접미 (party_suffix)
 # ════════════════════════════════════════════════════════════════
 
-# `f3_rules/checks.py:_LEGAL_SUFFIXES` 를 복사한다 — 모듈 docstring의
+# `ruleEngine/checks.py:_LEGAL_SUFFIXES` 를 복사한다 — 모듈 docstring의
 # "임포트 대신 복사" 논거. 원본과 어긋나면(원본에 새 접미가 추가되는 등)
 # 이 파일도 사람이 따로 갱신해야 하지만, 그 대가로 `terms` 가
 # `ruleEngine` 을 몰라도 된다.

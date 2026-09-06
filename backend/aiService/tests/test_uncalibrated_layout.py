@@ -72,8 +72,14 @@ class TestUncalibratedLayout:
             if f["review_reason"] == ReviewReason.UNCALIBRATED_LAYOUT.value
         ]
         assert flagged, "보정되지 않은 레이아웃인데 확인 유도가 없다"
-        # 저신뢰로 잡힌 것이 아니다 — 신뢰도는 만점이다.
-        assert all(f["confidence"] == 1.0 for f in flagged)
+        # 저신뢰로 잡힌 것이 아니다 — 텍스트 레이어라 애초에 OCR 불확실성이
+        # 없다. 앵커 경로를 탄 값은 ANCHOR_CONFIDENCE_PENALTY(0.85)가 곱해져
+        # 정확히 1.0은 아니지만, 그래도 LOW_CONFIDENCE 임계값(0.80, F1
+        # 파이프라인 기본값) 위라 신뢰도만으로는 확인 대상으로 잡히지 않는다
+        # — UNCALIBRATED_LAYOUT 이 그 빈틈을 잡는다는 것이 이 테스트의 요지다.
+        from ocr.types import LOW_CONFIDENCE_THRESHOLD
+
+        assert all(f["confidence"] >= LOW_CONFIDENCE_THRESHOLD for f in flagged)
 
     def test_핵심_필드만_대상이다(self, uncalibrated_pdf):
         # 전 필드에 걸면 확인 큐가 불어나 F1 의 시간 단축 효과가 사라진다.

@@ -1561,7 +1561,7 @@ terms:
   version: std-2026.1
   effective_date: '2026-01-01'
 # --- container_no (CTR.*) ---
-# 주의: 이 클래스는 policy 상 허용 단계가 pattern 뿐이라(f2_terms/policy.py),
+# 주의: 이 클래스는 policy 상 허용 단계가 pattern 뿐이라(terms/policy.py),
 # 캐스케이드는 아래 항목을 조회하지 않는다. 교정은 ISO 6346 체크디지트
 # 알고리즘과 자릿수 정규화가 전담한다. 아래 접두를 유지하는 이유:
 #  (1) display 의 선사명을 제안 메시지에 덧붙이는 표시 용도

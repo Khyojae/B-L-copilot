@@ -16,17 +16,17 @@ F2 ⑤단계 — LLM 후보 선정 (`docs/ai-service/f2-standard-terms.md` §"LL
 (주입 seam). 계약을 이 파일에서 다시 정의하면 두 곳의 정의가 갈라지는 날이
 온다.
 
-## `f4_report/llm_providers.py` 를 그대로 쓰는 이유
+## `report/llm_providers.py` 를 그대로 쓰는 이유
 
 새 프로바이더 코드를 쓰지 않는다. 프로바이더가 둘이 되면 폐쇄망 프로파일
 분기가 두 곳에 생기고 한 곳만 고치는 날이 온다(`llm_providers.py` 머리말).
-`build_completion` 은 **지연 임포트**한다(`f1_intake/llm_extract.py:124` 와 같은
+`build_completion` 은 **지연 임포트**한다(`ocr/llm_extract.py:124` 와 같은
 형태) — `terms` 는 F6 이 `ocr`/`report` 를 몰라도 가볍게 끌어 써야 하는
 자리이기 때문이다(`policy.py` 의 `_env_flag` 복사 논거와 같다).
 
 ## JSON 규율은 왜 복사했는가
 
-`_FENCE`·`_parse_json_object` 는 `f1_intake/llm_extract.py` 에서 **복사했다.
+`_FENCE`·`_parse_json_object` 는 `ocr/llm_extract.py` 에서 **복사했다.
 임포트하지 않는다** — `ocr` ↔ `terms` 패키지 결합을 만들지 않기 위해서다.
 20줄 중복이 패키지 간 결합보다 싸다는 것이 `HANDOFF.md` §4.4 의 판단이고
 이 파일도 같은 판단을 따른다.
@@ -55,7 +55,7 @@ from . import policy
 from .cascade import SelectionItem, SelectionOutcome
 from .types import Candidate, FieldRef, Notice
 
-# `f4_report/llm_providers.py:Completion` 과 같은 시그니처를 다시 선언한다(임포트
+# `report/llm_providers.py:Completion` 과 같은 시그니처를 다시 선언한다(임포트
 # 하지 않는다) — 타입 힌트만을 위해 `report` 패키지를 끌어올 이유가 없다.
 Completion = Callable[[str, str], str]
 
@@ -206,7 +206,7 @@ def _render_items(items: Sequence[SelectionItem]) -> Tuple[str, List[Notice]]:
 
 
 # ════════════════════════════════════════════════════════════════
-# JSON 규율 — `f1_intake/llm_extract.py` 에서 복사(임포트 아님). 모듈 docstring 참고.
+# JSON 규율 — `ocr/llm_extract.py` 에서 복사(임포트 아님). 모듈 docstring 참고.
 # ════════════════════════════════════════════════════════════════
 
 # 모델이 ```json 펜스로 감싸는 일이 흔하다. 프롬프트로 막아도 새므로 벗겨낸다.
@@ -214,7 +214,7 @@ _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
 
 def _parse_json_object(raw: str) -> Dict[str, object]:
-    """모델 응답에서 JSON 객체 하나를 꺼낸다. (`f1_intake/llm_extract.py` 와 동일 로직)"""
+    """모델 응답에서 JSON 객체 하나를 꺼낸다. (`ocr/llm_extract.py` 와 동일 로직)"""
     text = _FENCE.sub("", raw or "").strip()
     try:
         parsed = json.loads(text)
@@ -315,7 +315,7 @@ class LLMSelector:
         timeout: Optional[float] = None,
     ) -> None:
         # `complete` 를 주지 않으면 `_get_completion` 이 첫 호출에서 환경
-        # 설정으로 만든다(`f1_intake/llm_extract.py:LLMFieldExtractor` 와 같은
+        # 설정으로 만든다(`ocr/llm_extract.py:LLMFieldExtractor` 와 같은
         # 지연 해석 패턴 — 테스트가 매번 완성기를 새로 안 만들어도 되고,
         # 아직 설정이 없는 프로세스 기동 시점에 예외를 내지 않는다).
         self._complete = complete
@@ -381,11 +381,11 @@ class LLMSelector:
     def _get_completion(self) -> Optional[Completion]:
         """환경 설정에서 완성기를 만든다. 실패해도 예외를 던지지 않는다.
 
-        `f1_intake/llm_extract.py:LLMFieldExtractor._get_completion` 과 같은
+        `ocr/llm_extract.py:LLMFieldExtractor._get_completion` 과 같은
         모양이다 — 한 번만 시도하고 결과(성공이든 `None`이든)를 캐시한다.
         """
         if not self._resolved:
-            from f4_report.llm_providers import GeminiCompletion, build_completion  # 지연 임포트
+            from report.llm_providers import GeminiCompletion, build_completion  # 지연 임포트
 
             try:
                 completion = build_completion(os.getenv("LLM_PROVIDER", ""))
@@ -410,7 +410,7 @@ class LLMSelector:
 def default_selector() -> Optional[LLMSelector]:
     """환경 설정에서 선정기를 만든다. 미설정이면 조용히 `None` 이다.
 
-    `f4_report/narrative.py:default_narrator()` 의 형태를 따르되 갈라지는
+    `report/narrative.py:default_narrator()` 의 형태를 따르되 갈라지는
     지점이 하나 있다: narrative 는 요약이 반드시 있어야 해서 키가 없으면
     템플릿으로 떨어지지만, ⑤ 는 없어도 캐스케이드가 `requires_choice` 로
     정상 동작한다(§4.4 "기본값은 꺼짐" — 제안이 사라지는 게 아니라 자동

@@ -47,7 +47,7 @@ from glob import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from f1_intake.types import BL_FIELD_NAMES, BLFields
+from ocr.types import BL_FIELD_NAMES, BLFields
 
 # 이 여섯은 `rules.yaml` 의 `required` + `critical` 룰이 보는 필드다
 # (D001·D005·D011·D012·D012B·D022). 하나라도 비면 하자 주입 전부터 치명
@@ -163,7 +163,7 @@ def load_from_labels(
     터지면 4,000건 중 1건 때문에 전체가 죽는다. 몇 건이 버려졌는지는
     `load()` 가 보고한다.
     """
-    from f1_intake import IntakePipeline
+    from ocr import IntakePipeline
 
     paths = sorted(glob(str(Path(label_dir) / "*.json")))
     if limit:

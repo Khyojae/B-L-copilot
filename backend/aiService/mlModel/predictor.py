@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from f3_rules.types import LCTerms, Verdict
+from ruleEngine.types import LCTerms, Verdict
 
 from .features import FEATURE_NAMES, extract_features, select
 

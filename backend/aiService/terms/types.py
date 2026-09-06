@@ -1,7 +1,7 @@
 """
 F2 표준 용어 교정 공용 타입.
 
-`f3_rules/types.py` 가 F3 의 계약(`Verdict`·`Violation`)이듯 이 파일은
+`ruleEngine/types.py` 가 F3 의 계약(`Verdict`·`Violation`)이듯 이 파일은
 F2 의 계약이다. 같은 규약을 따른다 — `@dataclass` + 손으로 쓴 `to_dict()` +
 정렬된 `__all__`. **Pydantic 을 쓰지 않는다.** 이 프로젝트는 Pydantic 을
 `api/main.py` 경계(HTTP 스키마)에만 두고 안쪽 도메인 타입은 전부 순수
@@ -15,7 +15,7 @@ dataclass 다 — `terms` 가 HTTP 를 모르는 F6 에서도 `import` 만으로
 내야 하고, 그 조건문 하나가 빠지는 순간 유보된 값이 제안처럼 취급된다.
 
 `Correction.decided_at` 은 서버가 `datetime.now()` 를 불러 채우지 않고
-요청이 싣는다. `f3_rules/checks.py` 가 `rule.get("_as_of") or
+요청이 싣는다. `ruleEngine/checks.py` 가 `rule.get("_as_of") or
 datetime.now()` 로 호출부가 기준 시각을 주입하게 한 것과 같은 이유다 —
 F2 의 accept/reject 는 "무상태 유지, 순수 함수"라는 확정 결정(`HANDOFF.md`
 §2)을 진다. 함수 내부에서 시스템 시계를 읽으면 그 순간 순수성이 깨져
@@ -89,8 +89,8 @@ class Evidence:
     """제안 하나의 근거.
 
     `stage` 가 핵심이다 — §1의 세 번째 원칙("어느 경로로 나온 값인지가 값을
-    따라다닌다")을 담는 필드이며, `f4_report/narrative.py:Summary.source`·
-    `f1_intake/draft.py:DraftField.source` 와 같은 자리다. `policy.STAGE_*`
+    따라다닌다")을 담는 필드이며, `report/narrative.py:Summary.source`·
+    `ocr/draft.py:DraftField.source` 와 같은 자리다. `policy.STAGE_*`
     (`format`·`exact`·`alias`·`pattern`·`similarity`·`llm`) 중 캐스케이드가
     실제로 최종 확정에 쓴 값을 담는다. ⑤ LLM 호출이 실패하면 `stage` 는
     `"llm"` 이 **아니라** `"similarity"` 로 남는다 — 클래스 이름이 아니라

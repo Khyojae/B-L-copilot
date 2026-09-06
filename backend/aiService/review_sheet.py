@@ -51,6 +51,7 @@ CHECK_TEXT: Dict[str, str] = {
     "required_if_lc": "신용장이 그 조건을 지정했는데 서류에 값이 없으면 하자로 본다",
     "match_place": "서류의 지명·상호가 신용장 지정과 저촉하면 하자로 본다",
     "date_not_after": "서류 날짜가 신용장 기한을 넘으면 하자로 본다",
+    "presentation_before_expiry": "제시 시점이 신용장 유효기일을 넘으면 하자로 본다",
     "presentation_period": "선적일로부터 제시기간(기본 21일)이 지나면 하자로 본다",
     "date_not_in_future": "서류 날짜가 제시 시점보다 미래이면 하자로 본다",
     "numeric_not_above": "수치가 신용장 한도를 넘으면 하자로 본다",
@@ -61,6 +62,8 @@ CHECK_TEXT: Dict[str, str] = {
     "forbidden_when_prohibited": "신용장이 금지한 조건인데 서류에 그 정황이 있으면 하자로 본다",
     "freight_prepaid_required": "신용장이 운임 선불인데 서류에 후불 표시가 있으면 하자로 본다",
     "bl_in_documents_required": "신용장 요구 서류 목록에 선하증권이 없으면 알린다",
+    "bl_consignment_required": "신용장이 지시식 선하증권을 요구하는데 서류가 기명식이면 하자로 본다",
+    "on_board_required_when_received": "수취식 문언이 있는데 본선적재 부기가 없으면 하자로 본다",
     # 서류 간
     "same_party": "두 서류의 당사자 표기가 저촉하면 하자로 본다",
     "goods_compatible": "두 서류의 물품 명세가 저촉하면 하자로 본다",

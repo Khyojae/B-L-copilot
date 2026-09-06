@@ -31,6 +31,7 @@ CLEAN_BL = {
     "place_of_issue": "PUSAN",
     "on_board_date": "2026-06-01",
     "total_freight": "$1,741.56",
+    "no_of_original_bl": "THREE (3)",
 }
 
 CLEAN_LC = {
@@ -211,6 +212,7 @@ class TestMT700:
         ":44C:260630\n"
         ":44E:BUSAN, KOREA\n"
         ":44F:TOKYO, JAPAN\n"
+        ":44A:BUSAN PORT\n"
         ":47A:ALL DOCUMENTS MUST BEAR THE CREDIT NUMBER\n"
     )
 
@@ -225,9 +227,10 @@ class TestMT700:
 
     def test_못_읽은_것을_응답에_싣는다(self, client):
         # 화면이 이걸 못 받으면 검사하지 않은 조건이 검사된 것처럼 보인다.
+        # 44A(수령지)는 B/L 대조 항목이 아니라 자리가 없다.
         body = client.post("/lc/mt700", json={"text": self.MESSAGE}).json()
 
-        assert "47A" in body["unmapped"]
+        assert "44A" in body["unmapped"]
         assert body["notes"]
 
     def test_응답을_그대로_verify_에_실을_수_있다(self, client):

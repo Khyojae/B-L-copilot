@@ -9,9 +9,9 @@ F2 비교 키 — `normalize_key` / `loose_key`.
 
 | 위치 | 정규식 | 남기는 것 | 왜 |
 |---|---|---|---|
-| `f1_intake/doc_types.py:212` (`_normalize`) | `[^A-Z0-9가-힣 ]` | 한글 | `"선하증권"` 이 서류 종류 판별 키워드다 |
-| `f1_intake/field_parser.py` (`_locate_anchor`) | `[^A-Z0-9/ ]` | `/` | `"B/L NO"` 앵커가 슬래시를 쓴다 |
-| `f1_intake/draft.py:_normalize` | `[^A-Z0-9 ]` | 둘 다 버림 | 라벨 어휘 대조 |
+| `ocr/doc_types.py:212` (`_normalize`) | `[^A-Z0-9가-힣 ]` | 한글 | `"선하증권"` 이 서류 종류 판별 키워드다 |
+| `ocr/field_parser.py` (`_locate_anchor`) | `[^A-Z0-9/ ]` | `/` | `"B/L NO"` 앵커가 슬래시를 쓴다 |
+| `ocr/draft.py:_normalize` | `[^A-Z0-9 ]` | 둘 다 버림 | 라벨 어휘 대조 |
 
 셋이 다른 건 버그가 아니라 서로 다른 요구다. 통합하면 최소 두 호출부의
 동작이 바뀌는데, 그건 F1 의 가장 뜨겁고 가장 잘 테스트된 경로다. 얻는 것은

@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: smart-ebl-postgres
+    restart: unless-stopped
+    # env_file 은 쓰지 않습니다. compose가 프로젝트 루트 .env 를 자동으로 읽어 아래
+    # ${...} 치환에 사용하며, env_file 을 쓰면 AWS 키 등 무관한 값까지 DB 컨테이너로
+    # 주입됩니다.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required (.env 참고)}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required (.env 참고)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required (.env 참고)}
+      # initdb 시점에만 적용됩니다 (볼륨이 비어 있을 때).
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C.UTF-8"
+      TZ: ${TZ:-Asia/Seoul}
+    ports:
+      # 기본은 루프백 바인딩. Docker publish는 호스트 방화벽(ufw/firewalld)을 우회하므로
+      # 0.0.0.0 으로 열면 EC2 보안그룹만이 유일한 방어선이 됩니다.
+      - "${POSTGRES_BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18부터 이미지의 VOLUME 경로가 /var/lib/postgresql 로 변경되었습니다.
+      # (PGDATA = /var/lib/postgresql/18/docker)
+      - postgres-data:/var/lib/postgresql
+      # *.sql / *.sh 파일은 최초 기동(빈 볼륨) 시 1회만 실행됩니다.
+      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    # 기본 /dev/shm 64MB는 병렬 쿼리/대용량 정렬에서 부족합니다.
+    shm_size: 256mb
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smart_ebl} -d ${POSTGRES_DB:-smart_ebl}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      # 소형 EC2에서 로그가 디스크를 채우는 것을 방지합니다.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres-data:

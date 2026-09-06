@@ -105,7 +105,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover - 타입 힌트 전용. 런타임에 ruleEngine 을 끌지 않는다.
-    from f3_rules.types import LCTerms
+    from ruleEngine.types import LCTerms
 
 
 # ════════════════════════════════════════════════════════════════
@@ -208,7 +208,7 @@ class Selector(Protocol):
 # 상수
 # ════════════════════════════════════════════════════════════════
 
-# 서류 필드 → 대응하는 `LCTerms` 필드명. **`f3_rules/types.py:LCTerms` 의
+# 서류 필드 → 대응하는 `LCTerms` 필드명. **`ruleEngine/types.py:LCTerms` 의
 # 실제 필드명을 확인하고 썼다.** 이 표에 있는 필드는 L/C 값이 존재하기만 하면
 # 사전 기반 교정(①②③④⑤)을 전부 끄고 ⓪format 만 남긴다.
 _LC_FIELD_MAP: Dict[str, str] = {
@@ -1695,7 +1695,7 @@ class Normalizer:
         뒤에는 위 §L/C 문언 우선 1번의 모순이 형태 차이에서 새로 생긴다.
         """
         try:
-            from f3_rules.types import LCTerms
+            from ruleEngine.types import LCTerms
         except ImportError:  # pragma: no cover - ruleEngine 없이 terms 만 쓰는 배포
             return None
         return LCTerms.from_tags(tags)

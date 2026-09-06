@@ -4,7 +4,7 @@ F2 표준 용어 교정 정밀도 평가.
 기획안 5.2 완료 기준: "교정 제안 정밀도 0.90 이상. 오제안은 실무 신뢰를 직접
 훼손하므로 재현율보다 정밀도를 우선 최적화한다"(`docs/ai-service/f2-standard-terms.md`
 §정밀도를 재현율보다 우선한다). 측정 수단이 없으면 이 목표의 달성 여부를 말할 수
-없으므로 `f3_model/evaluate.py`(F3 하자 검출 평가)와 같은 규율로 이 파일을 만든다.
+없으므로 `mlModel/evaluate.py`(F3 하자 검출 평가)와 같은 규율로 이 파일을 만든다.
 
 ## `requires_choice` 는 제안이 아니다
 
@@ -34,7 +34,7 @@ F2 표준 용어 교정 정밀도 평가.
 
 ## 코퍼스 스키마
 
-`f2_terms/eval/corpus.yaml`(210건, `f2-corpus-1`). 케이스마다 `expect`/`expect_none`/
+`terms/eval/corpus.yaml`(210건, `f2-corpus-1`). 케이스마다 `expect`/`expect_none`/
 `expect_choice` 중 **정확히 하나**를 쓴다. `lc`(구조화된 L/C 조건, `LCTerms.from_dict`
 로 변환)와 `lc_raw_tags`(MT700 태그 dict, `Normalizer.normalize` 가 직접 파싱)는
 서로 다른 두 경로를 겨냥하므로 **둘 다 그대로 넘긴다** — 오케스트레이터가 하네스를
@@ -51,10 +51,10 @@ F2 표준 용어 교정 정밀도 평가.
 docstring과 같은 규약).
 
 실행:
-    python -m f2_terms.evaluate                    # LLM 끔 (기본)
-    python -m f2_terms.evaluate --llm               # ⑤단계 포함(설정돼 있으면)
-    python -m f2_terms.evaluate --json out.json
-    python -m f2_terms.evaluate --corpus <path>     # 다른 코퍼스
+    python -m terms.evaluate                    # LLM 끔 (기본)
+    python -m terms.evaluate --llm               # ⑤단계 포함(설정돼 있으면)
+    python -m terms.evaluate --json out.json
+    python -m terms.evaluate --corpus <path>     # 다른 코퍼스
 """
 
 from __future__ import annotations
@@ -310,7 +310,7 @@ def _read_yaml(path: Path) -> dict:
     """`glossary._read_yaml` 과 같은 지연 임포트 + 친절한 오류.
 
     이 파일도 `terms` 패키지 소속이라 `import terms` 만으로 PyYAML 을
-    끌어오면 안 된다는 불변식(`f2_terms/__init__.py` 모듈 docstring)을 그대로
+    끌어오면 안 된다는 불변식(`terms/__init__.py` 모듈 docstring)을 그대로
     진다 — 임포트를 함수 안으로 미룬다.
     """
     try:
@@ -354,7 +354,7 @@ def _lc_args(case: dict):
     """
     lc = None
     if case.get("lc"):
-        from f3_rules.types import LCTerms
+        from ruleEngine.types import LCTerms
 
         lc = LCTerms.from_dict(case["lc"])
     lc_raw_tags = case.get("lc_raw_tags") or {}
