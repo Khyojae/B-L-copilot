@@ -1,0 +1,1874 @@
+# F2 교정 정밀도 측정용 라벨 코퍼스.
+#
+# 정밀도는 "틀린 제안을 안 하는가"이므로 **제안해서는 안 되는 입력**이 없으면
+# 측정 자체가 성립하지 않는다. 그래서 음성 사례를 절반 가까이 넣는다
+# (`docs/ai-service/f2-standard-terms.md` §정밀도를 재현율보다 우선한다).
+#
+# requires_choice 는 제안으로 세지 않는다 — 판정한 것이 아니라 사용자에게
+# 넘긴 것이다. expect_choice 로 따로 라벨한다.
+#
+# 라벨 종류는 셋뿐이다: expect(교정값) / expect_none(제안 없어야 함) /
+# expect_choice(사용자 선택, to_be 는 None 이어야 한다). 하나만 쓴다.
+# 부가로 expect_notice 를 쓸 수 있다(선택).
+#
+# `expect` 의 모든 canonical 값은 `catalogs/std-2026.1/locode.yaml` ·
+# `glossary.yaml` 에 실제로 적재된 항목에서만 가져왔다 — 2026-08-16 감사로
+# 삭제된 항구(JPHND·USSJC 등)나 카탈로그에 없는 코드는 정답으로 쓰지 않는다.
+#
+# 자유서식 안의 조각(컨테이너 번호·HS 코드·관행 문구·운송서류 용어·인도
+# 용어·상호 접미)은 span 계약에 따라 `expect` 에 **조각의 교정값**만 적는다
+# (필드 전체가 아니다).
+#
+# `lc:` 가 있는 케이스는 L/C 우선 검증(§예외 "L/C 문언 우선")을 겨냥한다.
+# `lc_raw_tags:` 는 MT700 태그 dict 로 자유서식(47A 등) 경로를 겨냥한다.
+#
+# port 클래스 `expect` 는 이제 canonical(UN/LOCODE 코드)이 아니라 `bl_form`
+# (B/L 면 항구명)이다 — 코드는 B/L 면에 인쇄되지 않으므로(UCP 600 제20조)
+# 더는 "정답"이 아니다. 같은 이유로 원본 값이 이미 그 항구명을 토큰으로
+# 담고 있으면(예: "TOKYO, JAPAN") 캐스케이드가 아예 제안을 만들지 않는다
+# (`cascade.py:_port_face_already_covers`) — 그런 케이스는 `expect_none` 이다.
+
+version: 1
+corpus_version: f2-corpus-1
+cases:
+
+  # ══════════════════════════════════════════════════════════════
+  # port — 항구·지명 (min 30)
+  # ══════════════════════════════════════════════════════════════
+
+  - id: PORT001
+    doc: 선하증권
+    field: port_of_loading
+    value: "부산"
+    class: port
+    expect: "BUSAN"
+    note: 한글 항구명
+
+  - id: PORT002
+    doc: 선하증권
+    field: port_of_discharge
+    value: "인천항"
+    class: port
+    expect: "INCHEON"
+    note: 한글 항구명(접미 "항" 포함 별칭)
+
+  - id: PORT003
+    doc: 선하증권
+    field: port_of_loading
+    value: "PUS"
+    class: port
+    expect: "BUSAN"
+    note: 약어
+
+  - id: PORT004
+    doc: 선하증권
+    field: port_of_discharge
+    value: "PUSAN, KOREA"
+    class: port
+    expect: "BUSAN"
+    note: "도시, 국가 표기 + 구표기(PUSAN)"
+
+  - id: PORT005
+    doc: 선하증권
+    field: place_of_issue
+    value: "TOKYO, JAPAN"
+    class: port
+    expect_none: true
+    note: "도시, 국가 표기 — bl_form(TOKYO)을 이미 토큰으로 담고 있어 제안 없음"
+
+  - id: PORT006
+    doc: 선하증권
+    field: port_of_loading
+    value: "TSINGTAO"
+    class: port
+    expect: "QINGDAO"
+    note: 구표기(Qingdao 의 옛 로마자 표기)
+
+  - id: PORT007
+    doc: 선하증권
+    field: port_of_discharge
+    value: "CANTON"
+    class: port
+    expect: "GUANGZHOU"
+    note: 구표기(Guangzhou 의 옛 표기)
+
+  - id: PORT008
+    doc: 선하증권
+    field: port_of_loading
+    value: "SAIGON"
+    class: port
+    expect: "HO CHI MINH CITY"
+    note: 구표기(Ho Chi Minh City 의 옛 표기)
+
+  - id: PORT009
+    doc: 선하증권
+    field: port_of_discharge
+    value: "AMOY"
+    class: port
+    expect: "XIAMEN"
+    note: 구표기(Xiamen 의 옛 표기)
+
+  - id: PORT010
+    doc: 선하증권
+    field: port_of_loading
+    value: "PORT KELANG"
+    class: port
+    expect: "PORT KLANG"
+    note: 표기 변형(Port Klang 의 대체 철자)
+
+  - id: PORT011
+    doc: 선하증권
+    field: port_of_discharge
+    value: "NYC"
+    class: port
+    expect: "NEW YORK"
+    note: 약어
+
+  - id: PORT012
+    doc: 선하증권
+    field: place_of_issue
+    value: "함부르크"
+    class: port
+    expect: "HAMBURG"
+    note: 한글 항구명
+
+  - id: PORT013
+    doc: 선하증권
+    field: port_of_loading
+    value: "로테르담"
+    class: port
+    expect: "ROTTERDAM"
+    note: 한글 항구명
+
+  - id: PORT014
+    doc: 선하증권
+    field: port_of_discharge
+    value: "SHANGHAI, CHINA"
+    class: port
+    expect_none: true
+    note: "도시, 국가 표기 — bl_form(SHANGHAI)을 이미 토큰으로 담고 있어 제안 없음"
+
+  - id: PORT015
+    doc: 선하증권
+    field: port_of_loading
+    value: "칭다오"
+    class: port
+    expect: "QINGDAO"
+    note: 한글 항구명
+
+  - id: PORT016
+    doc: 선하증권
+    field: port_of_discharge
+    value: "싱가포르"
+    class: port
+    expect: "SINGAPORE"
+    note: 한글 항구명
+
+  - id: PORT017
+    doc: 선하증권
+    field: place_of_issue
+    value: "홍콩"
+    class: port
+    expect: "HONG KONG"
+    note: 한글 항구명
+
+  - id: PORT018
+    doc: 선하증권
+    field: port_of_loading
+    value: "PORTLAND, USA"
+    class: port
+    expect_none: true
+    note: 동음이의(USPDX/AUPTJ) — 양쪽 bl_form 이 똑같이 "PORTLAND"라 이미
+      토큰으로 담고 있으므로 어느 쪽으로 판별되든 제안이 없다(내부적으로는
+      값 안의 국가 신호로 USPDX 로 판별된다 — §예외 판별 순서 1번). 판별
+      로직 자체는 test_terms_cascade.py::Test동음이의_판별 이 계속 검사한다.
+
+  - id: PORT019
+    doc: 선하증권
+    field: port_of_discharge
+    value: "PORTLAND, AUSTRALIA"
+    class: port
+    expect_none: true
+    note: 동음이의 + 값 안의 국가 신호로 판별되지만 bl_form(PORTLAND)을
+      이미 토큰으로 담고 있어 제안 없음(PORT018 과 같은 이유)
+
+  - id: PORT020
+    doc: 선하증권
+    field: place_of_issue
+    value: "NEWCASTLE, UNITED KINGDOM"
+    class: port
+    expect_none: true
+    note: 동음이의(AUNTL/GBNCL) — 양쪽 bl_form 이 똑같이 "NEWCASTLE"라
+      이미 토큰으로 담고 있어 제안 없음(PORT018 과 같은 이유)
+
+  - id: PORT021
+    doc: 선하증권
+    field: port_of_loading
+    value: "  KRPUS  "
+    class: port
+    expect: "BUSAN"
+    note: 코드는 B/L 면 표기가 아니므로 공백 정리로 끝나지 않고 bl_form(BUSAN)
+      제안 대상이다
+
+  - id: PORT022
+    doc: 선하증권
+    field: port_of_loading
+    value: "KRPUS"
+    class: port
+    expect: "BUSAN"
+    note: 코드 값 자체는 B/L 면 표기가 아니므로 더 이상 "이미 표준"이 아니다 —
+      bl_form(BUSAN) 제안 대상
+
+  - id: PORT023
+    doc: 선하증권
+    field: port_of_discharge
+    value: "USLAX"
+    class: port
+    expect: "LOS ANGELES"
+    note: 코드 값 자체는 B/L 면 표기가 아니므로 더 이상 "이미 표준"이 아니다 —
+      bl_form(LOS ANGELES) 제안 대상
+
+  - id: PORT024
+    doc: 선하증권
+    field: place_of_issue
+    value: "SGSIN"
+    class: port
+    expect: "SINGAPORE"
+    note: 코드 값 자체는 B/L 면 표기가 아니므로 더 이상 "이미 표준"이 아니다 —
+      bl_form(SINGAPORE) 제안 대상
+
+  - id: PORT025
+    doc: 선하증권
+    field: port_of_discharge
+    value: "PORTLAND"
+    class: port
+    expect_none: true
+    note: 동음이의(USPDX/AUPTJ) 후보 2건 다 bl_form="PORTLAND"라 값과 같다 —
+      어느 쪽을 골라도 서류 면 값이 안 바뀌므로 선택 카드를 만들지 않는다
+      (판별 로직 자체는 test_terms_cascade.py::Test동음이의_판별 이 계속
+      검사한다)
+
+  - id: PORT026
+    doc: 선하증권
+    field: port_of_loading
+    value: "포틀랜드"
+    class: port
+    expect: "PORTLAND"
+    note: 동음이의(한글, USPDX/AUPTJ 둘 다 별칭) — 판별 불가하지만 두 후보의
+      bl_form 이 둘 다 "PORTLAND"로 같다. 후보 전원의 표기가 같으면 고를
+      후보가 없다는 규칙(PORT025)은 판별 실패 원인이 코드가 아니라 언어라도
+      똑같이 적용된다 — 어느 쪽이든 서류 면엔 "PORTLAND"가 찍히므로 선택
+      카드 대신 그 값 하나를 그대로 제안한다(as_is="포틀랜드" ≠
+      to_be="PORTLAND"라 무카드 조건에도, 항구 토큰 부분집합에도 안 걸린다)
+
+  - id: PORT027
+    doc: 선하증권
+    field: port_of_discharge
+    value: "VICTORIA"
+    class: port
+    expect_none: true
+    note: 동음이의(CAVIC/SCVIC) 후보 2건 다 bl_form="VICTORIA"라 값과 같다 —
+      선택 카드를 만들지 않는다(PORT025 와 같은 이유)
+
+  - id: PORT028
+    doc: 선하증권
+    field: port_of_loading
+    value: "NEWCASTLE"
+    class: port
+    expect_none: true
+    note: 동음이의(AUNTL/GBNCL) 후보 2건 다 bl_form="NEWCASTLE"라 값과 같다 —
+      선택 카드를 만들지 않는다(PORT025 와 같은 이유)
+
+  - id: PORT029
+    doc: 선하증권
+    field: port_of_discharge
+    value: "TRIPOLI"
+    class: port
+    expect_none: true
+    note: 동음이의(LYTIP/LBKYE) 후보 2건 다 bl_form="TRIPOLI"라 값과 같다 —
+      선택 카드를 만들지 않는다(PORT025 와 같은 이유)
+
+  - id: PORT030
+    doc: 선하증권
+    field: port_of_loading
+    value: "두바이"
+    class: port
+    expect_none: true
+    expect_notice: not_covered
+    note: 사전 밖 항구(Dubai 미적재) — 추측 금지
+
+  - id: PORT031
+    doc: 선하증권
+    field: port_of_discharge
+    value: "카사블랑카"
+    class: port
+    expect_none: true
+    note: 사전 밖 항구(Casablanca 미적재)
+
+  - id: PORT032
+    doc: 선하증권
+    field: place_of_issue
+    value: "뭄바이"
+    class: port
+    expect_none: true
+    note: 사전 밖 항구(Mumbai 미적재)
+
+  - id: PORT033
+    doc: 선하증권
+    field: port_of_loading
+    value: "제다"
+    class: port
+    expect_none: true
+    note: 사전 밖 항구(Jeddah 미적재)
+
+  - id: PORT034
+    doc: 선하증권
+    field: port_of_loading
+    value: "KR PUS"
+    class: port
+    expect: "BUSAN"
+    note: ③pattern 단계 — 공백 때문에 exact/alias 를 놓치고 정규화하면
+      "KRPUS"(형식만 유효한 코드)가 된다. 코드를 그대로 내면 사전에 있는
+      항구인데도 서류 면에 코드가 박히는 회귀다 — 정규화된 코드를 사전에서
+      역조회해 bl_form(BUSAN)을 낸다
+
+  - id: PORT035
+    doc: 선하증권
+    field: port_of_loading
+    value: "US SEA"
+    class: port
+    expect_none: true
+    note: ③pattern 단계 — 정규화하면 "USSEA", LOCODE 형식(대문자 5글자)은
+      맞지만 사전 어디에도 없는 코드다. 형식만 맞다고 없는 표기를 지어내지
+      않는다
+
+  - id: PORT036
+    doc: 선하증권
+    field: port_of_loading
+    value: "PORTLAND PORT"
+    class: port
+    expect_none: true
+    note: 동음이의(USPDX/AUPTJ 둘 다 별칭) 후보 전원이 bl_form="PORTLAND"로
+      같아 requires_choice 가 접혀 to_be="PORTLAND" 결정 하나로 떨어진다.
+      as_is="PORTLAND PORT" 는 그 값과 문자열은 다르지만(무카드 조건 미해당)
+      토큰집합 {PORTLAND, PORT} 가 {PORTLAND} 를 포함하므로 항구 토큰
+      부분집합 규칙에 걸려 제안하지 않는다
+
+  # ══════════════════════════════════════════════════════════════
+  # qty_unit / volume_unit — 수량·용적 단위 (min 24, 결합)
+  # ══════════════════════════════════════════════════════════════
+
+  - id: UNIT001
+    doc: 포장명세서
+    field: gross_weight
+    value: "1,234.50 KGS"
+    class: qty_unit
+    expect: "KGM"
+    note: "단위 토큰 교정(span 계약 — 수치는 보존)"
+
+  - id: UNIT002
+    doc: 포장명세서
+    field: gross_weight
+    value: "500 LBS"
+    class: qty_unit
+    expect: "LBR"
+    note: 단위 토큰 교정
+
+  - id: UNIT003
+    doc: 포장명세서
+    field: net_weight
+    value: "10,000 KG"
+    class: qty_unit
+    expect: "KGM"
+    note: 단위 토큰 교정
+
+  - id: UNIT004
+    doc: 포장명세서
+    field: quantity
+    value: "20 CTN"
+    class: qty_unit
+    expect: "CT"
+    note: 단위 토큰 교정
+
+  - id: UNIT005
+    doc: 포장명세서
+    field: quantity
+    value: "15 PKGS"
+    class: qty_unit
+    expect: "PK"
+    note: 단위 토큰 교정
+
+  - id: UNIT006
+    doc: 포장명세서
+    field: package_count
+    value: "100 PCS"
+    class: qty_unit
+    expect: "PCE"
+    note: 단위 토큰 교정
+
+  - id: UNIT007
+    doc: 포장명세서
+    field: gross_weight
+    value: "2 M/T"
+    class: qty_unit
+    expect: "TNE"
+    note: 단위 토큰 교정
+
+  - id: UNIT008
+    doc: 포장명세서
+    field: gross_weight
+    value: "3.5 MT"
+    class: qty_unit
+    expect: "TNE"
+    note: 단위 토큰 교정
+
+  - id: UNIT009
+    doc: 포장명세서
+    field: measurement
+    value: "25 CBM"
+    class: volume_unit
+    expect: "MTQ"
+    note: 단위 토큰 교정
+
+  - id: UNIT010
+    doc: 포장명세서
+    field: measurement
+    value: "10 M3"
+    class: volume_unit
+    expect: "MTQ"
+    note: 단위 토큰 교정
+
+  - id: UNIT011
+    doc: 포장명세서
+    field: quantity
+    value: "50 BAGS"
+    class: qty_unit
+    expect: "BG"
+    note: 단위 토큰 교정
+
+  - id: UNIT012
+    doc: 포장명세서
+    field: quantity
+    value: "30 BOX"
+    class: qty_unit
+    expect: "BX"
+    note: 단위 토큰 교정
+
+  - id: UNIT013
+    doc: 포장명세서
+    field: gross_weight
+    value: "500 톤"
+    class: qty_unit
+    expect: "TNE"
+    note: 한글 단위 별칭
+
+  - id: UNIT014
+    doc: 포장명세서
+    field: gross_weight
+    value: "1000 킬로그램"
+    class: qty_unit
+    expect: "KGM"
+    note: 한글 단위 별칭
+
+  - id: UNIT015
+    doc: 포장명세서
+    field: measurement
+    value: "5 CU.M"
+    class: volume_unit
+    expect: "MTQ"
+    note: 점 포함 표기
+
+  - id: UNIT016
+    doc: 포장명세서
+    field: package_count
+    value: "8 팔레트"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: >-
+      팔레트는 표준 코드를 확정하지 못해 사전에서 뺐다(T20b 출처 검증).
+      현행 Rec 21 에서 PF 는 "Pen"(가축우리)이고 팔레트는 PX 라는 소견이 나왔는데
+      과거 EANCOM 에는 PF = pallet 로 등재돼 있어 두 등록이 어긋난다.
+      확정 전까지는 추측하지 않고 not_covered 로 물러나는 것이 옳다 —
+      Rec 20/21 은 닫힌 집합이라 "비슷한 단위"가 아니라 "모르는 단위"다.
+      표준을 확인하면 PX 로 되살리고 이 케이스를 expect: PX 로 되돌릴 것.
+  - id: UNIT017
+    doc: 포장명세서
+    field: quantity
+    value: "12 DRUMS"
+    class: qty_unit
+    expect: "DR"
+    note: 단위 토큰 교정
+
+  - id: UNIT018
+    doc: 포장명세서
+    field: gross_weight
+    value: "700 파운드"
+    class: qty_unit
+    expect: "LBR"
+    note: 한글 단위 별칭
+
+  - id: UNIT019
+    doc: 포장명세서
+    field: gross_weight
+    value: "2.2 GRAM"
+    class: qty_unit
+    expect: "GRM"
+    note: 단위 토큰 교정
+
+  - id: UNIT020
+    doc: 포장명세서
+    field: gross_weight
+    value: "50 그램"
+    class: qty_unit
+    expect: "GRM"
+    note: 한글 단위 별칭
+
+  - id: UNIT021
+    doc: 포장명세서
+    field: measurement
+    value: "300 LITER"
+    class: volume_unit
+    expect: "LTR"
+    note: 단위 토큰 교정
+
+  - id: UNIT022
+    doc: 포장명세서
+    field: measurement
+    value: "12 FT"
+    class: volume_unit
+    expect: "FOT"
+    note: 단위 토큰 교정
+
+  - id: UNIT023
+    doc: 포장명세서
+    field: measurement
+    value: "5 INCH"
+    class: volume_unit
+    expect: "INH"
+    note: 단위 토큰 교정
+
+  - id: UNIT024
+    doc: 포장명세서
+    field: measurement
+    value: "3 CC"
+    class: volume_unit
+    expect: "CMQ"
+    note: 단위 토큰 교정
+
+  - id: UNIT025
+    doc: 포장명세서
+    field: gross_weight
+    value: "1,234.50 KGM"
+    class: qty_unit
+    expect_none: true
+    note: 이미 KGM
+
+  - id: UNIT026
+    doc: 포장명세서
+    field: quantity
+    value: "20 CT"
+    class: qty_unit
+    expect_none: true
+    note: 이미 표준(CT)
+
+  - id: UNIT027
+    doc: 포장명세서
+    field: measurement
+    value: "25 MTQ"
+    class: volume_unit
+    expect_none: true
+    note: 이미 표준(MTQ)
+
+  - id: UNIT028
+    doc: 포장명세서
+    field: gross_weight
+    value: "500 됫박"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: Rec 20 밖 단위 — 추측 금지(과제 원문 예시)
+
+  - id: UNIT029
+    doc: 포장명세서
+    field: quantity
+    value: "300 셋트"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: Rec 20 밖 단위(세트) — 추측 금지
+
+  - id: UNIT030
+    doc: 포장명세서
+    field: gross_weight
+    value: "1000 EA"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: Rec 20 밖 단위(EA 미등재) — 추측 금지
+
+  - id: UNIT031
+    doc: 포장명세서
+    field: quantity
+    value: "50"
+    class: qty_unit
+    expect_none: true
+    note: 수치만(단위 토큰 없음)
+
+  - id: UNIT032
+    doc: 포장명세서
+    field: gross_weight
+    value: "1,234.50"
+    class: qty_unit
+    expect_none: true
+    note: 수치만(단위 토큰 없음)
+
+  - id: UNIT033
+    doc: 포장명세서
+    field: measurement
+    value: "10"
+    class: volume_unit
+    expect_none: true
+    note: 수치만(단위 토큰 없음)
+
+  - id: UNIT034
+    doc: 포장명세서
+    field: quantity
+    value: "5 SET"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: Rec 20 밖 단위(SET 미등재) — 추측 금지
+
+  - id: UNIT035
+    doc: 포장명세서
+    field: quantity
+    value: "20 UNITS"
+    class: qty_unit
+    expect_none: true
+    expect_notice: not_covered
+    note: Rec 20 밖 단위(UNITS 미등재) — 추측 금지
+
+  # ══════════════════════════════════════════════════════════════
+  # container_no — 컨테이너 번호 (min 20)
+  # ══════════════════════════════════════════════════════════════
+  # 체크디지트는 ISO 6346 `(total % 11) % 10` 으로 실제 계산해 확인했다
+  # (validators.container_check_digit 실행 결과와 대조).
+
+  - id: CTR001
+    doc: 포장명세서
+    field: marks
+    value: "MSKU 123456 5"
+    class: container_no
+    expect: "MSKU1234565"
+    note: 공백 포함, 체크디지트 정상 — 서식 정리
+
+  - id: CTR002
+    doc: 포장명세서
+    field: marks
+    value: "msku1234565"
+    class: container_no
+    expect: "MSKU1234565"
+    note: 소문자 변형, 체크디지트 정상
+
+  - id: CTR003
+    doc: 포장명세서
+    field: marks
+    value: "MSCU 654321 2"
+    class: container_no
+    expect: "MSCU6543212"
+    note: 공백 포함, 체크디지트 정상
+
+  - id: CTR004
+    doc: 포장명세서
+    field: marks
+    value: "cmau1111111"
+    class: container_no
+    expect: "CMAU1111111"
+    note: 소문자 변형, 체크디지트 정상
+
+  - id: CTR005
+    doc: 포장명세서
+    field: marks
+    value: "OOLU 222222 0"
+    class: container_no
+    expect: "OOLU2222220"
+    note: 공백 포함, 체크디지트 정상
+
+  - id: CTR006
+    doc: 포장명세서
+    field: marks
+    value: "hmmu3333330"
+    class: container_no
+    expect: "HMMU3333330"
+    note: 소문자 변형, 체크디지트 정상
+
+  - id: CTR007
+    doc: 포장명세서
+    field: marks
+    value: "EITU 445566 0"
+    class: container_no
+    expect: "EITU4455660"
+    note: 공백 포함, 체크디지트 정상
+
+  - id: CTR008
+    doc: 포장명세서
+    field: marks
+    value: "aplu9988771"
+    class: container_no
+    expect: "APLU9988771"
+    note: 소문자 변형, 체크디지트 정상
+
+  - id: CTR009
+    doc: 포장명세서
+    field: marks
+    value: "EGHU 135790 5"
+    class: container_no
+    expect: "EGHU1357905"
+    note: 공백 포함, 체크디지트 정상
+
+  - id: CTR010
+    doc: 포장명세서
+    field: marks
+    value: "tcnu2468017"
+    class: container_no
+    expect: "TCNU2468017"
+    note: 소문자 변형, 체크디지트 정상
+
+  - id: CTR011
+    doc: 포장명세서
+    field: marks
+    value: "csnu 159753 9"
+    class: container_no
+    expect: "CSNU1597539"
+    note: 공백+소문자 혼합, 체크디지트 정상
+
+  - id: CTR012
+    doc: 포장명세서
+    field: marks
+    value: "NYKU7418521"
+    class: container_no
+    expect_none: true
+    note: 이미 표준(공백·대소문자 문제 없음)
+
+  - id: CTR013
+    doc: 포장명세서
+    field: marks
+    value: "TRLU3692580"
+    class: container_no
+    expect_none: true
+    note: 이미 표준
+
+  - id: CTR014
+    doc: 포장명세서
+    field: marks
+    value: "MSKU1234561"
+    class: container_no
+    expect_none: true
+    note: "체크디지트 오류(정답 5, 표기 1) — 자리를 알 수 없어 교정 제안 금지"
+
+  - id: CTR015
+    doc: 포장명세서
+    field: marks
+    value: "CSNU1597530"
+    class: container_no
+    expect_none: true
+    note: "체크디지트 오류(정답 9, 표기 0) — 교정 제안 금지"
+
+  - id: CTR016
+    doc: 포장명세서
+    field: marks
+    value: "SUDU864209 6"
+    class: container_no
+    expect_none: true
+    note: "체크디지트 오류(정답 5, 표기 6) — 교정 제안 금지"
+
+  - id: CTR017
+    doc: 포장명세서
+    field: marks
+    value: "MSKA1234565"
+    class: container_no
+    expect_none: true
+    note: 장비구분자가 A(U/J/Z 아님) — 클래스 오판, 정규식 자체가 불일치
+
+  - id: CTR018
+    doc: 포장명세서
+    field: marks
+    value: "TCNB2468017"
+    class: container_no
+    expect_none: true
+    note: 장비구분자가 B(U/J/Z 아님) — 클래스 오판
+
+  - id: CTR019
+    doc: 포장명세서
+    field: marks
+    value: "ABC-2026-0417"
+    class: container_no
+    expect_none: true
+    note: 컨테이너 번호 형식이 아닌 문자열
+
+  - id: CTR020
+    doc: 포장명세서
+    field: marks
+    value: "INVOICE NO 12345678"
+    class: container_no
+    expect_none: true
+    note: 컨테이너 번호 형식이 아닌 문자열
+
+  # ══════════════════════════════════════════════════════════════
+  # hs_code — 품목 분류 (min 12)
+  # ══════════════════════════════════════════════════════════════
+  # hs_code 는 pattern 단독 클래스라 exact/alias(사전 조회)를 타지 않는다
+  # (`policy.CLASSES["hs_code"].allowed_stages == {STAGE_PATTERN}`).
+
+  - id: HS001
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS 270900 CRUDE OIL SAMPLE"
+    class: hs_code
+    expect: "2709.00"
+    note: HS 라벨 + 점 없는 6자리 → 정규형
+
+  - id: HS002
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS 870323 SEDAN CARS FOR EXPORT"
+    class: hs_code
+    expect: "8703.23"
+    note: HS 라벨 + 점 없는 6자리
+
+  - id: HS003
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS.620462 WOMEN COTTON TROUSERS"
+    class: hs_code
+    expect: "6204.62"
+    note: "HS + 점 구분자, 점 없는 6자리"
+
+  - id: HS004
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS-610910 KNIT T-SHIRTS 100% COTTON"
+    class: hs_code
+    expect: "6109.10"
+    note: "HS + 하이픈 구분자"
+
+  - id: HS005
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS 8471.30 1000 LAPTOP COMPUTERS"
+    class: hs_code
+    expect: "8471.30-1000"
+    note: HSK 10단위, 공백 구분을 하이픈 정규형으로
+
+  - id: HS006
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS 890200 FISHING VESSEL PARTS"
+    class: hs_code
+    expect: "8902.00"
+    note: HS 라벨 + 점 없는 6자리
+
+  - id: HS007
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS: 330130 ESSENTIAL OIL RESINOID"
+    class: hs_code
+    expect: "3301.30"
+    note: "HS + 콜론 구분자"
+
+  - id: HS008
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS 5208.21 COTTON FABRIC ROLLS"
+    class: hs_code
+    expect_none: true
+    note: 이미 nnnn.nn 정규형
+
+  - id: HS009
+    doc: 상업송장
+    field: description_of_goods
+    value: "SHIPMENT CONTAINS 6205.20 MEN SHIRTS"
+    class: hs_code
+    expect_none: true
+    note: 라벨 없이 이미 점 찍힌 정규형 — 변경 없음
+
+  - id: HS010
+    doc: 상업송장
+    field: description_of_goods
+    value: "PACKAGE COUNT 847130 UNITS TOTAL"
+    class: hs_code
+    expect_none: true
+    note: HS 아닌 숫자 — 라벨도 점도 없는 6자리는 스캔 대상이 아님
+
+  - id: HS011
+    doc: 상업송장
+    field: description_of_goods
+    value: "HS CODE: 8517.62 COMMUNICATION APPARATUS"
+    class: hs_code
+    expect_none: true
+    note: 이미 표준(라벨+정규형)
+
+  - id: HS012
+    doc: 상업송장
+    field: description_of_goods
+    value: "MODEL NUMBER 401120X SERIES"
+    class: hs_code
+    expect_none: true
+    note: HS 아닌 숫자(점 없음, 라벨 없음, 문자 접미)
+
+  - id: HS013
+    doc: 상업송장
+    field: description_of_goods
+    value: "SERIAL NO AB123456"
+    class: hs_code
+    expect_none: true
+    note: HS 아닌 숫자
+
+  # ══════════════════════════════════════════════════════════════
+  # party_suffix — 당사자 상호 접미 (min 18)
+  # ══════════════════════════════════════════════════════════════
+  # 접미 정규화는 사전 조회가 아니라 표 치환이다(`validators._SUFFIX_CANON`).
+  # 검증된 안전한 토큰(CO/LTD/INC/CORP/GMBH)만 라벨했다 — AG/SA/BV/NV 처럼
+  # `validators._SUFFIX_CANON` 이 점을 생략하는 토큰, PLC/LLP/KK/SARL/SPA/
+  # EURL/OHG 처럼 `_LEGAL_SUFFIXES` 에 아예 없는 토큰은 사전(glossary.yaml)의
+  # canonical 표기와 실제 pattern 단계 출력이 어긋나거나(전자) 아예 매칭되지
+  # 않는다(후자) — 최종 보고 "애매해서 넣지 않은 케이스" 참고.
+
+  - id: SFX001
+    doc: 선하증권
+    field: shipper
+    value: "HANJIN SHIPPING CO.,LTD"
+    class: party_suffix
+    expect: "Co., Ltd."
+    note: 접미 변형(점+콤마 없음) → 표준
+
+  - id: SFX002
+    doc: 선하증권
+    field: consignee
+    value: "GLOBAL TRADING CO LTD"
+    class: party_suffix
+    expect: "Co., Ltd."
+    note: 접미 변형(공백만) → 표준
+
+  - id: SFX003
+    doc: 상업송장
+    field: seller
+    value: "SAMSUNG ELECTRONICS CO., LTD"
+    class: party_suffix
+    expect: "Co., Ltd."
+    note: 대소문자·마침표 차이만
+
+  - id: SFX004
+    doc: 상업송장
+    field: buyer
+    value: "ABC TRADING CORP"
+    class: party_suffix
+    expect: "Corp."
+    note: 접미 변형(마침표 없음)
+
+  - id: SFX005
+    doc: 선하증권
+    field: shipper
+    value: "XYZ LOGISTICS INC"
+    class: party_suffix
+    expect: "Inc."
+    note: 접미 변형(마침표 없음)
+
+  - id: SFX006
+    doc: 상업송장
+    field: buyer
+    value: "DEUTSCHE MASCHINEN GMBH"
+    class: party_suffix
+    expect: "GmbH"
+    note: 대소문자만 다름
+
+  - id: SFX007
+    doc: 선하증권
+    field: notify_party
+    value: "PACIFIC EXPORT LTD"
+    class: party_suffix
+    expect: "Ltd."
+    note: 대소문자·마침표 차이만
+
+  - id: SFX008
+    doc: 상업송장
+    field: seller
+    value: "KOREA STEEL CO"
+    class: party_suffix
+    expect: "Co."
+    note: 접미 변형(마침표 없음)
+
+  - id: SFX009
+    doc: 선하증권
+    field: shipper
+    value: "HANJIN SHIPPING Co., Ltd."
+    class: party_suffix
+    expect_none: true
+    note: 이미 Co., Ltd.
+
+  - id: SFX010
+    doc: 상업송장
+    field: seller
+    value: "ABC INTERNATIONAL LLC"
+    class: party_suffix
+    expect_none: true
+    note: 이미 LLC(표기 변화 없음)
+
+  - id: SFX011
+    doc: 선하증권
+    field: shipper
+    value: "NORDIC ENTERPRISES Inc."
+    class: party_suffix
+    expect_none: true
+    note: 이미 Inc.
+
+  - id: SFX012
+    doc: 상업송장
+    field: buyer
+    value: "EUROPEAN IMPORTS GmbH"
+    class: party_suffix
+    expect_none: true
+    note: 이미 GmbH
+
+  - id: SFX013
+    doc: 선하증권
+    field: consignee
+    value: "TRADING PARTNERS Corp."
+    class: party_suffix
+    expect_none: true
+    note: 이미 Corp.
+
+  - id: SFX014
+    doc: 상업송장
+    field: seller
+    value: "STAR SHIPPING Co."
+    class: party_suffix
+    expect_none: true
+    note: 이미 Co.
+
+  - id: SFX015
+    doc: 선하증권
+    field: notify_party
+    value: "GOLDEN GATE TRADING Ltd."
+    class: party_suffix
+    expect_none: true
+    note: 이미 Ltd.
+
+  - id: SFX016
+    doc: 선하증권
+    field: consignee
+    value: "GLOBAL TRADING GROUP"
+    class: party_suffix
+    expect_none: true
+    note: 접미 없는 상호
+
+  - id: SFX017
+    doc: 상업송장
+    field: buyer
+    value: "PACIFIC RIM TRADING"
+    class: party_suffix
+    expect_none: true
+    note: 접미 없는 상호
+
+  - id: SFX018
+    doc: 선하증권
+    field: shipper
+    value: "OCEAN FREIGHT SOLUTIONS"
+    class: party_suffix
+    expect_none: true
+    note: 접미 없는 상호
+
+  - id: SFX019
+    doc: 선하증권
+    field: notify_party
+    value: "BLUE WAVE LOGISTICS"
+    class: party_suffix
+    expect_none: true
+    note: 접미 없는 상호
+
+  # ══════════════════════════════════════════════════════════════
+  # party_name / goods — 고유명사·품명 (min 18)
+  # ══════════════════════════════════════════════════════════════
+  # format(공백·NFKC) 이외의 의미 교정은 절대 나오면 안 된다 — 오타 상호나
+  # 약어 품명을 "고쳐 주는" 순간 거래 실질이 바뀐다. 접미 토큰(CO/LTD/INC 등)
+  # 이 섞인 값은 party_suffix 스캔과 겹쳐 결과 해석이 흐려지므로 이 절의
+  # 양성/음성 예시에는 의도적으로 넣지 않았다.
+
+  - id: NAME001
+    doc: 선하증권
+    field: shipper
+    value: "GAE WOON  TRADING"
+    class: party_name
+    expect: "GAE WOON TRADING"
+    note: 연속 공백만 축약(§고유명사·품명 절제 "허용")
+
+  - id: NAME002
+    doc: 선하증권
+    field: consignee
+    value: "PACIFIC   IMPORT  EXPORT"
+    class: party_name
+    expect: "PACIFIC IMPORT EXPORT"
+    note: 연속 공백 축약(다중 구간)
+
+  - id: NAME003
+    doc: 상업송장
+    field: description_of_goods
+    value: "COTTON  T-SHIRTS  100%  COTTON"
+    class: goods
+    expect: "COTTON T-SHIRTS 100% COTTON"
+    note: 품명 — 연속 공백만 축약
+
+  - id: NAME004
+    doc: 상업송장
+    field: seller
+    value: "  ABC TRADING  "
+    class: party_name
+    expect: "ABC TRADING"
+    note: 앞뒤 공백 제거
+
+  - id: NAME005
+    doc: 선하증권
+    field: notify_party
+    value: "SAME AS CONSIGNEE   "
+    class: party_name
+    expect: "SAME AS CONSIGNEE"
+    note: 뒤 공백 제거
+
+  - id: NAME006
+    doc: 상업송장
+    field: buyer
+    value: "GLOBAL   PARTNERS   LOGISTICS"
+    class: party_name
+    expect: "GLOBAL PARTNERS LOGISTICS"
+    note: 연속 공백 축약
+
+  - id: NAME007
+    doc: 선하증권
+    field: shipper
+    value: "GAE WOOON TRADING"
+    class: party_name
+    expect_none: true
+    note: 오타 상호(WOOON) — 철자 교정 금지, 정규 공백이라 손댈 것이 없음
+
+  - id: NAME008
+    doc: 선하증권
+    field: consignee
+    value: "SAMSUNG ELECTRNICS DIVISION"
+    class: party_name
+    expect_none: true
+    note: 오타 상호(ELECTRNICS) — 철자 교정 금지
+
+  - id: NAME009
+    doc: 상업송장
+    field: description_of_goods
+    value: "COTON T-SHIRTS"
+    class: goods
+    expect_none: true
+    note: 오타 품명(COTON) — 철자 교정 금지
+
+  - id: NAME010
+    doc: 상업송장
+    field: description_of_goods
+    value: "LAPTOPS COMPUTRS"
+    class: goods
+    expect_none: true
+    note: 오타 품명(COMPUTRS) — 철자 교정 금지
+
+  - id: NAME011
+    doc: 상업송장
+    field: description_of_goods
+    value: "ELEC. APPLIANCES"
+    class: goods
+    expect_none: true
+    note: 약어 품명(ELEC.) — 약어 확장 금지
+
+  - id: NAME012
+    doc: 상업송장
+    field: description_of_goods
+    value: "MACH. PARTS"
+    class: goods
+    expect_none: true
+    note: 약어 품명(MACH.) — 약어 확장 금지
+
+  - id: NAME013
+    doc: 선하증권
+    field: shipper
+    value: "GOLDEN DRAGN TRADING"
+    class: party_name
+    expect_none: true
+    note: 오타 상호(DRAGN) — 철자 교정 금지
+
+  - id: NAME014
+    doc: 상업송장
+    field: seller
+    value: "NORTH STAR ENTRPRISES"
+    class: party_name
+    expect_none: true
+    note: 오타 상호(ENTRPRISES) — 철자 교정 금지
+
+  - id: NAME015
+    doc: 상업송장
+    field: buyer
+    value: "OCEANIC TRDNG PARTNERS"
+    class: party_name
+    expect_none: true
+    note: 오타 상호(TRDNG) — 철자 교정 금지
+
+  - id: NAME016
+    doc: 선하증권
+    field: notify_party
+    value: "SAME AS CONSGNEE"
+    class: party_name
+    expect_none: true
+    note: 오타(CONSGNEE) — 철자 교정 금지
+
+  - id: NAME017
+    doc: 상업송장
+    field: description_of_goods
+    value: "GMTS ASSORTED"
+    class: goods
+    expect_none: true
+    note: 약어 품명(GMTS=Garments) — 약어 확장 금지
+
+  - id: NAME018
+    doc: 선하증권
+    field: consignee
+    value: "TO ORDER OF ABC BANK"
+    class: party_name
+    expect_none: true
+    note: 정규 공백이라 손댈 것이 없는 정상 상호(접미 토큰 없음 — LTD 를 넣으면 party_suffix 스캔이 별도로 정당하게 발동하므로 제외)
+
+  # ══════════════════════════════════════════════════════════════
+  # practice_phrase — 관행 문구 (min 20)
+  # ══════════════════════════════════════════════════════════════
+
+  - id: PHR001
+    doc: 선하증권
+    field: marks
+    value: "freight prepaid as agreed"
+    class: practice_phrase
+    expect: "FREIGHT PREPAID"
+    note: 소문자 관행 문구
+
+  - id: PHR002
+    doc: 상업송장
+    field: description_of_goods
+    value: "clean on board notation applied"
+    class: practice_phrase
+    expect: "CLEAN ON BOARD"
+    note: 소문자 관행 문구
+
+  - id: PHR003
+    doc: 선하증권
+    field: marks
+    value: "shipped on board vessel MV STAR"
+    class: practice_phrase
+    expect: "SHIPPED ON BOARD"
+    note: 소문자 관행 문구
+
+  - id: PHR004
+    doc: 상업송장
+    field: description_of_goods
+    value: "said to contain 500 cartons"
+    class: practice_phrase
+    expect: "SAID TO CONTAIN"
+    note: 소문자 관행 문구
+
+  - id: PHR005
+    doc: 선하증권
+    field: marks
+    value: "to order of shipper instructions"
+    class: practice_phrase
+    expect: "TO ORDER OF SHIPPER"
+    note: 소문자 관행 문구(더 짧은 "TO ORDER" 와 겹침 해소 확인용)
+
+  - id: PHR006
+    doc: 상업송장
+    field: description_of_goods
+    value: "non-negotiable copy attached"
+    class: practice_phrase
+    expect: "NON-NEGOTIABLE"
+    note: 소문자 관행 문구(하이픈 포함)
+
+  - id: PHR007
+    doc: 선하증권
+    field: marks
+    value: "partial shipment allowed per contract"
+    class: practice_phrase
+    expect: "PARTIAL SHIPMENT ALLOWED"
+    note: 소문자 관행 문구
+
+  - id: PHR008
+    doc: 상업송장
+    field: description_of_goods
+    value: "transhipment not allowed condition"
+    class: practice_phrase
+    expect: "TRANSHIPMENT NOT ALLOWED"
+    note: 소문자 관행 문구
+
+  - id: PHR009
+    doc: 선하증권
+    field: marks
+    value: "full set of original bills"
+    class: practice_phrase
+    expect: "FULL SET"
+    note: 소문자 관행 문구
+
+  - id: PHR010
+    doc: 상업송장
+    field: description_of_goods
+    value: "without recourse endorsement"
+    class: practice_phrase
+    expect: "WITHOUT RECOURSE"
+    note: 소문자 관행 문구
+
+  - id: PHR011
+    doc: 상업송장
+    field: description_of_goods
+    value: "duplicate copy required"
+    class: practice_phrase
+    expect: "DUPLICATE"
+    note: 소문자 관행 문구
+
+  - id: PHR012
+    doc: 선하증권
+    field: marks
+    value: "on deck cargo, shipper's risk"
+    class: practice_phrase
+    expect: "ON DECK"
+    note: 소문자 관행 문구
+
+  - id: PHR013
+    doc: 선하증권
+    field: marks
+    value: "FREIGHT PREPAID"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자
+
+  - id: PHR014
+    doc: 상업송장
+    field: description_of_goods
+    value: "CLEAN ON BOARD"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자
+
+  - id: PHR015
+    doc: 선하증권
+    field: marks
+    value: "SHIPPED ON BOARD"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자
+
+  - id: PHR016
+    doc: 상업송장
+    field: description_of_goods
+    value: "FREIGHT ADVANCE PAID"
+    class: practice_phrase
+    expect_none: true
+    note: 비슷하지만 다른 문구(FREIGHT PREPAID 아님)
+
+  - id: PHR017
+    doc: 선하증권
+    field: marks
+    value: "TRANSHIPMENT PERMITTED"
+    class: practice_phrase
+    expect_none: true
+    note: 비슷하지만 다른 문구(ALLOWED 아님)
+
+  - id: PHR018
+    doc: 상업송장
+    field: description_of_goods
+    value: "PARTIAL LOADING ALLOWED"
+    class: practice_phrase
+    expect_none: true
+    note: 비슷하지만 다른 문구(SHIPMENT 아님)
+
+  - id: PHR019
+    doc: 상업송장
+    field: description_of_goods
+    value: "ORIGINAL SET ENCLOSED"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자(ORIGINAL 단어 자체는 표준)
+
+  - id: PHR020
+    doc: 선하증권
+    field: marks
+    value: "NOTIFY PARTY BELOW"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자(NOTIFY PARTY)
+
+  - id: PHR021
+    doc: 상업송장
+    field: description_of_goods
+    value: "SAY TOTAL USD 10,000"
+    class: practice_phrase
+    expect_none: true
+    note: 이미 대문자(SAY TOTAL)
+
+  - id: PHR022
+    doc: 상업송장
+    field: description_of_goods
+    value: "AS PER ATTACHED SCHEDULE"
+    class: practice_phrase
+    expect_none: true
+    note: 비슷하지만 다른 문구(LIST 아님)
+
+  # ══════════════════════════════════════════════════════════════
+  # price_term — 가격조건 (min 14)
+  # ══════════════════════════════════════════════════════════════
+
+  - id: PRICE001
+    doc: 상업송장
+    field: incoterms
+    value: "FOB BUSAN"
+    class: price_term
+    expect: "FOB Busan (Incoterms 2020)"
+    note: 조건+장소 병기 정규형
+
+  - id: PRICE002
+    doc: 상업송장
+    field: incoterms
+    value: "F.O.B SHANGHAI"
+    class: price_term
+    expect: "FOB Shanghai (Incoterms 2020)"
+    note: 점 표기 흡수 + 장소 병기 정규형
+
+  - id: PRICE003
+    doc: 상업송장
+    field: incoterms
+    value: "CIF ROTTERDAM"
+    class: price_term
+    expect: "CIF Rotterdam (Incoterms 2020)"
+    note: 장소 병기 정규형
+
+  - id: PRICE004
+    doc: 상업송장
+    field: incoterms
+    value: "EXW ULSAN"
+    class: price_term
+    expect: "EXW Ulsan (Incoterms 2020)"
+    note: 장소 병기 정규형
+
+  - id: PRICE005
+    doc: 상업송장
+    field: incoterms
+    value: "DDP LOS ANGELES"
+    class: price_term
+    expect: "DDP Los Angeles (Incoterms 2020)"
+    note: 장소 병기 정규형(두 단어 장소 Title Case)
+
+  - id: PRICE006
+    doc: 상업송장
+    field: incoterms
+    value: "FCA INCHEON"
+    class: price_term
+    expect: "FCA Incheon (Incoterms 2020)"
+    note: 장소 병기 정규형
+
+  - id: PRICE007
+    doc: 상업송장
+    field: incoterms
+    value: "CPT ROTTERDAM"
+    class: price_term
+    expect: "CPT Rotterdam (Incoterms 2020)"
+    note: 장소 병기 정규형
+
+  - id: PRICE008
+    doc: 상업송장
+    field: incoterms
+    value: "CIP VANCOUVER"
+    class: price_term
+    expect: "CIP Vancouver (Incoterms 2020)"
+    note: 장소 병기 정규형
+
+  - id: PRICE009
+    doc: 상업송장
+    field: incoterms
+    value: "FOB Busan (Incoterms 2020)"
+    class: price_term
+    expect_none: true
+    note: 이미 표준
+
+  - id: PRICE010
+    doc: 상업송장
+    field: incoterms
+    value: "CIF Hamburg (Incoterms 2020)"
+    class: price_term
+    expect_none: true
+    note: 이미 표준
+
+  - id: PRICE011
+    doc: 상업송장
+    field: incoterms
+    value: "EXW Seoul (Incoterms 2020)"
+    class: price_term
+    expect_none: true
+    note: 이미 표준(자유 지명이라도 정규형이면 변경 없음)
+
+  - id: PRICE012
+    doc: 상업송장
+    field: incoterms
+    value: "FOB"
+    class: price_term
+    expect_none: true
+    expect_notice: not_covered
+    note: 장소 누락, 인접 필드도 없음(단일 필드 요청) — 지어내지 않음
+
+  - id: PRICE013
+    doc: 상업송장
+    field: incoterms
+    value: "CFR"
+    class: price_term
+    expect_none: true
+    expect_notice: not_covered
+    note: 장소 누락, 인접 필드 없음
+
+  - id: PRICE014
+    doc: 상업송장
+    field: incoterms
+    value: "DAP"
+    class: price_term
+    expect_none: true
+    expect_notice: not_covered
+    note: 장소 누락, 인접 필드 없음
+
+  - id: PRICE015
+    doc: 상업송장
+    field: incoterms
+    value: "FAS"
+    class: price_term
+    expect_none: true
+    expect_notice: not_covered
+    note: 장소 누락, 인접 필드 없음
+
+  - id: PRICE016
+    doc: 상업송장
+    field: incoterms
+    value: "DPU"
+    class: price_term
+    expect_none: true
+    expect_notice: not_covered
+    note: 장소 누락, 인접 필드 없음
+
+  # ══════════════════════════════════════════════════════════════
+  # transport_doc / delivery — 운송서류 용어 · 인도 관련 (min 16, 결합)
+  # ══════════════════════════════════════════════════════════════
+  # D/O·SUR·A/N·CRO·EIR 같은 2~3자 약어는 `_MIN_SCAN_SURFACE_LEN=4` 에 걸려
+  # 스캔 대상에서 빠진다 — 평범한 단어와 충돌하는 것을 막기 위한 의도된
+  # 설계다(`cascade.py` 주석). 그래서 이 절의 음성 예시 일부는 "약어 단독은
+  # 검출되지 않는다"를 확인하는 케이스다.
+
+  - id: DOC001
+    doc: 선하증권
+    field: marks
+    value: "surrendered b/l required at destination"
+    class: transport_doc
+    expect: "Surrendered B/L"
+    note: 소문자 관행 문구(canonical 표기 자체)
+
+  - id: DOC002
+    doc: 선하증권
+    field: marks
+    value: "sur b/l cargo release pending"
+    class: transport_doc
+    expect: "Surrendered B/L"
+    note: "별칭 SUR B/L(4자 이상이라 스캔 대상)"
+
+  - id: DOC003
+    doc: 상업송장
+    field: description_of_goods
+    value: "서렌더 비엘 발급 요청"
+    class: transport_doc
+    expect: "Surrendered B/L"
+    note: 한글 별칭(서렌더 비엘)
+
+  - id: DOC004
+    doc: 선하증권
+    field: marks
+    value: "original b/l set required"
+    class: transport_doc
+    expect: "Original B/L"
+    note: 소문자 관행 문구
+
+  - id: DOC005
+    doc: 상업송장
+    field: description_of_goods
+    value: "정본 선하증권 제출"
+    class: transport_doc
+    expect: "Original B/L"
+    note: 한글 별칭(정본 선하증권)
+
+  - id: DOC006
+    doc: 선하증권
+    field: marks
+    value: "sea waybill issued instead of bl"
+    class: transport_doc
+    expect: "Sea Waybill"
+    note: 소문자 관행 문구
+
+  - id: DOC007
+    doc: 상업송장
+    field: description_of_goods
+    value: "telex release confirmed by agent"
+    class: transport_doc
+    expect: "Telex Release"
+    note: 소문자 관행 문구
+
+  - id: DOC008
+    doc: 선하증권
+    field: marks
+    value: "master b/l reference attached"
+    class: transport_doc
+    expect: "Master B/L"
+    note: 소문자 관행 문구
+
+  - id: DOC009
+    doc: 상업송장
+    field: description_of_goods
+    value: "house b/l copy enclosed"
+    class: transport_doc
+    expect: "House B/L"
+    note: 소문자 관행 문구
+
+  - id: DOC010
+    doc: 상업송장
+    field: description_of_goods
+    value: "delivery order issued to consignee"
+    class: delivery
+    expect: "Delivery Order"
+    note: 소문자 관행 문구
+
+  - id: DOC011
+    doc: 상업송장
+    field: description_of_goods
+    value: "인도지시서 발급 완료"
+    class: delivery
+    expect: "Delivery Order"
+    note: 한글 별칭(인도지시서, 4자 이상)
+
+  - id: DOC012
+    doc: 상업송장
+    field: description_of_goods
+    value: "arrival notice sent to consignee"
+    class: delivery
+    expect: "Arrival Notice"
+    note: 소문자 관행 문구
+
+  - id: DOC013
+    doc: 상업송장
+    field: description_of_goods
+    value: "cargo release order confirmed"
+    class: delivery
+    expect: "Cargo Release Order"
+    note: 소문자 관행 문구
+
+  - id: DOC014
+    doc: 상업송장
+    field: description_of_goods
+    value: "equipment interchange receipt signed"
+    class: delivery
+    expect: "Equipment Interchange Receipt"
+    note: 소문자 관행 문구
+
+  - id: DOC015
+    doc: 선하증권
+    field: marks
+    value: "Surrendered B/L"
+    class: transport_doc
+    expect_none: true
+    note: 이미 표준
+
+  - id: DOC016
+    doc: 상업송장
+    field: description_of_goods
+    value: "Original B/L"
+    class: transport_doc
+    expect_none: true
+    note: 이미 표준
+
+  - id: DOC017
+    doc: 상업송장
+    field: description_of_goods
+    value: "Delivery Order"
+    class: delivery
+    expect_none: true
+    note: 이미 표준
+
+  - id: DOC018
+    doc: 선하증권
+    field: marks
+    value: "Master B/L"
+    class: transport_doc
+    expect_none: true
+    note: 이미 표준
+
+  - id: DOC019
+    doc: 상업송장
+    field: description_of_goods
+    value: "bl surrender requested"
+    class: transport_doc
+    expect_none: true
+    note: 비슷하지만 다른 표현(어순·형태가 다름)
+
+  - id: DOC020
+    doc: 상업송장
+    field: description_of_goods
+    value: "waybill copy attached"
+    class: transport_doc
+    expect_none: true
+    note: 비슷하지만 다른 표현("sea" 없이 waybill 단독은 별칭 아님)
+
+  - id: DOC021
+    doc: 상업송장
+    field: description_of_goods
+    value: "release order confirmed"
+    class: delivery
+    expect_none: true
+    note: 비슷하지만 다른 표현("cargo" 누락)
+
+  - id: DOC022
+    doc: 상업송장
+    field: description_of_goods
+    value: "D/O issued to consignee"
+    class: delivery
+    expect_none: true
+    note: 약어 단독(D/O)은 최소 스캔 길이 미만이라 검출되지 않음(의도된 설계)
+
+  - id: DOC023
+    doc: 선하증권
+    field: marks
+    value: "Sea Waybill"
+    class: transport_doc
+    expect_none: true
+    note: 이미 표준
+
+  - id: DOC024
+    doc: 상업송장
+    field: description_of_goods
+    value: "Arrival Notice"
+    class: delivery
+    expect_none: true
+    note: 이미 표준
+
+  # ══════════════════════════════════════════════════════════════
+  # L/C 문언 우선 — 전부 음성(min 10)
+  # ══════════════════════════════════════════════════════════════
+  # L/C 가 지정한 필드는 값이 있기만 하면 사전 기반 교정(①②③④⑤)을 전부
+  # 끈다. 아래 값은 전부 이미 정리된 표기(공백 문제 없음)라 ⓪format 마저도
+  # 발동하지 않는다 — 순수하게 "사전 교정이 억제되는가"만 겨냥한다.
+
+  - id: LC001
+    doc: 선하증권
+    field: port_of_loading
+    value: "부산"
+    lc:
+      port_of_loading: "부산"
+    class: port
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C 44E 고정 — 한글 항구명이라도 KRPUS 로 교정하지 않음
+
+  - id: LC002
+    doc: 선하증권
+    field: port_of_discharge
+    value: "LOS ANGELES"
+    lc:
+      port_of_discharge: "LOS ANGELES"
+    class: port
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C 44F 고정 — USLAX 로 교정하지 않음
+
+  - id: LC003
+    doc: 선하증권
+    field: consignee
+    value: "ABC TRADING CO.,LTD"
+    lc:
+      consignee: "ABC TRADING CO.,LTD"
+    class: party_suffix
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C consignee 고정 — 접미 표준화(Co., Ltd.)도 억제됨
+
+  - id: LC004
+    doc: 상업송장
+    field: description_of_goods
+    value: "shipped on board vessel per contract"
+    lc:
+      description_of_goods: "shipped on board vessel per contract"
+    class: practice_phrase
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C 45A 고정 — 관행 문구 교정도 억제됨(L/C 없으면 SHIPPED ON BOARD 로 정상 제안됐을 값)
+
+  - id: LC005
+    doc: 상업송장
+    field: incoterms
+    value: "FOB BUSAN"
+    lc:
+      incoterms: "FOB BUSAN"
+    class: price_term
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C incoterms 고정 — 장소 병기 정규형도 억제됨
+
+  - id: LC006
+    doc: 선하증권
+    field: notify_party
+    value: "SAME AS CONSIGNEE"
+    lc:
+      notify_party: "SAME AS CONSIGNEE"
+    class: party_name
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C notify_party 고정
+
+  - id: LC007
+    doc: 선하증권
+    field: port_of_loading
+    value: "PUSAN"
+    lc:
+      port_of_loading: "PUSAN"
+    class: port
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C 44E 고정 — 구표기라도 KRPUS 로 교정하지 않음(L/C 없으면 정상 제안됐을 값)
+
+  - id: LC008
+    doc: 선하증권
+    field: port_of_discharge
+    value: "SHANGHAI"
+    lc_raw_tags:
+      "47A": "PORT OF DISCHARGE MUST BE SHANGHAI, CHINA AS PER CONTRACT"
+    class: port
+    expect_none: true
+    expect_notice: lc_wording
+    note: 44E/44F 매핑 밖이지만 47A 자유서식 원문에 값이 그대로 포함 — 같은 처리
+
+  - id: LC009
+    doc: 선하증권
+    field: port_of_loading
+    value: "인천"
+    lc:
+      port_of_loading: "인천"
+    class: port
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C 44E 고정 — 한글 항구명이라도 KRINC 로 교정하지 않음
+
+  - id: LC010
+    doc: 상업송장
+    field: incoterms
+    value: "CIF ROTTERDAM"
+    lc:
+      incoterms: "CIF ROTTERDAM"
+    class: price_term
+    expect_none: true
+    expect_notice: lc_wording
+    note: L/C incoterms 고정 — 장소 병기 정규형도 억제됨

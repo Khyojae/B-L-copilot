@@ -1,0 +1,12 @@
+# T4(`f2_terms/glossary.py`) 자체 검증용 표본 카탈로그.
+#
+# 실제 표준 사전이 아니다 — T5/T6 이 만드는 std-2026.1 을 대체하지 않는다.
+# `available_versions()` 는 `_` 로 시작하는 디렉터리를 무시하므로 이
+# 표본은 `/glossary/validate`·`/normalize` 의 "가용 버전" 목록에 절대
+# 나타나지 않는다. `load_glossary("_sample", base_dir=...)` 로만 직접
+# 지정해서 부른다.
+catalog_version: _sample
+effective_date: 2026-01-01
+sources:
+  - "T4 자체 검증용 — 실사전 아님"
+deprecates: []

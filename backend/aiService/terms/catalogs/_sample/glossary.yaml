@@ -1,0 +1,153 @@
+# T4 자체 검증용 표본 — port 를 제외한 9클래스. 실사전 아님(manifest.yaml
+# 참고). 스키마는 `docs/ai-service/f2-standard-terms.md` §스키마와 동일.
+version: 1
+catalog_version: _sample
+effective_date: 2026-01-01
+terms:
+  # ── transport_doc ──────────────────────────────────────────────
+  - term_id: TD.SURR
+    canonical: SURRENDERED
+    display: Surrendered B/L
+    category: transport_doc
+    lang: en
+    aliases: [서렌더, "SURRENDER BL", SURR]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+    source: "ISBP 821 (표본)"
+
+  - term_id: TD.CLEAN
+    canonical: "CLEAN ON BOARD"
+    category: transport_doc
+    lang: en
+    aliases: ["CLEAN B/L", 무사고선적]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── delivery ───────────────────────────────────────────────────
+  - term_id: DEL.DO
+    canonical: "DELIVERY ORDER"
+    category: delivery
+    lang: en
+    aliases: ["D/O", DO]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: DEL.FCL
+    canonical: "FULL CONTAINER LOAD"
+    category: delivery
+    lang: en
+    aliases: [FCL]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── practice_phrase ────────────────────────────────────────────
+  - term_id: PP.THIRD
+    canonical: "THIRD PARTY B/L ACCEPTABLE"
+    category: practice_phrase
+    lang: en
+    aliases: ["THIRD PARTY BL ACCEPTABLE"]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: PP.CHTR
+    canonical: "CHARTER PARTY B/L"
+    category: practice_phrase
+    lang: en
+    aliases: ["CHARTER PARTY BL", CP필요]
+    authority: ISBP 821
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── price_term (Incoterms) ─────────────────────────────────────
+  - term_id: PT.FOB
+    canonical: FOB
+    category: price_term
+    lang: en
+    aliases: ["F.O.B", 본선인도]
+    authority: Incoterms 2020
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: PT.CIF
+    canonical: CIF
+    category: price_term
+    lang: en
+    aliases: ["C.I.F", 운임보험료포함]
+    authority: Incoterms 2020
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── party_suffix ───────────────────────────────────────────────
+  - term_id: SFX.COLTD
+    canonical: "CO., LTD."
+    category: party_suffix
+    lang: en
+    aliases: ["CO.,LTD", "CO LTD", "COLTD"]
+    authority: ISO 20275
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: SFX.INC
+    canonical: "INC."
+    category: party_suffix
+    lang: en
+    aliases: [INC, INCORPORATED]
+    authority: ISO 20275
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── qty_unit (Rec 20) ──────────────────────────────────────────
+  - term_id: QU.KGM
+    canonical: KGM
+    category: qty_unit
+    lang: code
+    aliases: [KG, KGS, "K.G.S", 킬로]
+    authority: UN/ECE Rec 20
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: QU.TNE
+    canonical: TNE
+    category: qty_unit
+    lang: code
+    aliases: [MT, "M.T.", 톤]
+    authority: UN/ECE Rec 20
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── volume_unit (Rec 20) ───────────────────────────────────────
+  - term_id: VU.MTQ
+    canonical: MTQ
+    category: volume_unit
+    lang: code
+    aliases: [CBM, M3, 입방미터]
+    authority: UN/ECE Rec 20
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── container_no (선사 접두, canonical 자리에 접두를 넣는다) ──────
+  - term_id: CN.MSKU
+    canonical: MSKU
+    display: Maersk
+    category: container_no
+    lang: code
+    aliases: []
+    authority: ISO 6346
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # ── hs_code (예시) ─────────────────────────────────────────────
+  - term_id: HS.8471
+    canonical: "8471.30"
+    display: "자동자료처리기계 — 휴대용"
+    category: hs_code
+    lang: code
+    aliases: ["847130"]
+    authority: HS 2022
+    version: sample-1
+    effective_date: 2026-01-01

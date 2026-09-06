@@ -1,0 +1,1713 @@
+version: 1
+catalog_version: std-2026.1
+effective_date: '2026-01-01'
+terms:
+- term_id: DOC.SURRENDERED_BL
+  canonical: Surrendered B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 서렌더
+  - 서렌더 비엘
+  - SUR
+  - SUR B/L
+  - 권리포기 선하증권
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Surrendered'' 항목: ''A transportation document is surrendered once the possession/ownership of the document has been transferred from the customer to the carrier'' 확인.'
+- term_id: DOC.ORIGINAL_BL
+  canonical: Original B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 정본
+  - 원본
+  - 정본 선하증권
+  - 원본 비엘
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Original bill of lading''이 다수 용어 정의문(예: Date of issue, Endorsee 등)에서 정의된 개념으로 재확인되나, 독립 표제 항목은 아니어서 부분 확인.'
+- term_id: DOC.SEA_WAYBILL
+  canonical: Sea Waybill
+  category: transport_doc
+  lang: en
+  aliases:
+  - SWB
+  - 해상화물운송장
+  - 운송장
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Sea Waybill'' 항목: ''A separate specific transport document type which is non-negotiable, does not transfer title...'' 확인. ''Express B/L''이 동의어로 별도 등재됨(별칭 후보).'
+- term_id: DOC.TELEX_RELEASE
+  canonical: Telex Release
+  category: transport_doc
+  lang: en
+  aliases:
+  - 텔렉스 릴리스
+  - 전신 릴리스
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Telex release''가 ''Express release (Telex)''의 동의어로 명시됨: ''A message that is sent by the carrier...for the shipment release to a named consignee without the need to show the original B/L.'' DCSA의 공식 표제어는 ''Express release (Telex)''이고 ''Telex release''는 그 이명(異名)으로 텍스트에 등장함 — 개념은 확인, 표제어 차이는 note로 남김.'
+- term_id: DOC.MASTER_BL
+  canonical: Master B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 마스터 비엘
+  - 선사 선하증권
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Master B/L'' 항목: ''A Master Bill of Lading (MBL) is a document created by the Carrier...'' 확인.'
+- term_id: DOC.HOUSE_BL
+  canonical: House B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - NVOCC 선하증권
+  - 하우스 비엘
+  - 포워더 선하증권
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''House B/L'' 항목: ''A House Bill of Lading (HBL) is a document created by Ocean Transport Intermediary (OTI)...'' 확인.'
+- term_id: DOC.THROUGH_BL
+  canonical: Through B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 통선하증권
+  - 스루 비엘
+  - 통과 선하증권
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에 ''Through B/L'' 표제 항목이 없어 authority에서 ''· DCSA''를 제거하고 ''업계 관행''으로 낮췄다. Through B/L 자체는 복합/환적 운송에서 널리 쓰이는 통용 무역 용어다.'
+- term_id: DOC.STRAIGHT_BL
+  canonical: Straight B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 스트레이트 비엘
+  - 기명식 선하증권
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Straight B/L'' 항목: ''A non-negotiable bill of lading, with a named consignee...A straight B/L is a title to the goods.'' 확인.'
+- term_id: DOC.ORDER_BL
+  canonical: Order B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 지시식 운송서류
+  - 오더 비엘
+  - 지시식 비엘
+  - 지시식 선하증권
+  authority: 업계 관행 · DCSA
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에 ''Order B/L'' 독립 항목은 없으나 ''To Order BLs''·''Number of original B/Ls: Mandatory for To Order BLs'' 등 문맥에서 ''To Order'' 개념이 반복 확인됨 — DCSA 정의역은 부분적, 무역 실무 통용 개념으로는 확립됨.'
+- term_id: DOC.CLEAN_BL
+  canonical: Clean B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 클린 비엘
+  - 무사고 선하증권
+  - 무고장 선하증권
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에 ''Clean B/L'' 표제 항목이 없어 authority에서 ''· DCSA''를 제거하고 ''업계 관행''으로 낮췄다. ''Clean'' 개념 자체는 UCP 600 Art.27(무사고 운송서류)에 근거하나 이는 ISBP/UCP 영역이라 practice_phrase(PHR.CLEAN_ON_BOARD)와 별개로 여기서는 authority만 하향한다.'
+- term_id: DOC.CHARTER_PARTY_BL
+  canonical: Charter Party B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 용선계약 선하증권
+  - 차터파티 비엘
+  authority: 업계 관행 · UCP 600 Art.22
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에는 없으나, UCP 600 제22조 표제가 정확히 ''Charter Party Bill of Lading''이다(2차 출처로 다수 UCP 600 해설 확인, 예: tradefinance.training 등 — ICC 원문은 유료라 원문 자체는 대조 못 함). DCSA보다 정확한 근거인 UCP 600 조번으로 authority를 교체했다.'
+- term_id: DOC.COMBINED_TRANSPORT_BL
+  canonical: Combined Transport B/L
+  category: transport_doc
+  lang: en
+  aliases:
+  - 복합운송서류
+  - 복합 비엘
+  - 복합운송 선하증권
+  - MULTIMODAL
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에 표제 항목이 없어 authority에서 ''· DCSA''를 제거하고 ''업계 관행''으로 낮췄다. ''Combined B/L''·''multimodal B/L''은 DCSA 용어집에 다른 항목(예: Merge B/L 정의문) 속에서 언급되나 독립 정의가 아니다.'
+- term_id: DLV.DELIVERY_ORDER
+  canonical: Delivery Order
+  category: delivery
+  lang: en
+  aliases:
+  - D/O
+  - DO
+  - 인도지시서
+  - 인도지시
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '업계 통용 무역/물류 문서(D/O)로 널리 확립된 개념 — 화주·포워더가 터미널/CFS에 화물 인도를 지시하는 표준 서류. authority ''업계 관행'' 표기가 적절함을 확인.'
+- term_id: DLV.ARRIVAL_NOTICE
+  canonical: Arrival Notice
+  category: delivery
+  lang: en
+  aliases:
+  - A/N
+  - 도착통지
+  - 도착통지서
+  - 도착통보
+  - 화물 도착 통지
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조. ''Arrival notice'' 항목: ''Notification sent by the publisher ...informing them that a shipment is scheduled to arrive...'' 확인. authority 표기(''업계 관행'')는 이미 적절하여 변경하지 않음.'
+- term_id: DLV.CARGO_RELEASE_ORDER
+  canonical: Cargo Release Order
+  category: delivery
+  lang: en
+  aliases:
+  - CRO
+  - 화물인도지시
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'DCSA 공식 Shipping Glossary(https://dcsa.org/standards/shipping-glossary) 전문 대조.에 ''Cargo Release Order'' 독립 항목은 없으나 ''Cargo Release Reference number''(터미널 화물 인출 시 제시하는 참조번호) 문맥에서 ''Cargo Release'' 개념이 확인됨 — 업계 통용 문서로서의 실재는 확인, DCSA 표제어와 완전히 일치하지는 않음.'
+- term_id: DLV.EQUIPMENT_INTERCHANGE_RECEIPT
+  canonical: Equipment Interchange Receipt
+  category: delivery
+  lang: en
+  aliases:
+  - EIR
+  - 기기인수도증
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '컨테이너 터미널 실무에서 보편적으로 쓰이는 표준 서류(EIR, 기기 인수도 시 상태를 기록) — authority ''업계 관행'' 표기가 적절함을 확인.'
+- term_id: DLV.DEVANNING_REPORT
+  canonical: Devanning Report
+  category: delivery
+  lang: en
+  aliases:
+  - 디배닝 리포트
+  - 적출보고서
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'CFS(컨테이너 화물 집화장) 적출 작업 시 작성되는 업계 통용 서류로 확인 — authority ''업계 관행'' 표기가 적절함.'
+- term_id: DLV.CARGO_MANIFEST
+  canonical: Cargo Manifest
+  category: delivery
+  lang: en
+  aliases:
+  - 화물목록
+  - 화물 매니페스트
+  - 적하목록
+  authority: 업계 관행
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '선박 적하목록으로, 각국 세관 신고 의무와 결부된 보편적 통용 서류 — authority ''업계 관행'' 표기가 적절함을 확인.'
+- term_id: SFX.CO_LTD
+  canonical: Co., Ltd.
+  category: party_suffix
+  lang: en
+  aliases:
+  - CO., LTD
+  - CO LTD
+  - 주식회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 구성요소 ''Co.''·''Ltd.''가 각각 미국/영국 등록에서 개별 확인되며, 쉼표 결합 표기(''Co., Ltd.'')는 실무에서 광범위하게 쓰이는 표준적 결합 방식이다(validators.py의 토큰 결합 규칙과 동일한 '', '' 결합 관례). catalog canonical과 일치.'
+- term_id: SFX.INC
+  canonical: Inc.
+  category: party_suffix
+  lang: en
+  aliases:
+  - INCORPORATED
+  - Inc
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 미국 다수 For-Profit Corporation 항목(예: ELF HFGV, EJX1, OWR6 등)에서 ''Inc.''가 등록 약어로 반복 확인됨. catalog canonical과 일치.'
+- term_id: SFX.CORP
+  canonical: Corp.
+  category: party_suffix
+  lang: en
+  aliases:
+  - CORP
+  - Corporation
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 미국 다수 For-Profit Corporation 항목(예: ELF EJX1, OWR6, JKOT 등)에서 ''Corp.''가 등록 약어로 반복 확인됨. catalog canonical과 일치.'
+- term_id: SFX.LLC
+  canonical: LLC
+  category: party_suffix
+  lang: en
+  aliases:
+  - L.L.C
+  - 유한책임회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 미국 Limited Liability Company 다수 등록 항목에서 무점 ''LLC''가 최빈 표기로 확인됨(예: ELF CWRI, EI4J, F2QV 등). catalog canonical과 일치.'
+- term_id: SFX.GMBH
+  canonical: GmbH
+  category: party_suffix
+  lang: en
+  aliases:
+  - G.M.B.H
+  - 독일 유한회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 독일 Gesellschaft mit beschränkter Haftung(ELF 2HBR) 등록 약어 ''GmbH'' 정확히 일치.'
+- term_id: SFX.PTE_LTD
+  canonical: Pte. Ltd.
+  category: party_suffix
+  lang: en
+  aliases:
+  - PTE LTD
+  - PTE.LTD
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 싱가포르 Company(Local)(ELF LWXI) 등록 약어는 ''Pte Ltd;Ltd;Limited''로, 점·쉼표가 전혀 없는 형태다. catalog canonical ''Pte. Ltd.''(Pte 뒤 점만) 및 validators.py 결합형 ''Pte., Ltd.''(쉼표+점) 모두 이 등록 표기와 정확히 일치하지 않는다 — 어느 쪽이 ''맞는'' 표준형인지 확신할 수 없어 verified를 달지 않는다.'
+- term_id: SFX.PVT_LTD
+  canonical: Pvt. Ltd.
+  category: party_suffix
+  lang: en
+  aliases:
+  - PVT LTD
+  - PVT.LTD
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 인도 Private Limited Company(ELF YSP9) 등록 약어 ''Pvt Ltd;Pvt. Ltd.;PVT LTD'' 중 ''Pvt. Ltd.''가 catalog canonical과 정확히 일치.'
+- term_id: SFX.SA
+  canonical: SA
+  category: party_suffix
+  lang: en
+  aliases:
+  - S.A.
+  - S A
+  - 프랑스 주식회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 프랑스 Société anonyme(ELF QVPB) 등록 약어는 ''SA'' 단독(점 없음)이다. 기존 canonical ''S.A.''는 ISO 20275 등록 표기가 아니어서 ''SA''로 교정(validators.py와 일치), ''S.A.''는 별칭으로 유지.'
+- term_id: SFX.BV
+  canonical: BV
+  category: party_suffix
+  lang: en
+  aliases:
+  - B.V.
+  - B V
+  - 네덜란드 유한회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 네덜란드 besloten vennootschap(ELF 54M6) 등록 약어는 ''BV;bv;B.V.;b.v.'' 4종 모두 유효하나 무점 표기가 먼저 등재되어 있다. validators.py와 일치시키기 위해 canonical을 ''BV''로 교정하고 ''B.V.''는 별칭으로 유지 — 두 표기 모두 ISO 20275상 유효함에 유의.'
+- term_id: SFX.NV
+  canonical: NV
+  category: party_suffix
+  lang: en
+  aliases:
+  - N.V.
+  - N V
+  - 네덜란드 주식회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 네덜란드 naamloze vennootschap(ELF B5PM) 등록 약어는 ''NV;nv;N.V.;n.v.'' 4종 모두 유효하나 무점 표기가 먼저 등재되어 있다. validators.py와 일치시키기 위해 canonical을 ''NV''로 교정하고 ''N.V.''는 별칭으로 유지 — 두 표기 모두 ISO 20275상 유효함에 유의.'
+- term_id: SFX.AG
+  canonical: AG
+  category: party_suffix
+  lang: en
+  aliases:
+  - A.G.
+  - A G
+  - 독일 주식회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 독일 Aktiengesellschaft(ELF 6QQB) 등록 약어는 ''AG'' 단독(점 없음)이다. 기존 canonical ''A.G.''는 ISO 20275 등록 표기가 아니어서 ''AG''로 교정하고(validators.py._SUFFIX_CANON과 일치), ''A.G.''는 별칭으로 유지.'
+- term_id: SFX.SPA
+  canonical: S.p.A.
+  category: party_suffix
+  lang: en
+  aliases:
+  - SPA
+  - S P A
+  - 이탈리아 주식회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 이탈리아 Società Per Azioni(ELF P418) 등록 약어 ''SPA;S.P.A.'' — catalog canonical ''S.p.A.''는 대소문자 표기만 다른 동일 약어(이탈리아어 관용 표기)로 실질적으로 부합.'
+- term_id: SFX.SARL
+  canonical: S.A.R.L.
+  category: party_suffix
+  lang: en
+  aliases:
+  - SARL
+  - S A R L
+  - 프랑스 유한회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'ISO 20275 프랑스 관련 항목(SARL 관련 복합 법인격 다수: JN2P ''SARL unipersonnelle'', V9QP ''Société à responsabilité limitée (sans autre indication)'' 등)에서 Abbreviations 필드가 모두 비어 있어 ''SARL''/''S.A.R.L.'' 표기를 ISO 20275로 직접 대조하지 못했다. 매우 통용되는 표기이지만 1차 출처 대조가 안 되어 verified를 달지 않는다.'
+- term_id: SFX.LTD
+  canonical: Ltd.
+  category: party_suffix
+  lang: en
+  aliases:
+  - LTD
+  - Limited
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 영국 Private Limited Company(ELF H0PO) 등록 약어 ''Ltd;Ltd.;Limited'' 중 ''Ltd.''가 catalog canonical과 일치.'
+- term_id: SFX.PLC
+  canonical: PLC
+  category: party_suffix
+  lang: en
+  aliases:
+  - P.L.C
+  - 영국 공개 회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 영국 Public Limited Company(ELF B6ES) 등록 약어 ''PLC;P.L.C;plc;p.l.c'' 중 ''PLC''가 catalog canonical과 일치.'
+- term_id: SFX.LLP
+  canonical: LLP
+  category: party_suffix
+  lang: en
+  aliases:
+  - L.L.P
+  - 유한 책임 파트너십
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 미국 Limited Liability Partnership 다수 등록 항목에서 ''LLP''가 등록 약어로 확인됨(예: ELF M886, D92T, FGT5). catalog canonical과 일치.'
+- term_id: SFX.CO
+  canonical: Co.
+  category: party_suffix
+  lang: en
+  aliases:
+  - CO
+  - Company
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 미국 다수 Corporation 항목(예: ELF EJX1, OWR6)에서 ''Co.''가 등록 약어로 반복 확인됨. catalog canonical과 일치.'
+- term_id: SFX.KK
+  canonical: K.K.
+  category: party_suffix
+  lang: en
+  aliases:
+  - KK
+  - K K
+  - 가부시키가이샤
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'ISO 20275 일본 kabusikigaisya(株式会社, ELF T417) 항목의 등록 약어는 한자 ''株'' 뿐이며 로마자 ''K.K.''/''KK'' 표기는 ISO 20275 Abbreviations 필드에 없다. ''K.K.''는 실무(영문 정관·SEC 서류 등)에서 매우 널리 쓰이는 관용 표기이나, ISO 20275 자체로는 대조 확인이 안 되어 verified를 달지 않는다.'
+- term_id: SFX.EURL
+  canonical: EURL
+  category: party_suffix
+  lang: en
+  aliases:
+  - E.U.R.L
+  - 프랑스 1인 유한회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'ISO 20275 데이터셋에서 ''EURL'' 관련 프랑스 법인격 항목을 개별적으로 찾지 못했다(Entreprise unipersonnelle à responsabilité limitée에 해당하는 명확한 행을 특정하지 못함). 1차 출처 대조가 안 되어 verified를 달지 않는다.'
+- term_id: SFX.OHG
+  canonical: OHG
+  category: party_suffix
+  lang: en
+  aliases:
+  - O.H.G
+  - 독일 합명회사
+  authority: 상호 표기 정규화 규칙
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISO 20275 GLEIF ELF Code List v1.6(2026-02-19, https://www.gleif.org/en/about-lei/code-lists/iso-20275-entity-legal-forms-code-list) 대조. 독일 Offene Handelsgesellschaft(ELF 40DB) 등록 약어 목록에 ''OHG'' 포함, catalog canonical과 정확히 일치.'
+- term_id: UOM.KGM
+  canonical: KGM
+  category: qty_unit
+  lang: code
+  display: kilogram
+  aliases:
+  - KG
+  - KGS
+  - K.G.S
+  - KILO
+  - KILOS
+  - KILOGRAM
+  - KILOGRAMS
+  - 킬로그램
+  - 킬로
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. KGM=kilogram 확인.'
+- term_id: UOM.TNE
+  canonical: TNE
+  category: qty_unit
+  lang: code
+  display: tonne
+  aliases:
+  - MT
+  - M/T
+  - M.T.
+  - TON
+  - TONS
+  - TONNE
+  - TONNES
+  - 톤
+  - 메트릭톤
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. TNE=''tonne (metric ton)'' 확인.'
+- term_id: UOM.LBR
+  canonical: LBR
+  category: qty_unit
+  lang: code
+  display: pound
+  aliases:
+  - LB
+  - LBS
+  - POUND
+  - POUNDS
+  - 파운드
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. LBR=pound 확인.'
+- term_id: UOM.GRM
+  canonical: GRM
+  category: qty_unit
+  lang: code
+  display: gram
+  aliases:
+  - G
+  - GR
+  - GRAM
+  - GRAMS
+  - 그램
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. GRM=gram 확인.'
+- term_id: UOM.STN
+  canonical: STN
+  category: qty_unit
+  lang: code
+  display: short ton
+  aliases:
+  - SHORT TON
+  - SHORTTON
+  - ST
+  - 숏톤
+  - 쇼트톤
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. STN=''ton (US) or short ton (UK/US)'' 확인 — display ''short ton'' 부합.'
+- term_id: UOM.CT
+  canonical: CT
+  category: qty_unit
+  lang: code
+  display: carton
+  aliases:
+  - CTN
+  - CTNS
+  - CARTON
+  - CARTONS
+  - 카톤
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 이 코드는 UN/ECE Rec 20(수량단위)이 아니라 Rec 21(포장 형태 코드, Annex V 알파벳 코드)에 속한다 — GitHub datasets/unece-package-codes(공식 UNECE 소스 미러, https://github.com/datasets/unece-package-codes data/data.csv) 대조 결과 코드-명칭 자체는 정확하나 authority가 ''UN/ECE Rec 20''로 잘못 표기됐다. 현재(Rev 11e) 병합 코드리스트에서는 Rec21 코드에 X 접두(예: XCT·XPK·XBX·XBG·XDR)가 붙어 Rec20과 구분되므로, 접두 없는 이 코드를 Rec20 수량단위 필드에 그대로 쓰는 것은 표준상 부정확하다. 코드-의미 대응 자체(Carton/Package/Box/Bag/Drum)는 맞다.'
+- term_id: UOM.PK
+  canonical: PK
+  category: qty_unit
+  lang: code
+  display: package
+  aliases:
+  - PKG
+  - PKGS
+  - PACKAGE
+  - PACKAGES
+  - 포장
+  - 팩
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 이 코드는 UN/ECE Rec 20(수량단위)이 아니라 Rec 21(포장 형태 코드, Annex V 알파벳 코드)에 속한다 — GitHub datasets/unece-package-codes(공식 UNECE 소스 미러, https://github.com/datasets/unece-package-codes data/data.csv) 대조 결과 코드-명칭 자체는 정확하나 authority가 ''UN/ECE Rec 20''로 잘못 표기됐다. 현재(Rev 11e) 병합 코드리스트에서는 Rec21 코드에 X 접두(예: XCT·XPK·XBX·XBG·XDR)가 붙어 Rec20과 구분되므로, 접두 없는 이 코드를 Rec20 수량단위 필드에 그대로 쓰는 것은 표준상 부정확하다. 코드-의미 대응 자체(Carton/Package/Box/Bag/Drum)는 맞다.'
+- term_id: UOM.BX
+  canonical: BX
+  category: qty_unit
+  lang: code
+  display: box
+  aliases:
+  - BOX
+  - BOXES
+  - 상자
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 이 코드는 UN/ECE Rec 20(수량단위)이 아니라 Rec 21(포장 형태 코드, Annex V 알파벳 코드)에 속한다 — GitHub datasets/unece-package-codes(공식 UNECE 소스 미러, https://github.com/datasets/unece-package-codes data/data.csv) 대조 결과 코드-명칭 자체는 정확하나 authority가 ''UN/ECE Rec 20''로 잘못 표기됐다. 현재(Rev 11e) 병합 코드리스트에서는 Rec21 코드에 X 접두(예: XCT·XPK·XBX·XBG·XDR)가 붙어 Rec20과 구분되므로, 접두 없는 이 코드를 Rec20 수량단위 필드에 그대로 쓰는 것은 표준상 부정확하다. 코드-의미 대응 자체(Carton/Package/Box/Bag/Drum)는 맞다.'
+- term_id: UOM.PCE
+  canonical: PCE
+  category: qty_unit
+  lang: code
+  display: piece
+  aliases:
+  - PCS
+  - PC
+  - PIECE
+  - PIECES
+  - 개
+  - 피스
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 현행 UN/ECE Rec 20+21 병합 코드리스트(Rev 11e, PEPPOL ''UNECERec20'')에 ''PCE'' 코드가 존재하지 않는다. GS1 EANCOM DE6411 자료에 ''PCE''가 ''Piece''(현행 코드 H87)의 구코드(old code)로만 표기되어 있어 폐기/구식 코드로 보인다. Rec21 알파벳 코드에서 Piece는 ''PP''다(datasets/unece-package-codes). 실무에서 PCE가 여전히 쓰이는지는 확인했지만 ''현행 표준 코드''라는 주장은 확신할 수 없다.'
+- term_id: UOM.BG
+  canonical: BG
+  category: qty_unit
+  lang: code
+  display: bag
+  aliases:
+  - BAG
+  - BAGS
+  - 포대
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 이 코드는 UN/ECE Rec 20(수량단위)이 아니라 Rec 21(포장 형태 코드, Annex V 알파벳 코드)에 속한다 — GitHub datasets/unece-package-codes(공식 UNECE 소스 미러, https://github.com/datasets/unece-package-codes data/data.csv) 대조 결과 코드-명칭 자체는 정확하나 authority가 ''UN/ECE Rec 20''로 잘못 표기됐다. 현재(Rev 11e) 병합 코드리스트에서는 Rec21 코드에 X 접두(예: XCT·XPK·XBX·XBG·XDR)가 붙어 Rec20과 구분되므로, 접두 없는 이 코드를 Rec20 수량단위 필드에 그대로 쓰는 것은 표준상 부정확하다. 코드-의미 대응 자체(Carton/Package/Box/Bag/Drum)는 맞다.'
+- term_id: UOM.DR
+  canonical: DR
+  category: qty_unit
+  lang: code
+  display: drum
+  aliases:
+  - DRUM
+  - DRUMS
+  - 드럼
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: 이 코드는 UN/ECE Rec 20(수량단위)이 아니라 Rec 21(포장 형태 코드, Annex V 알파벳 코드)에 속한다 — GitHub datasets/unece-package-codes(공식 UNECE 소스 미러, https://github.com/datasets/unece-package-codes data/data.csv) 대조 결과 코드-명칭 자체는 정확하나 authority가 ''UN/ECE Rec 20''로 잘못 표기됐다. 현재(Rev 11e) 병합 코드리스트에서는 Rec21 코드에 X 접두(예: XCT·XPK·XBX·XBG·XDR)가 붙어 Rec20과 구분되므로, 접두 없는 이 코드를 Rec20 수량단위 필드에 그대로 쓰는 것은 표준상 부정확하다. 코드-의미 대응 자체(Carton/Package/Box/Bag/Drum)는 맞다.'
+- term_id: UOM.MTQ
+  canonical: MTQ
+  category: volume_unit
+  lang: code
+  display: cubic metre
+  aliases:
+  - CBM
+  - C.B.M.
+  - M3
+  - CU.M
+  - CUM
+  - 세제곱미터
+  - 입방미터
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. MTQ=cubic metre 확인.'
+- term_id: UOM.LTR
+  canonical: LTR
+  category: volume_unit
+  lang: code
+  display: litre
+  aliases:
+  - LITRE
+  - LITER
+  - LITERS
+  - 리터
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. LTR=litre 확인.'
+- term_id: UOM.MTR
+  canonical: MTR
+  category: volume_unit
+  lang: code
+  display: metre
+  aliases:
+  - METRE
+  - METER
+  - METERS
+  - 미터
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. MTR=metre 확인. (참고: 카탈로그의 MTR 별칭에 ''M'' 단독 표기가 없어 MTQ 별칭 ''M3''와의 접두 충돌 없음을 확인함.)'
+- term_id: UOM.FOT
+  canonical: FOT
+  category: volume_unit
+  lang: code
+  display: foot
+  aliases:
+  - FT
+  - FOOT
+  - FEET
+  - 피트
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. FOT=foot 확인.'
+- term_id: UOM.INH
+  canonical: INH
+  category: volume_unit
+  lang: code
+  display: inch
+  aliases:
+  - IN
+  - INCH
+  - INCHES
+  - 인치
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. INH=inch 확인.'
+- term_id: UOM.CMQ
+  canonical: CMQ
+  category: volume_unit
+  lang: code
+  display: cubic centimetre
+  aliases:
+  - CC
+  - CM3
+  - 세제곱센티미터
+  authority: UN/ECE Rec 20
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'UN/ECE Rec 20 (Revision 11e) — Annex 2/3 코드-명칭 대조: PEPPOL BIS ''UNECERec20'' 코드리스트(https://docs.peppol.eu/poacc/upgrade-3/2025-Q4/codelist/UNECERec20/) 및 GS1 EANCOM DE6411(https://www.gs1.org/sites/default/files/docs/eancom/ean02s3/part3/dc240.htm) 대조 완료. CMQ=''cubic centimetre'' 확인.'
+- term_id: INC.EXW
+  canonical: EXW
+  category: price_term
+  lang: code
+  display: Ex Works
+  aliases:
+  - E.X.W
+  - EX WORKS
+  - 공장인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.FCA
+  canonical: FCA
+  category: price_term
+  lang: code
+  display: Free Carrier
+  aliases:
+  - F.C.A
+  - FREE CARRIER
+  - 운송인인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.FAS
+  canonical: FAS
+  category: price_term
+  lang: code
+  display: Free Alongside Ship
+  aliases:
+  - F.A.S
+  - FREE ALONGSIDE SHIP
+  - 선측인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.FOB
+  canonical: FOB
+  category: price_term
+  lang: code
+  display: Free On Board
+  aliases:
+  - F.O.B
+  - F.O.B.
+  - FREE ON BOARD
+  - 본선인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.CFR
+  canonical: CFR
+  category: price_term
+  lang: code
+  display: Cost and Freight
+  aliases:
+  - C.F.R
+  - COST AND FREIGHT
+  - 운임포함인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.CIF
+  canonical: CIF
+  category: price_term
+  lang: code
+  display: Cost, Insurance and Freight
+  aliases:
+  - C.I.F
+  - COST INSURANCE FREIGHT
+  - 운임보험료포함인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.CPT
+  canonical: CPT
+  category: price_term
+  lang: code
+  display: Carriage Paid To
+  aliases:
+  - C.P.T
+  - CARRIAGE PAID TO
+  - 운송료선급인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.CIP
+  canonical: CIP
+  category: price_term
+  lang: code
+  display: Carriage and Insurance Paid To
+  aliases:
+  - C.I.P
+  - CARRIAGE INSURANCE PAID
+  - 운송료보험료선급인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.DAP
+  canonical: DAP
+  category: price_term
+  lang: code
+  display: Delivered At Place
+  aliases:
+  - D.A.P
+  - DELIVERED AT PLACE
+  - 지정장소인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.DPU
+  canonical: DPU
+  category: price_term
+  lang: code
+  display: Delivered at Place Unloaded
+  aliases:
+  - D.P.U
+  - DELIVERED PLACE UNLOADED
+  - 지정장소양하인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: INC.DDP
+  canonical: DDP
+  category: price_term
+  lang: code
+  display: Delivered Duty Paid
+  aliases:
+  - D.D.P
+  - DELIVERED DUTY PAID
+  - 도착지 관세지급인도
+  authority: Incoterms 2020
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ICC Incoterms 2020 공식 11개 조건(2020-01-01 발효) 대조: EXW FCA FAS FOB CFR CIF CPT CIP DAP DPU DDP, 2010판의 DAT 없음을 확인.'
+- term_id: PHR.FREIGHT_PREPAID
+  canonical: FREIGHT PREPAID
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 운임 선불
+  - 운임 선지급
+  - 선지급 운임
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.26(c)(운임 외 추가비용 표시 관련 조항) 및 실무상 ''freight prepaid'' 표기가 널리 확인됨.'
+- term_id: PHR.FREIGHT_COLLECT
+  canonical: FREIGHT COLLECT
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 운임 후불
+  - 운임 후지급
+  - 후지급 운임
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.26(c) 및 실무상 ''freight collect'' 표기가 널리 확인됨.'
+- term_id: PHR.SHIPPED_ON_BOARD
+  canonical: SHIPPED ON BOARD
+  category: practice_phrase
+  lang: en
+  aliases:
+  - SHIPPED ONBOARD
+  - 선적완료
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20(선하증권의 ''shipped on board'' 표시 요건) 확인. DCSA 용어집에도 ''shipped on board date''가 데이터 필드로 등장.'
+- term_id: PHR.CLEAN_ON_BOARD
+  canonical: CLEAN ON BOARD
+  category: practice_phrase
+  lang: en
+  aliases:
+  - CLEAN ONBOARD
+  - 이상없음 표시
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.27(''Clean'' 조항 — 무사고 표시 관련) 확인.'
+- term_id: PHR.LADEN_ON_BOARD
+  canonical: LADEN ON BOARD
+  category: practice_phrase
+  lang: en
+  aliases:
+  - LADEN ONBOARD
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. SHIPPED ON BOARD와 동일 계열의 관용 표현으로, UCP 600 Art.20 선적 표시 요건과 같은 근거.'
+- term_id: PHR.SAID_TO_CONTAIN
+  canonical: SAID TO CONTAIN
+  category: practice_phrase
+  lang: en
+  aliases:
+  - STC
+  - S.T.C
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.26(a)(''said by shipper to contain'' 등 문구 허용) 확인.'
+- term_id: PHR.SHIPPERS_LOAD_AND_COUNT
+  canonical: SHIPPER'S LOAD AND COUNT
+  category: practice_phrase
+  lang: en
+  aliases:
+  - SHIPPERS LOAD AND COUNT
+  - SLAC
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.26(a)(''shipper''s load and count'' 문구 허용) 확인.'
+- term_id: PHR.ON_DECK
+  canonical: ON DECK
+  category: practice_phrase
+  lang: en
+  aliases:
+  - ONDECK
+  - 상갑판
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.26(a)(갑판적 표시 관련 조항, 원칙적으로 갑판적 표시된 운송서류는 수리 거절 대상) 확인.'
+- term_id: PHR.TO_ORDER
+  canonical: TO ORDER
+  category: practice_phrase
+  lang: en
+  aliases:
+  - TOORDER
+  - 지시식
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. DCSA 용어집 ''To Order BLs'' 문맥 및 UCP 600 실무상 지시식 표기로 널리 확인됨.'
+- term_id: PHR.TO_ORDER_OF_SHIPPER
+  canonical: TO ORDER OF SHIPPER
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 송하인 지시식
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. PHR.TO_ORDER의 표준 확장 표현(수하인란 ''TO ORDER OF SHIPPER'')으로 동일 근거.'
+- term_id: PHR.NOTIFY_PARTY
+  canonical: NOTIFY PARTY
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 통지당사자
+  - 통지처
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. DCSA 용어집 ''Notify party''(A party who should be notified of the arrival of the cargo) 항목으로 확인됨 — DCSA 데이터 모델과 무역서류 실무 모두에서 확립된 용어.'
+- term_id: PHR.FULL_SET
+  canonical: FULL SET
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 풀세트
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20(a)(iv) ''full set of originals'' 요건 확인.'
+- term_id: PHR.ORIGINAL
+  canonical: ORIGINAL
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 정본
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20 — ''First Original'', ''Second Original'', ..., ''Original'' 등이 모두 정본으로 인정된다는 조항 확인(2차 출처 교차 확인).'
+- term_id: PHR.DUPLICATE
+  canonical: DUPLICATE
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 부본
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20 동일 조항에서 ''Duplicate''도 정본으로 인정됨을 확인.'
+- term_id: PHR.TRIPLICATE
+  canonical: TRIPLICATE
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 3본
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20 동일 조항에서 ''Triplicate''도 정본으로 인정됨을 확인.'
+- term_id: PHR.NON_NEGOTIABLE
+  canonical: NON-NEGOTIABLE
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 비유통
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. DCSA ''Sea Waybill'' 정의문 ''non-negotiable'' 및 무역서류 실무 전반에서 확립된 용어.'
+- term_id: PHR.PARTIAL_SHIPMENT_ALLOWED
+  canonical: PARTIAL SHIPMENT ALLOWED
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 부분선적 허용
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.31(a) ''Partial drawings or shipments are allowed'' 조항 확인.'
+- term_id: PHR.PARTIAL_SHIPMENT_NOT_ALLOWED
+  canonical: PARTIAL SHIPMENT NOT ALLOWED
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 부분선적 불허
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.31(a) 동일 조항(신용장이 명시적으로 금지하는 경우) 확인.'
+- term_id: PHR.TRANSHIPMENT_ALLOWED
+  canonical: TRANSHIPMENT ALLOWED
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 환적 허용
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20 환적 정의 및 허용 조항(''may indicate that the goods will or may be transhipped'') 확인.'
+- term_id: PHR.TRANSHIPMENT_NOT_ALLOWED
+  canonical: TRANSHIPMENT NOT ALLOWED
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 환적 불허
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'ISBP 745/821 원문(ICC 유료 출판물)은 직접 대조하지 못함 — 대신 그 근거가 되는 UCP 600 조문을 2차 출처(복수의 독립 무역금융 해설 사이트)로 교차 확인. UCP 600 Art.20 동일 조항(신용장이 환적을 금지하는 경우 및 컨테이너 화물 예외) 확인.'
+- term_id: PHR.FREIGHT_PAYABLE_AT_DESTINATION
+  canonical: FREIGHT PAYABLE AT DESTINATION
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 도착지 운임
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'FREIGHT_COLLECT와 같은 계열(도착지 운임 후지급)의 관용 표현으로 추정되나, 오늘 조사에서 UCP 600/ISBP 조문으로 직접 대조하지 못했다.'
+- term_id: PHR.AS_PER_ATTACHED_LIST
+  canonical: AS PER ATTACHED LIST
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 첨부 목록에 따라
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '송장·포장명세서 실무에서 흔한 문구로 보이나, ISBP의 구체적 근거 조문을 오늘 조사에서 확인하지 못했다.'
+- term_id: PHR.SAY_TOTAL
+  canonical: SAY TOTAL
+  category: practice_phrase
+  lang: en
+  aliases: []
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: 'ISBP가 금액의 문자·숫자 표기 일치를 다루는 것으로 알려져 있으나(UCP 600 Art.18 인접 영역), ''SAY TOTAL'' 문구 자체의 ISBP 근거 조문을 오늘 조사에서 확인하지 못했다.'
+- term_id: PHR.WITHOUT_RECOURSE
+  canonical: WITHOUT RECOURSE
+  category: practice_phrase
+  lang: en
+  aliases:
+  - 무소구
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '환어음(bill of exchange) 배서 관련 표준 용어로 보이나(부도 시 소구권포기), UCP 600/ISBP 조문 대조를 오늘 조사에서 마치지 못했다.'
+- term_id: PHR.DRAWN_UNDER
+  canonical: DRAWN UNDER
+  category: practice_phrase
+  lang: en
+  aliases: []
+  authority: ISBP 745
+  version: std-2026.1
+  effective_date: '2026-01-01'
+# --- hs_code (HS.*) ---
+# 주의: container_no 와 같이 pattern 단계 전용 클래스로, 캐스케이드는 이
+# 항목들을 조회하지 않는다. display 품목명은 표시·참조 용도다.
+# 2026-08 감사: 코드-품목명 대응을 확신하는 항목만 남기고 display 오류를 교정.
+  note: '신용장 번호를 인용하는 환어음의 표준 문구로 보이나, UCP 600/ISBP 조문 대조를 오늘 조사에서 마치지 못했다.'
+- term_id: HS.2709_00
+  canonical: '2709.00'
+  category: hs_code
+  lang: code
+  display: Petroleum oils, crude
+  aliases:
+  - '2709'
+  - HS 2709.00
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2709.00 = ''Petroleum oils and oils obtained from bituminous minerals, crude'' 확인, display ''Petroleum oils, crude'' 부합.'
+- term_id: HS.2710_19
+  canonical: '2710.19'
+  category: hs_code
+  lang: code
+  display: Petroleum oils, not otherwise specified
+  aliases:
+  - '2710'
+  - HS 2710.19
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2710.19 = ''Other''(2710 경질유 이외 잔여 구분) 확인, display ''Petroleum oils, not otherwise specified'' 취지 부합.'
+- term_id: HS.2711_21
+  canonical: '2711.21'
+  category: hs_code
+  lang: code
+  display: Natural gas in gaseous state
+  aliases:
+  - '2711'
+  - HS 2711.21
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2711.21 = ''Natural gas''(기체 상태; 액화천연가스 LNG는 2711.11) 확인, display ''Natural gas in gaseous state'' 정확히 부합.'
+- term_id: HS.8471_30
+  canonical: '8471.30'
+  category: hs_code
+  lang: code
+  display: Portable automatic data processing machines (≤10kg)
+  aliases:
+  - '8471'
+  - HS 8471.30
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8471.30 실제 세번 문언은 ''Portable automatic data processing machines, weighing not more than 10 kg, consisting of at least a central processing unit, a keyboard and a display''다. 기존 display ''Automatic data processing machines''는 8471 표제(heading) 수준 설명으로, .30을 다른 ADP 세번(.41/.49/.50 등)과 구분하는 핵심 조건(휴대용·10kg 이하)이 빠져 있었다. 세번 문언대로 교정.'
+- term_id: HS.8517_62
+  canonical: '8517.62'
+  category: hs_code
+  lang: code
+  display: Communication apparatus for voice/image/data transmission
+  aliases:
+  - '8517'
+  - HS 8517.62
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8517.62 = ''Machines for the reception, conversion and transmission or regeneration of voice, images or other data, including switching and routing apparatus'' 확인, display 요약 부합.'
+- term_id: HS.8527_92
+  canonical: '8527.92'
+  category: hs_code
+  lang: code
+  display: Radio receivers combined with a clock (not combined with sound recording apparatus)
+  aliases:
+  - '8527'
+  - HS 8527.92
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8527.92 실제 세번 문언은 ''Not combined with sound recording or reproducing apparatus but combined with a clock''(음향기기 미결합·시계 결합 라디오)이다. 기존 display ''Radio broadcast receivers''는 8527 표제 수준 설명으로 .92 고유 조건이 빠져 있었다. 세번 문언대로 교정.'
+- term_id: HS.8703_23
+  canonical: '8703.23'
+  category: hs_code
+  lang: code
+  display: Motor cars, cylinder capacity 1,500cc–3,000cc
+  aliases:
+  - '8703'
+  - HS 8703.23
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8703.23 실제 세번 문언은 ''Of a cylinder capacity exceeding 1,500 cc but not exceeding 3,000 cc''다. 기존 display ''Motor cars for private transport''는 8703 표제 수준 설명으로 .23 고유의 배기량 구분 조건이 빠져 있었다. 세번 문언대로 교정.'
+- term_id: HS.8704_22
+  canonical: '8704.22'
+  category: hs_code
+  lang: code
+  display: Motor vehicles for goods transport, GVW 5–20 metric tons
+  aliases:
+  - '8704'
+  - HS 8704.22
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8704.22 실제 세번 문언은 ''G.V.W. exceeding 5 metric tons but not exceeding 20 metric tons''다. 기존 display는 8704 표제 수준 설명으로 .22 고유의 총중량 구분 조건이 빠져 있었다. 세번 문언대로 교정.'
+- term_id: HS.8708_30
+  canonical: '8708.30'
+  category: hs_code
+  lang: code
+  display: Motor vehicle brake systems and parts
+  aliases:
+  - '8708'
+  - HS 8708.30
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8708.30 = ''Brakes and servo-brakes; parts thereof'' 확인, display ''Motor vehicle brake systems and parts'' 부합.'
+- term_id: HS.8902_00
+  canonical: '8902.00'
+  category: hs_code
+  lang: code
+  display: Fishing vessels
+  aliases:
+  - '8902'
+  - HS 8902.00
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8902.00 = ''Fishing vessels; factory ships and other vessels for processing or preserving fishery products'' 확인, display ''Fishing vessels''는 부분 요약(factory ships 생략)이나 정확.'
+- term_id: HS.5208_21
+  canonical: '5208.21'
+  category: hs_code
+  lang: code
+  display: Cotton plain weave fabric
+  aliases:
+  - '5208'
+  - HS 5208.21
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 5208.21 = ''Plain weave, weighing not more than 100 g/m2''(5208 면직물) 확인, display ''Cotton plain weave fabric'' 부합(중량 세부조건은 생략).'
+- term_id: HS.6204_62
+  canonical: '6204.62'
+  category: hs_code
+  lang: code
+  display: Women cotton trousers
+  aliases:
+  - '6204'
+  - HS 6204.62
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 6204.62 = ''Of cotton''(6204.6 Trousers, bib and brace overalls, breeches and shorts) 확인, display ''Women cotton trousers'' 부합.'
+- term_id: HS.6109_10
+  canonical: '6109.10'
+  category: hs_code
+  lang: code
+  display: T-shirts and singlets of cotton, knitted
+  aliases:
+  - '6109'
+  - HS 6109.10
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 6109.10 = ''Of cotton''(6109 T-shirts, singlets, knitted or crocheted) 확인, display 부합.'
+- term_id: HS.6203_42
+  canonical: '6203.42'
+  category: hs_code
+  lang: code
+  display: Men cotton trousers
+  aliases:
+  - '6203'
+  - HS 6203.42
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 6203.42 = ''Of cotton''(6203.4 남성용 Trousers 등) 확인, display ''Men cotton trousers'' 부합.'
+- term_id: HS.6205_20
+  canonical: '6205.20'
+  category: hs_code
+  lang: code
+  display: Men cotton shirts
+  aliases:
+  - '6205'
+  - HS 6205.20
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 6205.20 = ''Of cotton''(6205 Men''s or boys'' shirts) 확인, display ''Men cotton shirts'' 부합.'
+- term_id: HS.2913_00
+  canonical: '2913.00'
+  category: hs_code
+  lang: code
+  display: Derivatives of aldehydes (halogenated, sulphonated, nitrated)
+  aliases:
+  - '2913'
+  - HS 2913.00
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2913.00 = ''Halogenated, sulfonated, nitrated or nitrosated derivatives of products of heading 2912(알데히드류)'' 확인 — display가 nitrosated 1건을 누락했으나 나머지 3종(halogenated/sulphonated/nitrated)은 정확.'
+- term_id: HS.2915_21
+  canonical: '2915.21'
+  category: hs_code
+  lang: code
+  display: Acetic acid
+  aliases:
+  - '2915'
+  - HS 2915.21
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2915.21 = ''Acetic acid'' 정확히 일치.'
+- term_id: HS.2922_11
+  canonical: '2922.11'
+  category: hs_code
+  lang: code
+  display: Monoethanolamine and its salts
+  aliases:
+  - '2922'
+  - HS 2922.11
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 2922.11 = ''Monoethanolamine and its salts'' 정확히 일치.'
+- term_id: HS.3004_90
+  canonical: '3004.90'
+  category: hs_code
+  lang: code
+  display: Medicaments not elsewhere specified
+  aliases:
+  - '3004'
+  - HS 3004.90
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 3004.90 = ''Other''(3004 조제의약품 중 잔여 구분) 확인, display ''Medicaments not elsewhere specified'' 정확히 부합.'
+- term_id: HS.3005_90
+  canonical: '3005.90'
+  category: hs_code
+  lang: code
+  display: Medical dressings not elsewhere specified
+  aliases:
+  - '3005'
+  - HS 3005.90
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 3005.90 = ''Other''(3005 거즈·붕대 등 중 잔여 구분) 확인, display ''Medical dressings not elsewhere specified'' 부합.'
+- term_id: HS.3301_30
+  canonical: '3301.30'
+  category: hs_code
+  lang: code
+  display: Resinoids
+  aliases:
+  - '3301'
+  - HS 3301.30
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 3301.30 = ''Resinoids'' 정확히 일치.'
+- term_id: HS.4011_20
+  canonical: '4011.20'
+  category: hs_code
+  lang: code
+  display: New pneumatic tyres for buses or lorries
+  aliases:
+  - '4011'
+  - HS 4011.20
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 4011.20 = ''Of a kind used on buses or trucks''(4011 신품 공기타이어) 확인, display ''New pneumatic tyres for buses or lorries'' 부합.'
+- term_id: HS.4012_20
+  canonical: '4012.20'
+  category: hs_code
+  lang: code
+  display: Used pneumatic tyres
+  aliases:
+  - '4012'
+  - HS 4012.20
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 4012.20 = ''Used pneumatic tires'' 정확히 일치(tyres/tires 철자 차이만).'
+- term_id: HS.7207_20
+  canonical: '7207.20'
+  category: hs_code
+  lang: code
+  display: Semi-finished steel products, containing ≥0.25% carbon by weight
+  aliases:
+  - '7207'
+  - HS 7207.20
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 7207.20 실제 세번 문언은 ''Containing by weight 0.25 percent or more of carbon''이다. 기존 display ''Semi-finished steel products''는 7207 표제 수준 설명으로 .20 고유의 탄소함량 구분 조건(0.25% 이상, .11/.12/.19는 미만)이 빠져 있었다. 세번 문언대로 교정.'
+- term_id: HS.7308_90
+  canonical: '7308.90'
+  category: hs_code
+  lang: code
+  display: Structures and parts, not elsewhere specified
+  aliases:
+  - '7308'
+  - HS 7308.90
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 7308.90 = ''Other''(7308 구조물 및 그 부분품 중 잔여 구분) 확인, display ''Structures and parts, not elsewhere specified'' 정확히 부합.'
+- term_id: HS.7326_90
+  canonical: '7326.90'
+  category: hs_code
+  lang: code
+  display: Articles of iron or steel not elsewhere specified
+  aliases:
+  - '7326'
+  - HS 7326.90
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 7326.90 = ''Other''(7326 기타 철강제품 중 잔여 구분) 확인, display ''Articles of iron or steel not elsewhere specified'' 정확히 부합.'
+- term_id: HS.7907_00
+  canonical: '7907.00'
+  category: hs_code
+  lang: code
+  display: Other articles of zinc
+  aliases:
+  - '7907'
+  - HS 7907.00
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 7907.00 = ''Other articles of zinc'' 정확히 일치.'
+- term_id: HS.8409_91
+  canonical: '8409.91'
+  category: hs_code
+  lang: code
+  display: Parts for spark-ignition internal combustion piston engines
+  aliases:
+  - '8409'
+  - HS 8409.91
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8409.91 실제 세번 문언은 ''Suitable for use solely or principally with spark-ignition internal combustion piston engines (including rotary engines)''다. 기존 display ''Engine parts for internal combustion engines''는 압축착화(디젤, 8409.99)와 구분되지 않는 표제 수준 설명이었다. 세번 문언대로 교정.'
+- term_id: HS.8521_90
+  canonical: '8521.90'
+  category: hs_code
+  lang: code
+  display: Video recording or reproducing apparatus
+  aliases:
+  - '8521'
+  - HS 8521.90
+  authority: HS
+  version: std-2026.1
+  effective_date: '2026-01-01'
+# --- container_no (CTR.*) ---
+# 주의: 이 클래스는 policy 상 허용 단계가 pattern 뿐이라(f2_terms/policy.py),
+# 캐스케이드는 아래 항목을 조회하지 않는다. 교정은 ISO 6346 체크디지트
+# 알고리즘과 자릿수 정규화가 전담한다. 아래 접두를 유지하는 이유:
+#  (1) display 의 선사명을 제안 메시지에 덧붙이는 표시 용도
+#  (2) 향후 alias 단계 개방 시 참조 자료
+# 2026-08 감사: BIC 등록 실재를 확신하는 접두만 남김(40건 -> 13건).
+  verified: true
+  note: '미국 HTS(hts.usitc.gov) reststop API 실시간 조회로 6단위 국제 HS 조문 대조. 8521.90 = ''Other''(8521 영상기록·재생기기 중 잔여 구분) 확인 — display는 8521 표제(heading)를 그대로 썼다. 잔여(Other) 하위 성격까지는 명시하지 않았으나 오류는 아님.'
+- term_id: CTR.MSKU
+  canonical: MSKU
+  category: container_no
+  lang: code
+  display: Maersk
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/msku/) 실시간 대조: Company=MAERSK A/S. display ''Maersk'' 부합.'
+- term_id: CTR.MSCU
+  canonical: MSCU
+  category: container_no
+  lang: code
+  display: Mediterranean Shipping Company (MSC)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/mscu/) 실시간 대조: Company=MSC-MEDITERRANEAN SHIPPING COMPANY S.A. display 부합.'
+- term_id: CTR.CMAU
+  canonical: CMAU
+  category: container_no
+  lang: code
+  display: CMA CGM
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/cmau/) 실시간 대조: Company=CMA-CGM. display 부합.'
+- term_id: CTR.OOLU
+  canonical: OOLU
+  category: container_no
+  lang: code
+  display: Orient Overseas Container Line (OOCL)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/oolu/) 실시간 대조: Company=ORIENT OVERSEAS CONTAINER LINE LTD. display 부합.'
+- term_id: CTR.HMMU
+  canonical: HMMU
+  category: container_no
+  lang: code
+  display: HMM (Hyundai Merchant Marine)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/hmmu/) 실시간 대조: Company=HMM CO., LTD. display 부합(구 Hyundai Merchant Marine, 2020년 사명 변경 이력 병기 유지).'
+- term_id: CTR.EITU
+  canonical: EITU
+  category: container_no
+  lang: code
+  display: Evergreen Marine
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  note: '미검증: BIC 실시간 조회(https://www.bic-code.org/bic-codes/eitu/) 결과 Company=''GAINING ENTERPRISE S.A.'' (파나마 파나마시티 등록)로, catalog의 display ''Evergreen Marine''과 다르다. 컨테이너 추적 사이트 등 실무 자료에서는 EITU가 Evergreen 소속으로 널리 통용되나(예: 실제 컨테이너에 EVERGREEN 도장), Gaining Enterprise S.A.가 Evergreen 계열사인지 독립적으로 확인하지 못했다 — 추정으로 verified를 달지 않는다.'
+- term_id: CTR.APLU
+  canonical: APLU
+  category: container_no
+  lang: code
+  display: CMA CGM (ex APL)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/aplu/) 실시간 대조: Company=CMA-CGM (프랑스). 2016년 APL 인수로 BIC 등록사가 CMA CGM으로 이전됨 — 종전 display ''American President Lines (APL)''은 현재 법적 등록사와 다름. CSNU(COSCO/China Shipping)·TRLU(Triton/Transamerica) 항목과 동일한 ''현재사 (ex 이전사)'' 표기 관례로 수정.'
+- term_id: CTR.EGHU
+  canonical: EGHU
+  category: container_no
+  lang: code
+  display: Evergreen Marine
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/eghu/) 실시간 대조: Company=EVERGREEN MARINE (HONG KONG) LTD. display ''Evergreen Marine'' 부합.'
+- term_id: CTR.TCNU
+  canonical: TCNU
+  category: container_no
+  lang: code
+  display: Triton International (leasing)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/tcnu/) 실시간 대조: Company=TRITON CONTAINER INTERNATIONAL LTD. display 부합.'
+- term_id: CTR.CSNU
+  canonical: CSNU
+  category: container_no
+  lang: code
+  display: COSCO Shipping Lines (ex China Shipping)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/csnu/) 실시간 대조: Company=COSCO SHIPPING LINES CO LTD. 종전 T6 감사의 ''추정'' 표기를 실측으로 확정.'
+- term_id: CTR.SUDU
+  canonical: SUDU
+  category: container_no
+  lang: code
+  display: Maersk (ex Hamburg Süd)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/sudu/) 실시간 대조: Company=MAERSK A/S (덴마크). 2017년 Hamburg Süd 인수로 BIC 등록사가 Maersk로 이전됨 — 종전 display ''Hamburg Süd''는 현재 법적 등록사와 다름. 동일 관례로 수정.'
+- term_id: CTR.NYKU
+  canonical: NYKU
+  category: container_no
+  lang: code
+  display: NYK Line
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/nyku/) 실시간 대조: Company=NYK LINE. display 부합.'
+- term_id: CTR.TRLU
+  canonical: TRLU
+  category: container_no
+  lang: code
+  display: Triton International (ex Transamerica, leasing)
+  aliases: []
+  authority: ISO 6346
+  version: std-2026.1
+  effective_date: '2026-01-01'
+  verified: true
+  note: 'BIC(Bureau International des Containers) 공식 등록 조회(https://www.bic-code.org/bic-codes/trlu/) 실시간 대조: Company=TRITON CONTAINER INTERNATIONAL LTD. display ''ex Transamerica'' 계보 별도 확인 필요하나 현재 소유사 표기는 부합.'

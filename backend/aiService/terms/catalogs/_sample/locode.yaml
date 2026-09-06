@@ -1,0 +1,74 @@
+# T4 자체 검증용 표본 — port 클래스(UN/LOCODE). 실사전 아님(manifest.yaml
+# 참고). USPDX/AUPTL 쌍이 "PORTLAND" 별칭을 공유하는 동음이의 표본이다 —
+# 정규화 키 충돌 검사가 port 클래스에서 country 를 조건으로 이를 허용하는지
+# 확인하는 용도다(둘 다 country 를 채워야 통과한다).
+#
+# bl_form: B/L 면에 실제로 인쇄되는 대문자 영문 항구명. canonical(코드)은
+#          EDIFACT/세관 매니페스트 레이어용이고 B/L 면에는 인쇄되지 않는다
+#          — F2 항구 제안은 canonical 이 아니라 이 필드를 쓴다.
+version: 1
+catalog_version: _sample
+effective_date: 2026-01-01
+terms:
+  - term_id: PORT.KRPUS
+    canonical: KRPUS
+    display: "KRPUS (Busan)"
+    bl_form: BUSAN
+    category: port
+    lang: code
+    country: KR
+    aliases: [부산, 부산항, BUSAN, PUSAN, PUS]
+    authority: UN/LOCODE
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: PORT.CNSHA
+    canonical: CNSHA
+    display: "CNSHA (Shanghai)"
+    bl_form: SHANGHAI
+    category: port
+    lang: code
+    country: CN
+    aliases: [상하이, SHANGHAI]
+    authority: UN/LOCODE
+    version: sample-1
+    effective_date: 2026-01-01
+
+  - term_id: PORT.JPYOK
+    canonical: JPYOK
+    display: "JPYOK (Yokohama)"
+    bl_form: YOKOHAMA
+    category: port
+    lang: code
+    country: JP
+    aliases: [요코하마, YOKOHAMA]
+    authority: UN/LOCODE
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # 동음이의 쌍 ① — 미국 포틀랜드. "PORTLAND" 별칭을 AUPTL 과 공유한다.
+  - term_id: PORT.USPDX
+    canonical: USPDX
+    display: "USPDX (Portland, OR)"
+    bl_form: PORTLAND
+    category: port
+    lang: code
+    country: US
+    subdivision: OR
+    aliases: [PORTLAND, "PORTLAND, USA", "PORTLAND, OR"]
+    authority: UN/LOCODE
+    version: sample-1
+    effective_date: 2026-01-01
+
+  # 동음이의 쌍 ② — 호주 포틀랜드.
+  - term_id: PORT.AUPTL
+    canonical: AUPTL
+    display: "AUPTL (Portland)"
+    bl_form: PORTLAND
+    category: port
+    lang: code
+    country: AU
+    aliases: [PORTLAND, "PORTLAND, AUSTRALIA"]
+    authority: UN/LOCODE
+    version: sample-1
+    effective_date: 2026-01-01
