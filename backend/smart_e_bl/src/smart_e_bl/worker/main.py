@@ -19,10 +19,12 @@ from types import FrameType
 
 from sqlalchemy import select
 
+from smart_e_bl.clients.ai_service import AiServiceError
 from smart_e_bl.config import settings
 from smart_e_bl.db import sync_session
 from smart_e_bl.models import IngestJob
 from smart_e_bl.models.enums import JobStatus
+from smart_e_bl.worker.pipeline import UnsupportedDocumentError, run_extraction
 
 logger = logging.getLogger("smart_e_bl.worker")
 
@@ -53,15 +55,17 @@ def claim_job(session) -> IngestJob | None:
 
 
 def process(session, job: IngestJob) -> None:
-    """F1 추출 파이프라인이 들어갈 자리.
+    """F1 추출 파이프라인.
 
-    기획안 5.1 처리 절차: 형식 판별 → 문서 종류 분류 → 전처리 → 텍스트·좌표 추출
-    → LLM 구조화 추출 → 신뢰도 산출 → 다중 출처 병합 → 초안 저장.
+    이번 라운드 범위: 문서 1건(이미지 또는 PDF 1페이지)을 aiService에 보내
+    field_value로 저장한다. 다중 문서·다중 페이지 병합은 다음 라운드.
 
-    field_value 저장 시 자동 추출 값은 반드시 근거 좌표를 함께 넣어야 합니다.
-    좌표 없이 저장하면 DB CHECK(field_value_evidence_required_ck)가 거부합니다.
+    field_value 저장 시 자동 추출 값은 반드시 근거 좌표를 함께 넣어야 한다.
+    좌표 없이 저장하면 DB CHECK(field_value_evidence_required_ck)가 거부한다
+    — pipeline.py가 저장 전에 이를 먼저 걸러 NOT_FOUND로 강등한다.
     """
-    raise NotImplementedError("F1 추출 파이프라인 미구현")
+    saved = run_extraction(session, job)
+    logger.info("job_id=%s 필드 %d건 저장", job.id, saved)
 
 
 def run_once() -> bool:
@@ -73,12 +77,21 @@ def run_once() -> bool:
         logger.info("잡 시작 job_id=%s", job.id)
         try:
             process(session, job)
-        except NotImplementedError as exc:
+        except UnsupportedDocumentError as exc:
             session.rollback()
             job = session.get(IngestJob, job.id)
             job.status = JobStatus.FAILED
-            job.error_code = "NOT_IMPLEMENTED"
+            job.error_code = "UNSUPPORTED_DOCUMENT"
             job.error_message = str(exc)
+            job.finished_at = datetime.now(UTC)
+            session.commit()
+            logger.warning("잡 실패 job_id=%s: %s", job.id, exc)
+        except AiServiceError as exc:
+            session.rollback()
+            job = session.get(IngestJob, job.id)
+            job.status = JobStatus.FAILED
+            job.error_code = "AI_SERVICE_ERROR"
+            job.error_message = str(exc)[:2000]
             job.finished_at = datetime.now(UTC)
             session.commit()
             logger.warning("잡 실패 job_id=%s: %s", job.id, exc)
