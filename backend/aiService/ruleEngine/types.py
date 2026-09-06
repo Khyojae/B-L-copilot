@@ -319,6 +319,9 @@ class LCTerms:
     # L/C 가 통지처를 지정하면 서류에 그 통지처가 있어야 하지만, 지정이
     # 없으면 통지처 누락은 하자가 아니다(D010 이 이 구분을 쓴다).
     notify_party: Optional[str] = None
+    # 46A 가 지시식(TO ORDER 계열)을 요구하는지. D027(bl_consignment_required)
+    # 이 이 값을 본다. 지정이 없으면(None) 그 룰은 검사하지 않는다.
+    bl_consignment: Optional[str] = None
     incoterms: Optional[str] = None
     max_gross_weight_kg: Optional[float] = None
     max_measurement_cbm: Optional[float] = None
