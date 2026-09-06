@@ -1,0 +1,87 @@
+{
+  "conditions": {
+    "natural": {
+      "model_only": {
+        "f1_at_0.5": 0.7733333333333333,
+        "f1_at_best_threshold": 0.7445255474452555,
+        "best_threshold": 0.56,
+        "roc_auc": 0.6474666666666666,
+        "brier": 0.22022125124931335,
+        "n": 200,
+        "positive_rate": 0.625
+      },
+      "combined": {
+        "f1_at_0.5": 0.8560606060606061,
+        "f1_at_best_threshold": 0.8447653429602888,
+        "best_threshold": 0.36000000000000004,
+        "roc_auc": 0.8016,
+        "brier": 0.15670883655548096,
+        "n": 200,
+        "positive_rate": 0.625
+      },
+      "rule_only": {
+        "f1_at_0.5": 0.7983539094650206,
+        "f1_at_best_threshold": 0.7983539094650206,
+        "best_threshold": 0.5,
+        "roc_auc": 0.748,
+        "brier": 0.245,
+        "n": 200,
+        "positive_rate": 0.625
+      }
+    },
+    "balanced": {
+      "model_only": {
+        "f1_at_0.5": 0.6798029556650246,
+        "f1_at_best_threshold": 0.6666666666666666,
+        "best_threshold": 0.56,
+        "roc_auc": 0.6360888888888889,
+        "brier": 0.2589781582355499,
+        "n": 150,
+        "positive_rate": 0.5
+      },
+      "combined": {
+        "f1_at_0.5": 0.8047337278106509,
+        "f1_at_best_threshold": 0.7845303867403315,
+        "best_threshold": 0.36000000000000004,
+        "roc_auc": 0.7971555555555555,
+        "brier": 0.18137235939502716,
+        "n": 150,
+        "positive_rate": 0.5
+      },
+      "rule_only": {
+        "f1_at_0.5": 0.7692307692307693,
+        "f1_at_best_threshold": 0.7692307692307693,
+        "best_threshold": 0.5,
+        "roc_auc": 0.76,
+        "brier": 0.24,
+        "n": 150,
+        "positive_rate": 0.5
+      }
+    }
+  },
+  "success": {
+    "criterion": "결합 F1 >= 0.85 AND 결합 F1 > 룰 단독 F1 (자연 비율)",
+    "passed_at_threshold_0.5": true,
+    "passed_at_best_threshold": false,
+    "combined_beats_rule_on_every_metric_and_ratio": true,
+    "combined_f1_at_0.5": 0.8560606060606061,
+    "rule_only_f1_at_0.5": 0.7983539094650206,
+    "combined_f1_best_threshold": 0.8447653429602888,
+    "rule_only_f1_best_threshold": 0.7983539094650206,
+    "combined_roc_auc": 0.8016,
+    "rule_only_roc_auc": 0.748,
+    "passed": true
+  },
+  "leakage_diagnostics": {
+    "phi_y_vs_rv_any_critical": 0.4250298472627403,
+    "defect_rate_when_rule_silent": 0.46375617792421747,
+    "repair_rate_when_rule_fired": 0.13941769316909294,
+    "n_rule_silent": 1214,
+    "n_rule_fired": 1786,
+    "overall_defect_rate": 0.7
+  },
+  "model_version": "fs-1-20260814-08883e",
+  "feature_schema_version": "fs-1",
+  "trained_at": "2026-08-14",
+  "training_label_count": 1800
+}

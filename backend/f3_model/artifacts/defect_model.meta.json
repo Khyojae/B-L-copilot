@@ -1,0 +1,28 @@
+{
+  "feature_names": [
+    "critical_count",
+    "warning_count",
+    "info_count",
+    "violation_weight_sum",
+    "skipped_ratio",
+    "evaluated_count",
+    "field_missing_ratio",
+    "critical_field_missing_count",
+    "low_confidence_ratio",
+    "mean_confidence",
+    "anchor_derived_ratio",
+    "days_to_shipment_deadline",
+    "days_to_expiry",
+    "lc_condition_count"
+  ],
+  "params": {
+    "max_depth": 4,
+    "eta": 0.1,
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 3,
+    "seed": 42
+  }
+}

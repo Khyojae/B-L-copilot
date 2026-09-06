@@ -1,0 +1,7 @@
+{
+  "source_eval_seed": 20260814,
+  "sample_size": 200,
+  "eval_total_rows": 2000,
+  "sample_fraction": 0.1,
+  "defect_rate": 0.745
+}

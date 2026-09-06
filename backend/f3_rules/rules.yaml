@@ -1,0 +1,559 @@
+# 하자 검증 룰 카탈로그 (UCP 600 / ISBP 821)
+#
+# 기획안 F3 의 "룰엔진(조문 코드화)" 이 이 파일이다. 6.1 아키텍처에서도
+# L4 공유 척추의 구성요소로 '룰 카탈로그'가 잡혀 있다.
+#
+# 룰을 코드가 아닌 데이터로 두는 이유:
+#   1. 조문 근거를 화면·리포트가 인용해야 한다. S4 의 '항목별 조문 근거 펼침'과
+#      F4 리포트의 ②항목별 리스크가 여기 source 를 그대로 출력한다. 코드에
+#      하드코딩하면 리포트가 조문을 지어내게 된다.
+#   2. `validation_rules` 테이블 시드로 옮겨간다.
+#   3. 룰 추가·심각도 조정에 코드 변경이 필요 없다.
+#
+# check  : checks.py 에 등록된 함수 이름. 새 검사 유형은 거기 추가한다.
+# weight : 하자 확률 기여도. Verdict.defect_probability 가 이 값들을 합산한다.
+#          치명 0.30~0.40 / 경고 0.08~0.15 / 참고 0.02 대역을 쓴다.
+#          치명 3건이면 1.0 에 닿도록 잡았다.
+# message: {bl} {lc} {detail} 이 실행 시 치환된다.
+#
+# verified: 이 룰의 `source` 조문 인용을 **무역 실무자가 실제 조문과 대조해
+#           확인했는지**. 생략하면 미검증이다.
+#
+#           기본값을 미검증으로 둔 이유는, 일부 룰에만 `verified: false` 를
+#           달면 나머지는 검증된 것처럼 읽히기 때문이다. 지금 확인을 거친
+#           룰은 하나도 없으므로 전건이 미검증이 맞다.
+#
+#           기획안 9절이 대응책으로 "멘토 기업 실무 검증"을 명시한다.
+#           발표에서 조문이 틀리면 시스템 전체의 신뢰가 무너지므로,
+#           확인이 끝난 룰부터 `verified: true` 를 달아 나가면 된다.
+#           `GET /rules` 와 기동 로그가 남은 건수를 보고한다.
+
+version: 1
+
+rules:
+  # ── 필수 항목 누락 ────────────────────────────────────────────
+  - id: D001
+    title: B/L 번호 누락
+    severity: critical
+    weight: 0.30
+    fields: [bl_no]
+    check: required
+    source: UCP 600 Art.20(a) — 선하증권은 운송인의 명칭을 표시하고 발행 사실이 특정되어야 한다.
+    message: B/L 번호가 없습니다.
+    remedy: 선사에서 발급받은 B/L 번호를 입력하세요.
+
+  - id: D005
+    title: 수하인 누락
+    severity: critical
+    weight: 0.30
+    fields: [consignee]
+    check: required
+    source: UCP 600 Art.20(a)(ii) — 선하증권은 물품이 지정된 수하인에게 인도되도록 발행되어야 한다.
+    message: Consignee 정보가 없습니다.
+    remedy: L/C 가 지정한 수하인을 정확히 기재하세요.
+
+  - id: D012
+    title: 선적항 누락
+    severity: critical
+    weight: 0.30
+    fields: [port_of_loading]
+    check: required
+    source: UCP 600 Art.20(a)(iii) — 선하증권은 신용장에 명시된 선적항과 양륙항을 표시해야 한다.
+    message: 선적항 정보가 없습니다.
+    remedy: L/C 가 지정한 선적항을 기재하세요.
+
+  - id: D012B
+    title: 양하항 누락
+    severity: critical
+    weight: 0.30
+    fields: [port_of_discharge]
+    check: required
+    source: UCP 600 Art.20(a)(iii) — 선하증권은 신용장에 명시된 선적항과 양륙항을 표시해야 한다.
+    message: 양하항 정보가 없습니다.
+    remedy: L/C 가 지정한 양하항을 기재하세요.
+
+  - id: D009
+    title: 송하인 누락
+    severity: warning
+    weight: 0.10
+    fields: [shipper]
+    check: required
+    source: ISBP 821 A.1 — 서류상 당사자 표시는 신용장 및 타 서류와 저촉되지 않아야 한다.
+    message: Shipper 정보가 없습니다.
+    remedy: 수출자(송하인) 상호를 기재하세요.
+
+  # `required` → `required_if_lc` 로 바꿨다. 통지처는 다른 필수 항목과 성격이
+  # 다르다 — B/L 번호나 수하인은 L/C 와 무관하게 없으면 하자지만, 통지처는
+  # **L/C 46A 가 지정했을 때만** 하자다. 지정이 없으면 검사 대상이 아니며,
+  # 그 경우 결과는 `passed` 가 아니라 `not_evaluated` 다.
+  #
+  # 조건을 붙였으므로 severity 를 critical 로 올릴 수 있다. 이전에는 조건
+  # 없이 전건에 걸리는 룰이라 warning 이 아니면 정상 서류를 하자로 만들었다.
+  - id: D010
+    title: 통지처 누락
+    severity: critical
+    weight: 0.25
+    fields: [notify_party]
+    check: required_if_lc
+    lc_field: notify_party
+    source: UCP 600 Art.14(d) — 서류의 기재는 L/C 조건과 저촉되지 않아야 한다. L/C 가 통지처를 지정한 경우 그 기재가 누락되면 저촉이다.
+    message: L/C 가 지정한 Notify Party 가 서류에 없습니다.
+    remedy: L/C 46A 의 통지처를 그대로 기재하세요.
+
+  # severity 를 warning → critical 로 올렸다. 판정 기준이 `has_critical` 이라
+  # warning 은 검출로 세어지지 않고, 그래서 선박명 누락이 통째로 빠져나갔다
+  # (missing_field 재현율의 대부분이 이 한 건이었다).
+  #
+  # 올리는 근거는 일관성이 아니라 조문이다. Art.20(a)(ii) 는 본선적재를
+  # **지정 선박** 에의 적재로 표시할 것을 요구하므로, 선박명이 없으면 선적
+  # 사실 자체가 표시되지 않은 것이다. 이는 은행이 거절할 수 있는 하자다.
+  # 다른 필수 필드 누락(D001·D005·D012·D012B)이 모두 critical / 0.3 인 것과도
+  # 맞는다.
+  - id: D011
+    title: 선박명 누락
+    severity: critical
+    weight: 0.3
+    fields: [vessel]
+    check: required
+    source: UCP 600 Art.20(a)(ii) — 선적 사실은 지정 선박에의 본선적재로 표시되어야 한다.
+    message: 선박명이 없습니다.
+    remedy: 실제 적재 선박명을 기재하세요.
+
+  # ── L/C 조건 불일치 ───────────────────────────────────────────
+  - id: D003
+    title: 선적항 불일치
+    severity: critical
+    weight: 0.35
+    fields: [port_of_loading]
+    check: match_place
+    lc_field: port_of_loading
+    source: UCP 600 Art.20(a)(iii) — 선하증권상 선적항은 신용장에 명시된 선적항과 일치해야 한다.
+    message: 선적항이 L/C 지정 항구와 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 지정 항구 표기로 정정하거나, 실제 선적항이 다르면 L/C 조건변경을 요청하세요.
+
+  - id: D004
+    title: 양하항 불일치
+    severity: critical
+    weight: 0.35
+    fields: [port_of_discharge]
+    check: match_place
+    lc_field: port_of_discharge
+    source: UCP 600 Art.20(a)(iii) — 선하증권상 양륙항은 신용장에 명시된 양륙항과 일치해야 한다.
+    message: 양하항이 L/C 지정 항구와 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 지정 항구 표기로 정정하거나 L/C 조건변경을 요청하세요.
+
+  - id: D005B
+    title: 수하인 불일치
+    severity: critical
+    weight: 0.35
+    fields: [consignee]
+    check: match_place
+    lc_field: consignee
+    source: UCP 600 Art.14(d) — 서류상 정보는 신용장 및 타 서류의 정보와 저촉되어서는 안 된다.
+    message: Consignee 가 L/C 지정과 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 가 지정한 수하인 상호를 그대로 기재하세요.
+
+  # L/C 46A 가 지시식(TO ORDER) B/L 을 요구했는데 기명식으로 발행되면
+  # 배서로 유통되지 않아 신용장의 담보가 성립하지 않는다 — 은행이 실제로
+  # 거절하는 사유라 critical 로 잡는다. weight 는 주변 critical 룰(D003·
+  # D004·D005B·D006)과 같은 0.35.
+  #
+  # source 근거를 밝힌다. "지시식 요구를 지켜야 한다"는 취지의 조문 번호를
+  # 확신을 갖고 특정하지 못해, D005B(수하인 불일치)와 같은 근거인 Art.14(d)
+  # (서류 정보는 신용장 조건과 저촉되어서는 안 된다)를 그대로 썼다. 무역
+  # 실무자의 조문 대조가 필요하다 — verified 는 기본값(미검증)을 둔다.
+  - id: D027
+    title: 지시식 요구인데 기명식 B/L
+    severity: critical
+    weight: 0.35
+    fields: [consignee]
+    check: bl_consignment_required
+    lc_flag: bl_consignment
+    source: UCP 600 Art.14(d) — 서류상 정보는 신용장 조건과 저촉되어서는 안 된다. L/C 46A 가 지시식(TO ORDER) 발행을 요구하면 그 형식은 신용장 조건이다.
+    message: L/C 가 지시식(TO ORDER) B/L을 요구하는데 서류의 Consignee가 기명식({bl})입니다.
+    remedy: 선사에 지시식(TO ORDER 또는 TO ORDER OF SHIPPER) B/L 재발행을 요청하세요. 기명식 B/L은 유통성이 없어 신용장 담보가 성립하지 않습니다.
+
+  - id: D006
+    title: 화물 명세 불일치
+    severity: critical
+    weight: 0.35
+    fields: [description_of_goods]
+    check: contains_keywords
+    lc_field: description_of_goods
+    source: UCP 600 Art.14(e) — 선하증권상 물품 명세는 신용장의 명세와 저촉되지 않는 일반적 용어로 기재될 수 있다.
+    message: 화물 명세에 L/C 요구 키워드가 없습니다. (누락 {detail})
+    remedy: L/C 명세의 핵심 용어를 화물 명세에 포함시키세요.
+
+  # ── 기한 ──────────────────────────────────────────────────────
+  - id: D002
+    title: 선적기한 초과
+    severity: critical
+    weight: 0.40
+    fields: [on_board_date, date_of_issue]
+    check: date_not_after
+    lc_field: latest_shipment_date
+    source: UCP 600 Art.14(c) — 선적일이 신용장에 명시된 최종 선적기일을 경과해서는 안 된다.
+    message: 선적일({bl})이 L/C 최종 선적기한({lc})을 넘었습니다.
+    remedy: 사후 정정이 불가능한 하자입니다. L/C 조건변경(기한 연장)을 받아야 합니다.
+
+  # 은행은 서류의 **발행일이 아니라 제시일** 기준으로 유효기일을 본다
+  # (UCP 600 Art.6(d)·14(a)). 발행일이 기간 내라도 제시가 유효기일을 넘기면
+  # 하자다. `presentation_before_expiry` 는 제시일(as_of)이 언제나 발행일
+  # 이후이므로 예전 발행일 기준 판정을 포함한다 — 별도 룰로 쪼개면 같은
+  # 하자가 두 번 계상된다. `fields` 는 화면의 필드 바로가기 용도로만 남긴다.
+  - id: D008
+    title: 유효기간 경과 (제시일 기준)
+    severity: critical
+    weight: 0.40
+    fields: [date_of_issue]
+    check: presentation_before_expiry
+    source: UCP 600 Art.6(d)·14(a) — 신용장은 제시를 위한 유효기일을 명시해야 하며, 서류는 그 유효기일 이내에 제시되어야 한다.
+    message: 제시 시점이 L/C 유효기간({lc})을 {detail}일 지났습니다.
+    remedy: 유효기간 내 제시가 불가능합니다. L/C 조건변경(유효기일 연장)을 요청하세요.
+
+  - id: D018
+    title: 서류제시기간 경과
+    severity: critical
+    weight: 0.30
+    fields: [on_board_date, date_of_issue]
+    check: presentation_period
+    source: UCP 600 Art.14(c) — 서류는 선적일 후 21일 이내에, 그리고 유효기일 이내에 제시되어야 한다.
+    message: 선적일로부터 {detail}일이 지났습니다. 제시기간은 {lc}일입니다.
+    remedy: 즉시 은행에 제시하세요. 기간이 지나면 stale B/L 하자가 됩니다.
+
+  - id: D019
+    title: 발행일이 미래
+    severity: critical
+    weight: 0.35
+    fields: [date_of_issue]
+    check: date_not_in_future
+    source: ISBP 821 A — 서류는 제시일보다 늦은 날짜로 발행될 수 없다.
+    message: 발행일({bl})이 제시 시점({lc})보다 {detail}일 미래입니다.
+    remedy: 발행일 오기입인지 확인하세요. 선일자 발행이면 은행이 수리하지 않습니다.
+
+  # ── 당사자·발행 표시 ──────────────────────────────────────────
+  - id: D020
+    title: 통지처 불일치
+    severity: warning
+    weight: 0.12
+    fields: [notify_party]
+    check: match_place
+    lc_field: notify_party
+    source: ISBP 821 A.1 — 서류상 당사자 표시는 신용장 및 타 서류와 저촉되지 않아야 한다.
+    message: Notify Party 가 L/C 지정과 다릅니다. (서류 {bl} / L/C {lc})
+    remedy: L/C 가 지정한 통지처 상호를 그대로 기재하세요.
+
+  - id: D021
+    title: 발행지 누락
+    severity: warning
+    weight: 0.08
+    fields: [place_of_issue]
+    check: required
+    source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
+    message: 발행지 정보가 없습니다.
+    remedy: 선하증권이 발행된 장소를 기재하세요.
+
+  # D021 의 조문 근거가 **발행지와 발행일을 함께** 요구하는데 룰은 발행지만
+  # 검사하고 있었다. 발행일 누락을 잡는 룰이 카탈로그에 없었다.
+  #
+  # 조용한 구멍이다. 발행일이 없으면 D018(제시기간)·D019(선일자) 가
+  # `not_evaluated` 로 빠진다 — 둘 다 서류 날짜를 직접 참조하기 때문이다
+  # (D008 은 제시일 기준으로 바뀌어 L/C 유효기일만 보므로 여기 해당하지
+  # 않는다). 그래도 발행일을 통째로 빼면 날짜 하자 상당수가 잡히지 않는다.
+  # 위반 0건은 화면에서 '하자 없음'으로 읽힌다.
+  #
+  # severity 를 발행지(warning)보다 높게 잡은 이유는 조문이 아니라 심사
+  # 가능성이다. 발행지는 없어도 나머지 심사가 되지만, 발행일은 제시기간과
+  # 유효기일 판정의 기준일이라 없으면 심사 자체가 성립하지 않는다.
+  - id: D022
+    title: 발행일 누락
+    severity: critical
+    weight: 0.30
+    fields: [date_of_issue]
+    check: required
+    source: ISBP 821 E — 선하증권에는 발행지와 발행일이 표시되어야 한다.
+    message: 발행일 정보가 없습니다.
+    remedy: 선하증권 발행일을 기재하세요. 없으면 제시기간·유효기일 심사가 불가능합니다.
+
+  # ── 문면상 하자 ───────────────────────────────────────────────
+  #
+  # 아래 셋은 L/C 를 보지 않는다. 신용장이 무엇을 말하든 서류 문면 자체가
+  # 하자인 항목이라 `contains_forbidden` 을 쓴다. 조건부 룰로 만들면 L/C
+  # 없이 돌릴 때 통째로 검사되지 않는다.
+  - id: D023
+    title: 고장 문언 (무고장 선하증권 아님)
+    severity: critical
+    weight: 0.35
+    fields: [description_of_goods]
+    check: contains_forbidden
+    keywords:
+      - DAMAGED
+      - BROKEN
+      - TORN
+      - STAINED
+      - SOILED
+      - LEAKING
+      - RUSTY
+      - SHORT SHIPPED
+      - INSUFFICIENT PACKING
+      - INADEQUATE PACKING
+    source: UCP 600 Art.27 — 은행은 무고장 운송서류만을 수리한다. 물품 또는 포장의 하자 상태를 명시적으로 선언한 조항이 있으면 무고장이 아니다.
+    message: 물품·포장의 하자 상태를 나타내는 문언이 있습니다. ({detail})
+    remedy: 고장 문언이 붙은 선하증권은 은행이 수리하지 않습니다. 선사에 무고장 선하증권 발행을 요청하세요.
+
+  # 한계를 알고 쓸 것. 실제 고장 문언은 서식의 remarks 구역에 찍히는데
+  # 현재 추출기에는 그 구역이 없다. 화물 명세로 흘러든 경우만 잡힌다.
+  # remarks 추출이 붙으면 이 룰은 `fields` 한 줄만 고치면 된다 — 룰을
+  # 데이터로 둔 값어치가 나오는 자리다.
+
+  - id: D024
+    title: 예정 선박 표시
+    severity: warning
+    weight: 0.12
+    fields: [vessel]
+    check: contains_forbidden
+    keywords:
+      - INTENDED
+    source: UCP 600 Art.20(a)(ii) — 선하증권에 '예정 선박' 표시가 있으면 선적일과 실제 선박명을 담은 본선적재부기가 필요하다.
+    message: 선박명이 예정 선박으로 표시되어 있습니다. ({detail})
+    remedy: 실제 적재 선박명이 기재된 본선적재부기를 받으세요.
+
+  # critical 로 둔 이유. 항구가 특정되지 않으면 Art.20(a)(iii) 의 '선적항
+  # 표시' 자체가 성립하지 않고, D003·D012 의 대조는 그 값을 항구명으로
+  # 믿고 도는 탓에 조용히 통과할 수 있다.
+  #
+  # 신용장은 "ANY EUROPEAN PORT" 처럼 지역으로 쓸 수 있다. 선하증권이
+  # 그 문구를 그대로 옮겨 적는 것이 실제로 흔한 하자다.
+  - id: D025
+    title: 항구가 특정되지 않음
+    severity: critical
+    weight: 0.30
+    fields: [port_of_loading, port_of_discharge]
+    check: contains_forbidden
+    keywords:
+      - ANY PORT
+      - ANY PORTS
+      - MAIN PORT
+      - MAIN PORTS
+      - EUROPEAN PORT
+      - EUROPEAN PORTS
+      - ASIAN PORT
+      - ASIAN PORTS
+      - CONTINENTAL PORT
+      - CONTINENTAL PORTS
+    source: ISBP 821 E — 신용장이 지역 또는 복수의 항구를 허용하더라도 선하증권은 실제 선적항과 양륙항을 표시해야 한다.
+    message: 항구가 실제 항구명이 아니라 지역·범위로 기재되어 있습니다. ({detail})
+    remedy: 실제 선적·양륙이 이루어진 항구명을 기재하세요.
+
+  # ── 수량·금액 ─────────────────────────────────────────────────
+  - id: D007
+    title: 중량 한도 초과
+    severity: critical
+    weight: 0.30
+    fields: [gross_weight]
+    check: numeric_not_above
+    lc_field: max_gross_weight_kg
+    unit: KG
+    source: UCP 600 Art.30(b) — 물품 수량에 대해 5% 범위의 과부족은 허용되나 신용장 금액을 초과할 수 없다.
+    message: 총 중량({bl})이 L/C 허용 한도({lc})를 초과합니다.
+    remedy: 실제 중량을 확인하고, 초과가 맞다면 L/C 조건변경을 요청하세요.
+
+  - id: D007B
+    title: 용적 한도 초과
+    severity: warning
+    weight: 0.10
+    fields: [measurement]
+    check: numeric_not_above
+    lc_field: max_measurement_cbm
+    unit: CBM
+    source: 실무관행 — 용적 초과는 운임 정산 분쟁으로 이어질 수 있다.
+    message: 용적({bl})이 L/C 허용 한도({lc})를 초과합니다.
+    remedy: 검량 결과를 재확인하세요.
+
+  - id: D017
+    title: 운임 허용범위 이탈
+    severity: critical
+    weight: 0.30
+    fields: [total_freight]
+    check: within_tolerance
+    lc_field: freight_amount
+    source: UCP 600 Art.30(a) — 신용장 금액에 about 등이 사용된 경우 10%를 초과하지 않는 과부족이 허용된다.
+    message: 운임({bl})이 L/C 허용 범위({lc})를 벗어납니다.
+    remedy: 운임 산출 근거를 확인하고 허용 오차 범위 내로 조정하세요.
+
+  # 한 방향만 잡는다. C·D 조건은 매도인이 주운송비를 부담하므로 운임 후불
+  # 표시가 거래조건과 저촉되지만, 반대(FOB 인데 운임 선불)는 매도인이 편의상
+  # 선지급한 것일 수 있고 은행이 그것으로 거절하지 않는다. 대칭이 예뻐 보인다고
+  # 넣으면 정상 건이 하자로 잡힌다.
+  - id: D026
+    title: 운임 지급 조건 저촉
+    severity: warning
+    weight: 0.12
+    fields: [total_freight, description_of_goods]
+    check: freight_prepaid_required
+    lc_field: incoterms
+    source: ISBP 821 E — 운임 지급에 관한 표시는 신용장의 거래조건과 저촉되지 않아야 한다.
+    message: L/C 거래조건({lc})은 운임 선불인데 서류에 후불 표시가 있습니다. ({detail})
+    remedy: 운임 선불(FREIGHT PREPAID) 선하증권으로 교체하거나 L/C 거래조건 변경을 요청하세요.
+
+  # ── 금지 조건 위반 ────────────────────────────────────────────
+  - id: D013
+    title: 분할선적 금지 위반
+    severity: critical
+    weight: 0.35
+    fields: [description_of_goods]
+    check: forbidden_when_prohibited
+    lc_flag: partial_shipment
+    keywords:
+      - PARTIAL SHIPMENT
+      - PART SHIPMENT
+      - 1ST SHIPMENT
+      - 2ND SHIPMENT
+      - FIRST SHIPMENT
+      - SECOND SHIPMENT
+    source: UCP 600 Art.31(a) — 분할선적은 신용장이 금지하지 않는 한 허용된다. 금지된 경우 분할선적 표시는 하자가 된다.
+    message: 분할선적 금지 조건인데 분할선적 표시가 있습니다. ({detail})
+    remedy: 분할선적 표기를 제거하거나 L/C 조건변경으로 분할선적 허용을 받으세요.
+
+  - id: D014
+    title: 환적 금지 위반
+    severity: warning
+    weight: 0.15
+    fields: [description_of_goods, port_of_loading, port_of_discharge]
+    check: forbidden_when_prohibited
+    lc_flag: transhipment
+    keywords:
+      - TRANSHIPMENT
+      - TRANSSHIPMENT
+      - TRANSIT
+    source: UCP 600 Art.20(c) — 환적 금지 조건이라도 컨테이너 운송의 경우 환적 표시 선하증권은 수리될 수 있다.
+    message: 환적 금지 조건인데 환적 표시가 있습니다. ({detail})
+    remedy: 컨테이너 운송이면 Art.20(c) 로 수리 가능합니다. 아니면 직항 선박으로 재선적하세요.
+
+  # ── 참고 항목 ─────────────────────────────────────────────────
+  # Incoterms 전용 항목(칸)이 있으면 그쪽을 우선 본다. `_first_present` 가
+  # fields 순서대로 값 있는 첫 필드를 채택하므로, 전용 항목이 비어 있을
+  # 때만 화물 명세로 폴백한다 — 전용 칸에 인쇄되어 있는데 명세에는 없다는
+  # 이유로 잡으면 오탐이다.
+  - id: D015
+    title: Incoterms 미표시
+    severity: warning
+    weight: 0.08
+    fields: [incoterms, description_of_goods]
+    check: contains_incoterms
+    lc_field: incoterms
+    source: ISBP 821 A.19 — 신용장이 요구하는 거래조건은 물품 명세(또는 서류상 거래조건 표시)에 표시되어야 한다.
+    message: L/C 지정 Incoterms({lc})가 서류에 없습니다.
+    remedy: Incoterms 항목 또는 화물 명세에 거래조건을 명시하세요.
+
+  - id: D016
+    title: 요구서류 목록에 B/L 없음
+    severity: info
+    weight: 0.02
+    fields: []
+    check: bl_in_documents_required
+    source: UCP 600 Art.14(a) — 지정은행은 서류만을 근거로 문면상 일치 여부를 심사한다.
+    message: L/C 요구 서류 목록에 BILL OF LADING 이 명시되어 있지 않습니다.
+    remedy: L/C 원문을 확인하세요. 요구 서류가 아니면 B/L 제시가 불필요할 수 있습니다.
+
+  # ── 문언·부기 (bl_clauses) 기반 ──────────────────────────────────
+  #
+  # 용선계약·갑판적재·수취식·정정은 라벨 박스가 없는 자유 서술이라 D023 처럼
+  # `description_of_goods` 만 봐서는 잡히지 않는다. `bl_clauses` 는 페이지
+  # 전체 원문을 담으므로(`field_parser.py` 주석 참고) 이 자리에서 검사한다.
+  # weight 는 D023·D006·D027 등 기존 critical `contains_forbidden` 계열과
+  # 같은 0.35 로 맞췄다.
+  - id: D028
+    title: 용선계약 선하증권 (Charter Party B/L)
+    severity: critical
+    weight: 0.35
+    fields: [bl_clauses]
+    check: contains_forbidden
+    keywords:
+      - CHARTER PARTY
+      - SUBJECT TO CHARTER
+    source: UCP 600 Art.20(a)(vi) — 신용장이 용선계약 선하증권을 명시적으로 허용하지 않는 한, 선하증권에 용선계약에 따른다는 표시가 있으면 은행은 이를 수리하지 않는다.
+    message: 용선계약(Charter Party)에 따른다는 문언이 있습니다. ({detail})
+    remedy: L/C 가 용선계약 선하증권을 허용하는지 확인하세요. 허용하지 않으면 정기선(liner) 선하증권으로 교체해야 합니다.
+
+  # 함정 주의. Art.26(b) 는 실제 갑판적재 사실을 표시한 문언만 하자로 본다 —
+  # "물품이 갑판에 실릴 수도 있다"는 **가능성** 표현("MAY BE CARRIED ON
+  # DECK")은 명시적으로 수리 가능하다. `CARRIED ON DECK` 만 금지어로 두면
+  # 이 정상 문언까지 걸린다. `unless_keywords` 는 이 룰에만 쓴다 — 다른
+  # `contains_forbidden` 룰(D023·D024·D025)에는 넣지 않았고 그 동작은 그대로다.
+  - id: D029
+    title: 갑판적재 표시
+    severity: critical
+    weight: 0.35
+    fields: [bl_clauses]
+    check: contains_forbidden
+    keywords:
+      - SHIPPED ON DECK
+      - LADEN ON DECK
+      - STOWED ON DECK
+      - LOADED ON DECK
+      - CARRIED ON DECK
+    unless_keywords:
+      - MAY BE CARRIED ON DECK
+      - MAY BE STOWED ON DECK
+      - MAY BE LOADED ON DECK
+    source: UCP 600 Art.26(b) — 물품이 갑판에 적재되었거나 적재될 것이라는 명시적 표시가 있는 선하증권은 수리되지 않는다. 다만 갑판적재될 수도 있다는 조항은 무방하다.
+    message: 갑판적재 사실을 나타내는 문언이 있습니다. ({detail})
+    remedy: 갑판적재가 아닌 선창 내(under deck) 적재로 재선적하거나, L/C 가 갑판적재를 허용하는지 확인하세요.
+
+  - id: D030
+    title: 수취식 B/L 인데 본선적재 부기 없음
+    severity: critical
+    weight: 0.35
+    fields: [bl_clauses, on_board_date]
+    check: on_board_required_when_received
+    source: UCP 600 Art.20(a)(ii) — 선하증권이 수취식(received for shipment)으로 발행된 경우, 실제 선적을 증명하는 본선적재 표시(선적일·선박명)가 있어야 선적 선하증권으로 수리된다.
+    message: 수취식(Received for Shipment) 문언이 있는데 본선적재 부기(선적일)가 없습니다.
+    remedy: 선사로부터 본선적재부기(On Board Notation)를 받아 선적일과 실제 적재 선박명을 추가하세요.
+
+  # ISBP 821 A.34 로 인용하지 않는다. 정정·변경이 발행인의 인증을 받아야
+  # 한다는 취지 자체는 실무 상식이지만, 그 취지가 정확히 어느 조·항목에
+  # 있는지 확신을 갖고 특정하지 못했다 — D027 과 같은 이유로, 조문 번호를
+  # 지어내는 대신 관련 일반원칙(A항)만 인용한다. 무역 실무자의 조문 대조가
+  # 필요하다 — verified 는 기본값(미검증)을 둔다.
+  - id: D031
+    title: 미인증 정정
+    severity: critical
+    weight: 0.35
+    fields: [bl_clauses]
+    check: contains_forbidden
+    keywords:
+      - ALTERED
+      - CORRECTION
+      - CORRECTED
+      - AMENDED
+    unless_keywords:
+      - AUTHENTICATED
+      - AUTHENTICATION
+      - INITIALLED
+    source: ISBP 821 A — 서류의 정정·변경은 그 서류를 발행한 당사자가 인증한 것으로 보여야 한다는 일반원칙의 취지 (정확한 조·항목 번호는 확인하지 못함).
+    message: 정정·변경 문언이 있는데 인증(서명 등) 표시가 없습니다. ({detail})
+    remedy: 정정 부분에 발행인의 서명·직인(authentication)이 있는지 확인하세요. 없으면 선사에 재발행을 요청하세요.
+
+  # "몇 통이 부족한지"는 서류 한 장으로는 알 수 없다 — 제시된 통수는
+  # 이 시스템이 보는 범위 밖이다. 그래서 이 룰은 **부족**이 아니라
+  # **미표시**만 잡는다. required 계열 critical 룰(D001·D005·D011·D012·
+  # D012B)과 같은 weight 0.30 을 쓴다.
+  - id: D032
+    title: 원본 통수 미표시
+    severity: critical
+    weight: 0.30
+    fields: [no_of_original_bl]
+    check: required
+    source: UCP 600 Art.20(a)(iv) — 선하증권은 발행된 원본의 통수를 표시해야 한다.
+    message: 발행된 원본 선하증권의 통수가 서류에 표시되어 있지 않습니다.
+    remedy: No. of Original B/L 항목에 발행 통수(예 - THREE(3))를 기재하세요.
+
+  # ── 의도적으로 만들지 않은 룰 ─────────────────────────────────
+  #
+  # 운송인 명칭·서명 자격 미표시(UCP 600 Art.20(a)(i)) 는 구현하지 않는다.
+  # 이 시스템이 다루는 샘플을 포함한 대다수 서식이 운송인을 "Carrier" 라는
+  # 항목명 없이 로고·상호(예: HAPAG-LLOYD)로만 인쇄한다. 즉 이 항목은
+  # 라벨도 전용 구역도 없어, 추출 실패가 곧바로 하자 오탐으로 이어진다 —
+  # 기획안 9절의 '심각도 보수적 산정' 원칙과 정면으로 부딪힌다. 서명란(도장·
+  # 서명 이미지) 추출기가 생기면 그때 다시 검토한다.
