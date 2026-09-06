@@ -28,8 +28,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional, Sequence, Tuple
 
-from ocr.types import BLFields
-from ruleEngine.types import LCTerms
+from f1_intake.types import BLFields
+from f3_rules.types import LCTerms
 
 from .corpus import BLRecord, CorpusSampler
 
@@ -253,6 +253,11 @@ class SyntheticGenerator:
             record = self.sampler.sample()
             bl = record.to_fields()
             self._reanchor_dates(bl)
+            if not bl.no_of_original_bl:
+                # 라벨 데이터셋은 이 필드가 생기기 전에 만들어져 원본 통수가
+                # 없다. 흔한 표기값으로 채운다 — 안 채우면 D032(원본 통수
+                # 미표시) 가 매번 걸려 실물 말뭉치를 통째로 못 쓴다.
+                bl.no_of_original_bl = "THREE (3)"
             if not record.confidence_is_real:
                 self._redraw_confidence(bl)
             lc = self._derive_lc(bl)
@@ -277,7 +282,7 @@ class SyntheticGenerator:
         판정 경로를 무시하면 둘이 따로 놀아, `anchor_derived_ratio` 와
         `mean_confidence` 의 상관이 실물과 달라진다.
         """
-        from ocr.types import ANCHOR_CONFIDENCE_PENALTY
+        from f1_intake.types import ANCHOR_CONFIDENCE_PENALTY
 
         for name in bl.to_dict():
             if not getattr(bl, name):
@@ -411,6 +416,7 @@ class SyntheticGenerator:
             place_of_issue=pol_short,
             on_board_date=_fmt(on_board),
             total_freight=f"${freight:,.2f}",
+            no_of_original_bl="THREE (3)",
         )
         # 추출 신뢰도. 대부분 높고 일부가 낮은 실제 분포를 흉내낸다.
         for name in bl.to_dict():
@@ -539,7 +545,7 @@ def _reformat(original: str, moment: datetime) -> str:
     파서가 실제로 만나는 형식 다양성이 데이터에서 사라진다 — 실물을 쓰는
     이유 중 하나가 그것이다.
     """
-    from ruleEngine.checks import DATE_FORMATS
+    from f3_rules.checks import DATE_FORMATS
 
     cleaned = re.sub(r"\s+", " ", str(original).strip().upper())
     for fmt in DATE_FORMATS:
@@ -558,7 +564,7 @@ def _rule_engine():
     """기준 서류 검증용 룰엔진. 한 번만 만든다 (YAML 파싱이 매번 들어간다)."""
     global _RULE_ENGINE
     if _RULE_ENGINE is None:
-        from ruleEngine import RuleEngine
+        from f3_rules import RuleEngine
 
         _RULE_ENGINE = RuleEngine()
     return _RULE_ENGINE
@@ -603,7 +609,7 @@ def _lc_incoterms(value: Optional[str]) -> Optional[str]:
     """
     if not value:
         return None
-    from ruleEngine.checks import INCOTERMS
+    from f3_rules.checks import INCOTERMS
 
     upper = value.upper()
     for term in INCOTERMS:
@@ -615,7 +621,7 @@ def _lc_incoterms(value: Optional[str]) -> Optional[str]:
 def _parse_kg(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
-    from ruleEngine.checks import parse_quantity
+    from f3_rules.checks import parse_quantity
 
     return parse_quantity(value, "KG")
 
@@ -623,7 +629,7 @@ def _parse_kg(value: Optional[str]) -> Optional[float]:
 def _parse_money(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
-    from ruleEngine.checks import parse_amount
+    from f3_rules.checks import parse_amount
 
     amount = parse_amount(value)
     return amount if amount else None
@@ -634,6 +640,6 @@ def _fmt(dt: datetime) -> str:
 
 
 def parse_or(value: Optional[str], fallback: datetime) -> datetime:
-    from ruleEngine.checks import parse_date
+    from f3_rules.checks import parse_date
 
     return parse_date(value) or fallback if value else fallback
