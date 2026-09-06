@@ -1,0 +1,11 @@
+{
+  "seed": 20260814,
+  "base_count": 2000,
+  "variants_per_base": 1,
+  "total_rows": 2000,
+  "defect_rate": 0.7465,
+  "reviewer_backend": "constant_table",
+  "claude_fallback_count": 0,
+  "llm_backend": "offline",
+  "llm_feature_fallback_count": 0
+}
