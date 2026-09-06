@@ -15,12 +15,7 @@ import os
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
-from .integrity import check_narrative
 from .model import Report
-
-# 무결성 검사에 걸렸을 때 다시 생성해 볼 횟수. 기획안 5.7 이 "2회 실패 시
-# LLM 서술을 버리고 템플릿 문장으로 대체한다"로 정한 값이다.
-MAX_NARRATIVE_ATTEMPTS = 2
 
 
 @dataclass
@@ -63,19 +58,14 @@ class TemplateNarrator:
         else:
             headline = "하자로 볼 만한 사항이 발견되지 않았습니다."
 
-        # 보류가 많으면 점 확률을 대표값으로 쓰지 않는다(기획안 v2 5.4).
-        # 하나의 값으로 적으면 보류된 룰이 전부 통과한 것처럼 읽힌다.
-        if report.probability_is_ranged:
-            low, high = report.probability_range
-            parts = [
-                f"위험도는 '{report.risk_level}'이며, 확인이 필요한 필드가 있어 "
-                f"규칙 기반 위험 점수를 {low:.2f}~{high:.2f} 범위로 제시합니다."
-            ]
-        else:
-            parts = [
-                f"위험도는 '{report.risk_level}'이며, 규칙 기반 위험 점수는 "
-                f"{report.defect_probability:.2f} 입니다."
-            ]
+        # 점수를 낸 주체를 문장에 박지 않는다 — 모델이 켜져 있으면
+        # `defect_probability` 는 룰 가중치 합이 아니라 모델 확률이고
+        # (f4_report/builder.py), '규칙 기반'이라고 적으면 리포트 본문이
+        # 아래 상세표(산출: {model})와 어긋난 말을 하게 된다.
+        parts = [
+            f"위험도는 '{report.risk_level}'이며, 위험 점수는 "
+            f"{report.defect_probability:.2f} 입니다(산출: {report.model})."
+        ]
         found = []
         if critical:
             found.append(f"치명 {critical}건")
@@ -98,11 +88,6 @@ class TemplateNarrator:
         if report.unchecked:
             parts.append(
                 f"자료 부족으로 검사하지 못한 항목이 {len(report.unchecked)}건 있습니다."
-            )
-        if report.held:
-            parts.append(
-                f"확인이 필요한 필드 때문에 판정을 보류한 항목이 "
-                f"{len(report.held)}건 있습니다."
             )
 
         return Summary(headline=headline, narrative=" ".join(parts), source=self.name)
@@ -135,76 +120,30 @@ class LLMNarrator:
         self._fallback = fallback or TemplateNarrator()
 
     def summarize(self, report: Report) -> Summary:
-        """생성 → 무결성 검사 → 통과하면 채택, 아니면 재생성.
+        try:
+            text = self._complete(_SYSTEM_PROMPT, _render_facts(report))
+        except Exception:  # noqa: BLE001 - 요약 실패가 리포트를 막지 않는다
+            # 폴백 결과를 그대로 돌려준다. source 가 'template' 로 남아
+            # 리포트가 출처를 정직하게 표기한다.
+            return self._fallback.summarize(report)
 
-        `MAX_NARRATIVE_ATTEMPTS` 회 모두 걸리면 템플릿으로 떨어진다. 프롬프트
-        제약만으로는 지어낸 숫자를 막을 수 없다는 것이 이 반복의 전제다
-        (`integrity` 모듈 머리말).
-
-        재생성 프롬프트에 **무엇이 걸렸는지 알려 준다.** 같은 지시로 다시
-        부르면 같은 문장이 나올 확률이 높고, 그러면 재시도가 호출 비용만
-        쓰고 끝난다.
-        """
-        facts = _render_facts(report)
-        last: Optional[str] = None
-
-        for attempt in range(MAX_NARRATIVE_ATTEMPTS):
-            system = _SYSTEM_PROMPT if last is None else _retry_prompt(last)
-            try:
-                text = self._complete(system, facts)
-            except Exception:  # noqa: BLE001 - 요약 실패가 리포트를 막지 않는다
-                # 폴백 결과를 그대로 돌려준다. source 가 'template' 로 남아
-                # 리포트가 출처를 정직하게 표기한다.
-                return self._fallback.summarize(report)
-
-            lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
-            if not lines:
-                return self._fallback.summarize(report)
-
-            headline = lines[0]
-            narrative = " ".join(lines[1:]) or lines[0]
-
-            result = check_narrative(report, headline, narrative)
-            if result.ok:
-                return Summary(
-                    headline=headline, narrative=narrative, source=self.name
-                )
-
-            last = result.describe()
-            print(
-                f"[aiService] 경고: 리포트 서술 무결성 검사 실패 "
-                f"({attempt + 1}/{MAX_NARRATIVE_ATTEMPTS}) — {last}"
-            )
-
-        # 여기까지 오면 LLM 서술을 버린다. 딱딱한 문장이 틀린 숫자보다 낫다.
-        return self._fallback.summarize(report)
-
-
-def _retry_prompt(problem: str) -> str:
-    """재생성 지시. 직전에 무엇이 걸렸는지 붙인다."""
-    return (
-        _SYSTEM_PROMPT
-        + "\n직전 작성이 검사에 걸렸습니다: "
-        + problem
-        + "\n아래 사실 목록에 있는 값만 쓰십시오. 없는 값은 문장에서 빼십시오.\n"
-    )
+        lines = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
+        if not lines:
+            return self._fallback.summarize(report)
+        return Summary(
+            headline=lines[0],
+            narrative=" ".join(lines[1:]) or lines[0],
+            source=self.name,
+        )
 
 
 def _render_facts(report: Report) -> str:
     """LLM 에 넘길 사실 목록. 리포트에 있는 것만 넣는다."""
-    lines = [f"위험도: {report.risk_level}"]
-    # 보류 상태에서는 **점 확률을 사실 목록에 넣지 않는다.** 넣으면 LLM 이
-    # 그 값을 확정된 확률로 서술하는데, 5.4 가 범위로 내라고 한 이유가
-    # 그 값을 단정할 수 없어서다. 사실 목록에 없는 값은 쓸 수 없다.
-    if report.probability_is_ranged:
-        low, high = report.probability_range
-        lines.append(
-            f"위험 점수 범위: {low:.2f}~{high:.2f} (산출: {report.model}) "
-            "— 확인이 필요한 필드가 있어 하나의 값으로 확정할 수 없음"
-        )
-    else:
-        lines.append(f"위험 점수: {report.defect_probability:.2f} (산출: {report.model})")
-    lines.append(f"심각도 분포: {report.counts}")
+    lines = [
+        f"위험도: {report.risk_level}",
+        f"위험 점수: {report.defect_probability:.2f} (산출: {report.model})",
+        f"심각도 분포: {report.counts}",
+    ]
     if report.deadline and report.deadline.effective_due:
         lines.append(
             f"제시기한: {report.deadline.effective_due} "
@@ -214,8 +153,6 @@ def _render_facts(report: Report) -> str:
         lines.append(f"[{risk.severity_label}] {risk.title} — {risk.message} ({risk.source})")
     if report.unchecked:
         lines.append(f"미검사 항목 {len(report.unchecked)}건")
-    if report.held:
-        lines.append(f"판정 보류 항목 {len(report.held)}건 (확인이 필요한 필드 참조)")
     return "\n".join(lines)
 
 
