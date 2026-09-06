@@ -106,6 +106,7 @@ def render_pdf(report: Report) -> bytes:
     flow += _cover(report, st)
     flow += _summary(report, st)
     flow += _risks(report, st)
+    flow += _explanations(report, st)
     flow += _checklist(report, st)
     flow += _recommendations(report, st)
     flow += _outlook(report, st)
@@ -198,6 +199,25 @@ def _risks(r: Report, st: dict) -> List:
     return out
 
 
+def _explanations(r: Report, st: dict) -> List:
+    """2-1. AI 판정 설명 (F7). 절 번호를 새로 매기지 않고 리스크 섹션에
+    딸린 하위 절로 둔다 — 3~5절 번호가 이 기능 유무로 흔들리면 예전 PDF와
+    새 PDF를 나란히 인용할 때 절 번호가 가리키는 내용이 달라진다."""
+    if not r.explanations:
+        return []
+    out = [Spacer(1, 2 * mm), Paragraph("2-1. AI 판정 설명", st["h2"])]
+    for exp in r.explanations:
+        out.append(Paragraph(
+            f"<font size='7.5' color='#5F6368'>[{_esc(exp.rule_id)}]</font> "
+            f"{_esc(exp.body_ko)}", st["body"],
+        ))
+        out.append(Paragraph(
+            f"<font size='8' color='#5F6368'>{_esc(exp.body_en)}</font>", st["body"],
+        ))
+        out.append(Spacer(1, 1.5 * mm))
+    return out
+
+
 def _checklist(r: Report, st: dict) -> List:
     out = [Paragraph("3. 누락 서류 · 제출 기한 체크리스트", st["h2"])]
     if r.deadline and r.deadline.effective_due:
@@ -239,6 +259,9 @@ def _recommendations(r: Report, st: dict) -> List:
         if rec.target_fields:
             action += (f"<br/><font size='7.5' color='#5F6368'>대상: "
                        f"{_esc(', '.join(rec.target_fields))}</font>")
+        if rec.impact:
+            action += (f"<br/><font size='7.5' color='#5F6368'>정정 영향: "
+                       f"{_esc(' / '.join(rec.impact))}</font>")
         rows.append([
             Paragraph(str(rec.order), st["cell"]),
             Paragraph(_esc(rec.severity_label), st["cell"]),

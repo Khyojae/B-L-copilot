@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ruleEngine.deadline import PresentationDeadline
 
@@ -55,6 +55,11 @@ class Recommendation:
     action: str
     target_fields: List[str] = field(default_factory=list)
     source: str = ""
+    # 정정 영향(F5) 요약. 이 권고의 대상 필드를 고치면 함께 확인해야 할
+    # 다른 서류·필드를 한 줄씩 담는다. `ruleEngine.impact.ConsistencyGraph`
+    # 가 없으면(그래프를 안 넘긴 호출) 빈 목록으로 남는다 — 이전처럼
+    # 동작해야 하는 기존 호출부를 깨지 않기 위해서다.
+    impact: List[str] = field(default_factory=list)
 
 
 # 제출 기한은 **룰엔진이 계산한다.** 여기서 자체 정의를 들고 있으면 같은 조문
@@ -132,6 +137,13 @@ class Report:
     # 목록에 서류 간 저촉이 없는 것은 그래서다 — 저촉이 없어서가 아니다.
     cross_rule_catalog: Optional[Dict[str, str]] = None
 
+    # F7 AI 판정 설명. `report.explain.apply_explanations()` 가 채운다.
+    # `narrative`(요약)와 나누는 이유는 대상이 다르기 때문이다 — narrative
+    # 는 리포트 전체를 한 문단으로 묶고, explanations 는 위반 1건마다
+    # "조문 근거 + 현재값 + 기대값"을 따로 서술한다. 하나로 합치면 위반이
+    # 여러 건일 때 어느 문장이 어느 위반의 근거인지 되짚을 수 없다.
+    explanations: List[Any] = field(default_factory=list)
+
     @property
     def risk_level(self) -> str:
         """표지에 크게 찍는 등급."""
@@ -175,6 +187,7 @@ class Report:
             "outlook": {"verdict": self.outlook, "detail": self.outlook_detail},
             "unchecked": [u.__dict__ for u in self.unchecked],
             "held": [h.__dict__ for h in self.held],
+            "explanations": [e.to_dict() for e in self.explanations],
         }
 
 

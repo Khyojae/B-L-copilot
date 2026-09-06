@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
 from ruleEngine import deadline as deadline_rules
+from ruleEngine.cross_doc import BILL_OF_LADING
+from ruleEngine.impact import ConsistencyGraph
 from ruleEngine.types import LCTerms, Verdict
 
 from .model import (
@@ -44,6 +46,7 @@ def build_report(
     as_of: Optional[datetime] = None,
     prediction: Optional[Any] = None,
     field_count: int = 0,
+    graph: Optional[ConsistencyGraph] = None,
 ) -> Report:
     """검증 결과와 서류 정보를 리포트로 조립한다.
 
@@ -59,6 +62,11 @@ def build_report(
     산출 출처는 `report.model` 에 남아 PDF 각주에 그대로 찍힌다. 5절이
     기록한 "리포트 출처 거짓 표기" 결함과 같은 이유로 이 표기는 정확해야
     한다 — 모델이 없어 룰 가중치로 떨어졌으면 `rules-v1` 이어야 한다.
+
+    `graph` 는 F5 정정 영향분석(`ruleEngine.impact.ConsistencyGraph`)이다.
+    주지 않으면 `Recommendation.impact` 가 빈 목록으로 남을 뿐 나머지는
+    그대로 동작한다 — `prediction` 을 안 줘도 리포트가 나오는 것과 같은
+    이유(발표 중 외부 실패로 리포트가 통째로 비면 안 된다)를 여기도 지킨다.
     """
     now = as_of or datetime.now()
     lc = lc or LCTerms()
@@ -82,7 +90,7 @@ def build_report(
     report.risks = _risks(verdict)
     report.deadline = _deadline(bl, lc, now)
     report.checklist = _checklist(verdict, bl, lc, submitted_documents, report.deadline)
-    report.recommendations = _recommendations(verdict)
+    report.recommendations = _recommendations(verdict, graph)
     report.outlook, report.outlook_detail = _outlook(verdict, report.deadline)
     report.unchecked = [
         UncheckedItem(rule_id=s.rule_id, title=s.title, reason=s.reason)
@@ -246,7 +254,9 @@ def _checklist(
 
 # ── ④ 수정 권고 ──────────────────────────────────────────────────
 
-def _recommendations(verdict: Verdict) -> List[Recommendation]:
+def _recommendations(
+    verdict: Verdict, graph: Optional[ConsistencyGraph] = None
+) -> List[Recommendation]:
     """위반을 심각도순으로 늘어놓고 조치문을 붙인다.
 
     remedy 가 비어 있는 룰은 제목을 조치문 자리에 쓴다. 권고 없는 위반이
@@ -263,9 +273,33 @@ def _recommendations(verdict: Verdict) -> List[Recommendation]:
             action=v.remedy or f"{v.title} 항목을 확인하고 정정하십시오.",
             target_fields=list(v.fields),
             source=v.source,
+            impact=_impact_summary(graph, v.fields),
         )
         for index, v in enumerate(ordered, start=1)
     ]
+
+
+def _impact_summary(graph: Optional[ConsistencyGraph], fields: List[str]) -> List[str]:
+    """F5 정정 영향(F5) 요약 — 이 필드들을 고치면 함께 확인할 값.
+
+    **선하증권 소속으로만 조회한다.** 서류 간 위반(X-rule)의 `fields` 는
+    양쪽 서류의 필드명이 섞여 있어 어느 쪽 서류 소속인지 여기서 알 수
+    없고, 그 위반은 메시지 자체에 이미 두 서류가 함께 나온다 — 중복해서
+    적을 이유가 없다. `graph` 가 없으면(그래프를 안 넘긴 호출부) 빈
+    목록을 돌려준다.
+    """
+    if graph is None:
+        return []
+    summary: List[str] = []
+    seen = set()
+    for name in fields:
+        for item in graph.impacted(BILL_OF_LADING, name):
+            key = (item.doc, item.field, item.rule_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            summary.append(f"{item.doc}의 {item.field} 확인 필요 — {item.reason}")
+    return summary
 
 
 # ── ⑤ 예상 심사 결과 ─────────────────────────────────────────────
