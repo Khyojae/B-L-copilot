@@ -1,0 +1,71 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  ai-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/aiService
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/aiService/requirements.txt
+
+      - run: pip install -r requirements.txt
+      - run: pytest
+
+  smart-e-bl:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/smart_e_bl
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: smart_ebl
+          POSTGRES_PASSWORD: smart_ebl
+          POSTGRES_DB: smart_ebl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smart_ebl -d smart_ebl"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # docker-compose.yml의 기본값과 동일 — CI 전용 컨테이너라 시크릿이 아니다.
+      DATABASE_URL: postgresql://smart_ebl:smart_ebl@localhost:5432/smart_ebl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      # 지금 낼 수 있는 검증은 마이그레이션이 깨끗하게 적용되는지 뿐이다 —
+      # src/smart_e_bl 에는 아직 pytest 스위트가 없다(tests/ 폴더 자체가
+      # 없음). 테스트가 생기면 `uv run pytest` 단계를 여기 추가할 것.
+      - run: uv run alembic upgrade head
+      - run: uv run alembic current
