@@ -166,16 +166,19 @@ class TestSerialization:
         assert set(first) == {
             "name", "label", "value", "confidence", "source", "grade",
             "grade_label", "is_critical", "needs_review", "review_reason",
-            "review_message",
+            "review_message", "bbox",
         }
 
     def test_review_reason은_문자열로_나간다(self, label_factory):
-        # JSON 직렬화 대상이므로 Enum 이 그대로 나가면 안 된다.
+        # JSON 직렬화 대상이므로 Enum 이 그대로 나가면 안 된다. None 은
+        # 예외다 — bl_clauses 는 항상 확인 대상에서 제외되어(draft._review_reason)
+        # 값이 비어도 사유가 없다(None). None 은 JSON null 로 그대로 나가도
+        # 되는 값이라 Enum 유출과 다르다.
         payload = draft_of(label_factory([])).to_dict()
 
         reasons = {f["review_reason"] for f in payload["fields"]}
-        assert reasons <= {"missing", "missing_critical"}
-        assert all(isinstance(r, str) for r in reasons)
+        assert reasons <= {"missing", "missing_critical", None}
+        assert all(r is None or isinstance(r, str) for r in reasons)
 
 
 class TestPipeline:

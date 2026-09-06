@@ -152,22 +152,25 @@ class Test정규화:
 
 
 class Test버린_것을_말한다:
-    def test_자리가_없는_태그는_unmapped_로_남는다(self, parsed):
-        # 47A(추가 조건)는 자유서식이라 판정하지 않는다. 조용히 버리면
+    def test_자리가_없는_태그는_unmapped_로_남는다(self):
+        # 44A(수령지)는 B/L 대조 항목이 아니라 자리가 없다. 조용히 버리면
         # 검사하지 않은 조건이 검사된 것처럼 보인다.
-        assert "47A" in parsed.unmapped
-        assert any("47A" in n for n in parsed.notes)
+        result = parse_mt700(":20:LC-1\n:44A:BUSAN PORT\n")
+
+        assert "44A" in result.unmapped
+        assert any("44A" in n for n in result.notes)
 
     def test_모르는_태그도_버리지_않는다(self):
         result = parse_mt700(":20:LC-1\n:99Z:정체불명\n")
 
         assert result.unmapped["99Z"] == "정체불명"
 
-    def test_거래조건은_명세에서_추정하지_않는다(self, parsed):
-        # 45A 에 `FOB` 가 있지만 MT700 에는 Incoterms 전용 태그가 없다.
-        # 자유서식에서 뽑아 채우면 송장의 `FOB BUSAN` 과 문자열이 어긋나
-        # X010 이 정상 서류를 하자로 잡는다.
-        assert parsed.lc.incoterms is None
+    def test_거래조건을_45A에서_읽는다(self, parsed):
+        # 47A(추가조건)에 표기가 없으면 45A(물품 명세)를 본다. 코드만
+        # 담는다 — 장소를 함께 담으면 송장의 `FOB BUSAN`과는 맞아도
+        # `FOB BUSAN, KOREA`와는 어긋나 X010이 정상 서류를 하자로 잡는다
+        # (mt700._h_incoterms 참고).
+        assert parsed.lc.incoterms == "FOB"
         assert any("거래조건" in n for n in parsed.notes)
 
     def test_31D_유효장소를_버렸다고_알린다(self, parsed):
@@ -201,6 +204,8 @@ class Test룰엔진_연결:
             place_of_issue="PUSAN",
             on_board_date="2026-06-01",
             total_freight="$1,741.56",
+            # 원본 통수. D032 가 요구한다.
+            no_of_original_bl="THREE (3)",
         )
         for name, value in overrides.items():
             setattr(bl, name, value)

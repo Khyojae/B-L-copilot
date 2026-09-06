@@ -41,6 +41,8 @@ def clean_bl(**overrides) -> BLFields:
         place_of_issue="PUSAN",
         on_board_date="2026-06-01",
         total_freight="$1,741.56",
+        # 원본 통수. D032 가 요구한다 — 위 place_of_issue 주석과 같은 이유.
+        no_of_original_bl="THREE (3)",
     )
     for name, value in overrides.items():
         setattr(bl, name, value)
@@ -172,16 +174,18 @@ class TestThreeStateOutcome:
         d003 = next(s for s in verdict.skipped if s.rule_id == "D003")
         assert "명시" in d003.reason
 
-    def test_날짜를_못_읽으면_평가불가다(self, engine):
-        # 통과로 처리하면 OCR 이 나쁠수록 하자가 적어 보인다.
+    def test_날짜를_못_읽으면_형식_오류_위반이다(self, engine):
+        # 통과나 평가불가로 처리하면 OCR 이 나쁠수록 하자가 적어 보이거나
+        # (통과) 조용히 숨겨진다(평가불가) — format_error 가 위반으로 드러낸다.
         verdict = engine.verify(
             clean_bl(on_board_date="60-55-2708", date_of_issue="60-55-2708"),
             clean_lc(),
             as_of=AS_OF,
         )
 
-        d002 = next(s for s in verdict.skipped if s.rule_id == "D002")
-        assert "해석할 수 없습니다" in d002.reason
+        d002 = next(v for v in verdict.violations if v.rule_id == "D002")
+        assert "해석할 수 없습니다" in d002.message
+        assert d002.severity is Severity.WARNING
 
     def test_평가한_건수만_센다(self, engine):
         verdict = engine.verify(clean_bl(), clean_lc(), as_of=AS_OF)
@@ -221,7 +225,10 @@ class TestDefectDetection:
             ("D004", {"port_of_discharge": "HAMBURG, GERMANY"}, {}),
             ("D005B", {"consignee": "WRONG COMPANY INC."}, {}),
             ("D002", {"on_board_date": "2026-07-15"}, {}),
-            ("D008", {"date_of_issue": "2027-01-15"}, {}),
+            # D008 은 발행일이 아니라 제시 시점(as_of) 기준으로 L/C 유효기일을
+            # 본다 — bl_over 가 아니라 lc_over 로 유효기일을 as_of 이전으로
+            # 당겨야 위반이 난다.
+            ("D008", {}, {"expiry_date": "2026-01-01"}),
             ("D007", {"gross_weight": "1500 KG"}, {}),
             ("D017", {"total_freight": "$5,000.00"}, {}),
             ("D001", {"bl_no": None}, {}),
@@ -456,14 +463,16 @@ class TestISBP:
         assert d022.severity is Severity.CRITICAL
 
     def test_발행일이_없으면_날짜_룰이_전부_평가불가로_빠진다(self, engine):
-        # D022 를 둔 이유가 이것이다. 발행일을 빼면 날짜 하자를 보는 룰이
+        # D022 를 둔 이유가 이것이다. 발행일을 빼면 서류 날짜를 보는 룰이
         # 전부 침묵하므로, 잡는 룰이 없으면 위반 0건 = '하자 없음' 이 된다.
+        # D008 은 여기 없다 — 발행일이 아니라 제시 시점(as_of) 기준으로
+        # L/C 유효기일만 보므로 발행일 공백의 영향을 받지 않는다.
         bl = clean_bl(date_of_issue=None, on_board_date=None)
 
         verdict = engine.verify(bl, clean_lc(), as_of=AS_OF)
 
         skipped_ids = {s.rule_id for s in verdict.skipped}
-        assert {"D008", "D018", "D019"} <= skipped_ids
+        assert {"D018", "D019"} <= skipped_ids
         assert "D022" in {v.rule_id for v in verdict.violations}
 
     def test_항구가_지역으로_기재되면_잡는다(self, engine):

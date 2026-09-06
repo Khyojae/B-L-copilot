@@ -247,22 +247,20 @@ class TestOCR입력_축소:
         from ocr.extractor import DEFAULT_OCR_MAX_WIDTH, OCRExtractor
 
         src = self._png(tmp_path, DEFAULT_OCR_MAX_WIDTH - 100, 900)
-        target, w, h = OCRExtractor()._downscale_for_ocr(src)
-
-        # 원본 경로를 그대로 돌려줘야 한다. 불필요한 재인코딩은 손실만 낳는다.
-        assert target == src
-        assert (w, h) == (DEFAULT_OCR_MAX_WIDTH - 100, 900)
+        with OCRExtractor()._downscale_for_ocr(src) as (target, w, h):
+            # 원본 경로를 그대로 돌려줘야 한다. 불필요한 재인코딩은 손실만 낳는다.
+            assert target == src
+            assert (w, h) == (DEFAULT_OCR_MAX_WIDTH - 100, 900)
 
     def test_큰_이미지는_상한까지_줄인다(self, tmp_path):
         from ocr.extractor import DEFAULT_OCR_MAX_WIDTH, OCRExtractor
 
         src = self._png(tmp_path, 3000, 4000)
-        target, w, h = OCRExtractor()._downscale_for_ocr(src)
-
-        assert target != src
-        assert w == DEFAULT_OCR_MAX_WIDTH
-        # 가로세로비가 유지되어야 구역 비율이 어긋나지 않는다.
-        assert h == pytest.approx(4000 * DEFAULT_OCR_MAX_WIDTH / 3000, abs=1)
+        with OCRExtractor()._downscale_for_ocr(src) as (target, w, h):
+            assert target != src
+            assert w == DEFAULT_OCR_MAX_WIDTH
+            # 가로세로비가 유지되어야 구역 비율이 어긋나지 않는다.
+            assert h == pytest.approx(4000 * DEFAULT_OCR_MAX_WIDTH / 3000, abs=1)
 
     def test_돌려주는_크기는_실제로_OCR_에_넣은_크기다(self, tmp_path):
         """원본 크기를 남기면 좌표는 축소본 기준인데 분모만 원본이 되어
@@ -272,10 +270,9 @@ class TestOCR입력_축소:
         from ocr.extractor import OCRExtractor
 
         src = self._png(tmp_path, 3000, 4000)
-        target, w, h = OCRExtractor()._downscale_for_ocr(src)
-
-        with Image.open(target) as img:
-            assert img.size == (w, h)
+        with OCRExtractor()._downscale_for_ocr(src) as (target, w, h):
+            with Image.open(target) as img:
+                assert img.size == (w, h)
 
     def test_환경변수로_끌_수_있다(self, tmp_path, monkeypatch):
         """축소가 실물 스캔의 작은 글씨를 뭉개는지 아직 검증되지 않았다.
@@ -284,19 +281,17 @@ class TestOCR입력_축소:
 
         monkeypatch.setenv("OCR_MAX_WIDTH", "0")
         src = self._png(tmp_path, 3000, 4000)
-        target, w, h = OCRExtractor()._downscale_for_ocr(src)
-
-        assert target == src
-        assert (w, h) == (3000, 4000)
+        with OCRExtractor()._downscale_for_ocr(src) as (target, w, h):
+            assert target == src
+            assert (w, h) == (3000, 4000)
 
     def test_상한을_바꿀_수_있다(self, tmp_path, monkeypatch):
         from ocr.extractor import OCRExtractor
 
         monkeypatch.setenv("OCR_MAX_WIDTH", "1000")
         src = self._png(tmp_path, 3000, 4000)
-        _, w, _ = OCRExtractor()._downscale_for_ocr(src)
-
-        assert w == 1000
+        with OCRExtractor()._downscale_for_ocr(src) as (_, w, _h):
+            assert w == 1000
 
     def test_잘못된_값은_기본값으로_돌아간다(self, tmp_path, monkeypatch):
         # 오타 하나로 상한이 사라지면 시연에서 1분을 기다리게 된다.
@@ -304,9 +299,8 @@ class TestOCR입력_축소:
 
         monkeypatch.setenv("OCR_MAX_WIDTH", "넓게")
         src = self._png(tmp_path, 3000, 4000)
-        _, w, _ = OCRExtractor()._downscale_for_ocr(src)
-
-        assert w == DEFAULT_OCR_MAX_WIDTH
+        with OCRExtractor()._downscale_for_ocr(src) as (_, w, _h):
+            assert w == DEFAULT_OCR_MAX_WIDTH
 
     def test_상한은_구역_교정_해상도와_같다(self):
         # 다르면 전처리기가 키우는 너비와 추출기가 줄이는 너비가 갈려,
