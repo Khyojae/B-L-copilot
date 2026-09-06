@@ -1,0 +1,3 @@
+스키마 DDL 은 migrations/sql/ 로 옮겼고 Alembic 이 적용을 관리합니다.
+이 디렉토리는 비워 둡니다 — 여기에 SQL 을 두면 스키마 출처가 둘로 갈려 반드시 어긋납니다.
+적용: uv run alembic upgrade head
