@@ -25,6 +25,7 @@ import json
 import os
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -141,8 +142,8 @@ class OCRExtractor:
         `run_from_image(preprocess=True)` 만 혜택을 보고 나머지는 그대로 느리다.
         """
         started = time.perf_counter()
-        target, width, height = self._downscale_for_ocr(image_path)
-        raw = self._get_ocr().predict(str(target))
+        with self._downscale_for_ocr(image_path) as (target, width, height):
+            raw = self._get_ocr().predict(str(target))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
         bboxes = self._parse_paddle_result(raw)
@@ -160,8 +161,14 @@ class OCRExtractor:
             model_version=self._paddleocr_version(),
         )
 
+    @contextmanager
     def _downscale_for_ocr(self, image_path: str):
-        """OCR 비용 상한. (넣을 경로, 너비, 높이) 를 돌려준다.
+        """OCR 비용 상한. (넣을 경로, 너비, 높이) 를 내주는 컨텍스트 매니저.
+
+        축소본을 만들 때만 임시 디렉터리를 열고, with 블록이 끝나면 지운다
+        — 예전에는 `mkdtemp()`로 만들고 아무도 지우지 않아 업로드마다
+        `/tmp`에 파일이 쌓였다(P2-1). 원본을 그대로 쓰는 경우(축소 불필요·
+        Pillow 미설치)는 임시 파일 자체가 없으니 그냥 원본 경로를 낸다.
 
         추론 시간이 **화소 수에 비례한다.** 같은 서식을 해상도만 바꿔 재면
         이렇게 나온다(합성 B/L 1장, 4코어).
@@ -189,25 +196,28 @@ class OCRExtractor:
         width, height = self._image_size(image_path)
         limit = _max_ocr_width()
         if not limit or width <= limit:
-            return image_path, width, height
+            yield image_path, width, height
+            return
 
         try:
             from PIL import Image
         except ImportError:
             # Pillow 가 없으면 줄이지 않는다. 느릴 뿐 결과는 옳다.
-            return image_path, width, height
+            yield image_path, width, height
+            return
 
         scale = limit / width
         new_size = (limit, max(1, int(round(height * scale))))
-        target = Path(tempfile.mkdtemp()) / f"{Path(image_path).stem}_ocr.png"
-        with Image.open(image_path) as img:
-            img.convert("RGB").resize(new_size, Image.LANCZOS).save(target)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = Path(tmp_dir) / f"{Path(image_path).stem}_ocr.png"
+            with Image.open(image_path) as img:
+                img.convert("RGB").resize(new_size, Image.LANCZOS).save(target)
 
-        print(
-            f"[aiService] OCR 입력 축소: {width}x{height} → "
-            f"{new_size[0]}x{new_size[1]} (상한 {limit}px)"
-        )
-        return str(target), new_size[0], new_size[1]
+            print(
+                f"[ai-service] OCR 입력 축소: {width}x{height} → "
+                f"{new_size[0]}x{new_size[1]} (상한 {limit}px)"
+            )
+            yield str(target), new_size[0], new_size[1]
 
     def from_pdf(self, pdf_path: str, page_number: int = 0) -> OCRResult:
         """PDF 한 쪽에서 추출한다.

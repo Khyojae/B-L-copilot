@@ -192,7 +192,7 @@ class LLMFieldExtractor:
 
     def _get_completion(self):
         if not self._resolved:
-            from report.llm_providers import build_completion
+            from f4_report.llm_providers import build_completion
 
             try:
                 self._completion = build_completion(os.getenv("LLM_PROVIDER", ""))

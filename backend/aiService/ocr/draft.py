@@ -15,17 +15,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .types import (
     BL_FIELD_NAMES,
-    CONFIRMED_THRESHOLD,
     CRITICAL_FIELD_NAMES,
-    REVIEW_REQUIRED_THRESHOLD,
+    LOW_CONFIDENCE_THRESHOLD,
+    BBox,
     BLFields,
-    ConfidenceGrade,
     OCRResult,
-    grade_for,
 )
 
 
@@ -57,26 +55,9 @@ FIELD_LABELS: Dict[str, str] = {
     "place_of_issue": "발행지",
     "on_board_date": "선적일",
     "total_freight": "운임",
-}
-
-# 신뢰도와 무관하게 등급을 끌어내리는 사유 (기획안 v2 5.1).
-#
-# 5.1 은 필수 확인의 기준으로 "0.70 미만 · **스키마 위반** · 출처 간 값 충돌"
-# 셋을 나란히 적는다. 즉 신뢰도가 높아도 값의 형태가 틀렸으면 필수 확인이다.
-# 아래 셋이 우리 코드에서 그 자리에 해당한다.
-#
-# **`LABEL_ECHOED` 만 필수 확인이다.** 값에 서식 항목명이 섞였다는 것은 값이
-# 틀렸다는 뜻이지 흐릿하다는 뜻이 아니므로 스키마 위반으로 본다.
-#
-# 나머지 둘은 확인 권고에 둔다. 필수 확인으로 올리면 **검증 실행이 차단**되는데,
-# `UNCALIBRATED_LAYOUT` 은 pdf-text·excel·email-body 경로의 핵심 필드 전건에
-# 걸리므로 그 세 입력 경로가 통째로 죽는다. `ANCHOR_DERIVED` 도 이미
-# `ANCHOR_CONFIDENCE_PENALTY`(0.85)로 신뢰도가 깎여 확인 권고 구간에 들어와
-# 있어, 여기서 다시 올릴 이유가 없다.
-_GRADE_DEMOTION: Dict[ReviewReason, ConfidenceGrade] = {
-    ReviewReason.LABEL_ECHOED: ConfidenceGrade.REQUIRED,
-    ReviewReason.UNCALIBRATED_LAYOUT: ConfidenceGrade.RECOMMENDED,
-    ReviewReason.ANCHOR_DERIVED: ConfidenceGrade.RECOMMENDED,
+    "incoterms": "인코텀즈",
+    "no_of_original_bl": "원본 통수",
+    "bl_clauses": "문언·부기",
 }
 
 _REASON_MESSAGES: Dict[ReviewReason, str] = {
@@ -125,9 +106,6 @@ class DraftField:
     confidence: Optional[float]
     is_critical: bool
     needs_review: bool
-    # 신뢰도 등급 (기획안 v2 5.1). 화면의 표시 색과 후속 처리가 여기서 갈린다 —
-    # 확정은 기본, 확인 권고는 노란색, 필수 확인은 적색 + 검증 실행 차단.
-    grade: ConfidenceGrade = ConfidenceGrade.CONFIRMED
     review_reason: Optional[ReviewReason] = None
     review_message: Optional[str] = None
     # 이 값이 어떻게 나왔는지. "region" | "anchor" | "llm" | None(값 없음).
@@ -137,6 +115,11 @@ class DraftField:
     # 그 값을 확인하는 방법은 둘이 전혀 다르다. 앞은 원본 이미지의 그 자리를
     # 보면 되고, 뒤는 서류 전체에서 근거를 찾아야 한다.
     source: Optional[str] = None
+    # 이 값의 근거 위치. [x0, y0, x1, y1], 이미지 가로/세로에 대한 0~1 비율.
+    # 픽셀 좌표로 두면 이미지 해상도(스캔마다 다름)를 응답에 함께 실어야
+    # 하는데, 비율로 두면 그럴 필요가 없다 — DB의 field_value.bbox_x1~y1
+    # 컬럼도 같은 0~1 비율 관례를 쓴다.
+    bbox: Optional[Tuple[float, float, float, float]] = None
 
     def to_dict(self) -> dict:
         return {
@@ -145,12 +128,11 @@ class DraftField:
             "value": self.value,
             "confidence": self.confidence,
             "source": self.source,
-            "grade": self.grade.value,
-            "grade_label": self.grade.label,
             "is_critical": self.is_critical,
             "needs_review": self.needs_review,
             "review_reason": self.review_reason.value if self.review_reason else None,
             "review_message": self.review_message,
+            "bbox": list(self.bbox) if self.bbox else None,
         }
 
 
@@ -182,54 +164,13 @@ class BLDraft:
         return sorted(pending, key=lambda f: (not f.is_critical, f.name))
 
     @property
-    def review_required_fields(self) -> List[str]:
-        """필수 확인 등급 필드 이름. F3 의 판정 보류 대상이다(5.3)."""
-        return [
-            f.name for f in self.fields
-            if f.grade is ConfidenceGrade.REQUIRED
-        ]
-
-    @property
     def is_ready_for_verification(self) -> bool:
         """하자 검증(F3)을 돌릴 수 있는 상태인지.
 
-        두 가지가 막는다.
-
-        **핵심 필드 공백** — 검증 결과가 '값이 없어서 하자'로만 도배되어
-        의미가 없다.
-
-        **필수 확인 등급 필드** — 기획안 v2 5.1 이 "해당 필드 확인 전까지
-        '검증 실행' 차단"으로 정했다. 값은 있지만 못 믿는 상태이므로 그대로
-        검증하면 **틀린 값에 근거한 조문 인용**이 나가는데, 그건 위반 0건보다
-        나쁘다 — 사용자가 그 인용을 믿고 서류를 그대로 제출한다.
-
-        이 값이 False 여도 `/verify` 는 여전히 돌아간다. 차단은 화면(S3)의
-        버튼이 하고, API 는 5.3 이 정한 대로 해당 룰을 판정 보류로 돌린다.
-        게이트웨이가 이 값을 보고 버튼을 잠그라고 있는 자리다.
+        핵심 필드가 비어 있으면 검증 결과가 '값이 없어서 하자'로만
+        도배되어 의미가 없다.
         """
-        if any(f.is_critical and not f.value for f in self.fields):
-            return False
-        return not any(f.grade.blocks_verification for f in self.fields)
-
-    def grade_counts(self) -> Dict[str, int]:
-        """등급별 필드 수. 화면 상단의 '확인 필요 n건' 배지가 쓴다."""
-        counts = {g.value: 0 for g in ConfidenceGrade}
-        for f in self.fields:
-            counts[f.grade.value] += 1
-        return counts
-
-    def hold_ratio(self) -> float:
-        """필수 확인 필드 비율.
-
-        기획안 v2 5.4 가 "판정 보류 항목이 많은 경우(전체 필드의 20% 초과)"로
-        리포트의 확률 표기를 가르는 데 쓰는 값이다. **미검출은 세지 않는다** —
-        5.3 이 판정 보류의 대상으로 "필수 확인 필드"만 지목했고, 값이 없는
-        필드는 룰엔진이 `missing_field` 로 이미 하자에 반영하기 때문에 여기서
-        또 세면 같은 사실이 확률을 두 번 흐린다.
-        """
-        if not self.fields:
-            return 0.0
-        return round(len(self.review_required_fields) / len(self.fields), 4)
+        return not any(f.is_critical and not f.value for f in self.fields)
 
     def completeness(self) -> float:
         """값이 채워진 필드 비율."""
@@ -248,26 +189,42 @@ class BLDraft:
             "completeness": self.completeness(),
             "is_ready_for_verification": self.is_ready_for_verification,
             "review_required_count": len(self.review_fields),
-            "grades": self.grade_counts(),
-            # 검증 실행을 막는 필드. 화면이 이 목록으로 바로가기를 그린다 —
-            # "검증할 수 없습니다"만 띄우면 사용자는 어디를 고쳐야 하는지 모른다.
-            "blocking_fields": self.review_required_fields,
-            "hold_ratio": self.hold_ratio(),
             "fields": [f.to_dict() for f in self.fields],
         }
+
+
+def _merge_bbox(
+    bboxes: Optional[List[BBox]], image_width: int, image_height: int
+) -> Optional[Tuple[float, float, float, float]]:
+    """한 필드에 기여한 여러 bbox를 하나의 사각형(0~1 비율)으로 합친다.
+
+    필드 하나가 여러 줄·여러 구역에서 값을 모아오는 경우(예: 화물 명세 +
+    중량 구역을 합쳐 총중량을 뽑는 경우)가 있어, 개별 bbox 각각이 아니라
+    전부를 감싸는 최소 사각형 하나로 표현한다.
+    """
+    if not bboxes or image_width <= 0 or image_height <= 0:
+        return None
+    x0 = min(b.x_min for b in bboxes) / image_width
+    y0 = min(b.y_min for b in bboxes) / image_height
+    x1 = max(b.x_max for b in bboxes) / image_width
+    y1 = max(b.y_max for b in bboxes) / image_height
+    return (
+        round(max(0.0, min(1.0, x0)), 5),
+        round(max(0.0, min(1.0, y0)), 5),
+        round(max(0.0, min(1.0, x1)), 5),
+        round(max(0.0, min(1.0, y1)), 5),
+    )
 
 
 def build_draft(
     fields: BLFields,
     ocr: Optional[OCRResult] = None,
-    threshold: float = CONFIRMED_THRESHOLD,
+    threshold: float = LOW_CONFIDENCE_THRESHOLD,
 ) -> BLDraft:
     """추출 결과 → 초안.
 
-    threshold 는 확정 등급의 하한이다(기획안 v2 5.1 의 0.90). 이 아래는 등급이
-    확인 권고 또는 필수 확인으로 떨어지며 확인 대기열에 오른다. 스캔 품질이
-    일정하게 나쁜 배치에서는 낮춰 잡아야 확인 큐가 실무적으로 감당 가능한
-    크기가 된다.
+    threshold 는 저신뢰 판정선이다. 스캔 품질이 일정하게 나쁜 배치에서는
+    낮춰 잡아야 확인 큐가 실무적으로 감당 가능한 크기가 된다.
     """
     draft = BLDraft(
         image_id=ocr.image_id if ocr else "",
@@ -283,9 +240,8 @@ def build_draft(
         reason = _review_reason(
             name, value, confidence, fields, is_critical, threshold, draft.source
         )
-        grade = grade_for(
-            value, confidence, _GRADE_DEMOTION.get(reason),
-            confirmed=threshold, required=min(REVIEW_REQUIRED_THRESHOLD, threshold),
+        bbox = _merge_bbox(
+            fields.bbox.get(name), ocr.image_width if ocr else 0, ocr.image_height if ocr else 0
         )
 
         draft.fields.append(
@@ -295,11 +251,11 @@ def build_draft(
                 value=value,
                 confidence=confidence,
                 source=fields.provenance.get(name),
-                grade=grade,
                 is_critical=is_critical,
-                needs_review=grade is not ConfidenceGrade.CONFIRMED,
+                needs_review=reason is not None,
                 review_reason=reason,
                 review_message=_REASON_MESSAGES.get(reason) if reason else None,
+                bbox=bbox,
             )
         )
 
@@ -316,19 +272,17 @@ def _review_reason(
     source: str = "",
 ) -> Optional[ReviewReason]:
     """확인이 필요한 이유. 필요 없으면 None."""
+    # 문언·부기(bl_clauses)는 페이지 전체 원문이라 서식 항목명을 필연적으로
+    # 포함한다 — 아래 LABEL_ECHOED 검사가 사실상 항상 발동한다. 확인 큐에
+    # 긴 원문이 오르면 F1 의 시간 단축 효과가 사라지므로 이 필드는 항상
+    # 확인 대상에서 제외한다.
+    if name == "bl_clauses":
+        return None
     if not value:
         return ReviewReason.MISSING_CRITICAL if is_critical else ReviewReason.MISSING
 
-    # ── 매핑을 의심할 이유가 신뢰도보다 앞선다 ──────────────────
-    #
-    # 순서가 뒤집혀 있었다. 등급 경계가 0.90 이 되면서 앵커 감점(0.85)이 그
-    # 아래로 떨어지는데, 신뢰도를 먼저 보면 **모든 앵커 값이 "인식 정확도가
-    # 낮습니다"로 설명된다.** OCR 은 1.0 으로 확신했고 의심스러운 것은 매핑인데,
-    # 그 메시지는 사용자에게 원본의 엉뚱한 곳을 보라고 시킨다.
-    #
-    # 사유는 "어디를 어떻게 확인해야 하는가"를 답하는 값이므로, 더 구체적인
-    # 쪽이 이겨야 한다. 흐릿해서 못 믿는 것과 자리가 밀려서 못 믿는 것은
-    # 확인 방법이 다르다.
+    if confidence is not None and confidence < threshold:
+        return ReviewReason.LOW_CONFIDENCE
 
     # 값에 서식의 항목명이 그대로 들어왔으면 구역 판정이 밀린 것이다.
     #
@@ -357,9 +311,6 @@ def _review_reason(
     # 훑을 만하고, 이 다섯이 틀리면 하자 검증 결과 전체가 무의미해진다.
     if is_critical and source in _UNCALIBRATED_SOURCES:
         return ReviewReason.UNCALIBRATED_LAYOUT
-
-    if confidence is not None and confidence < threshold:
-        return ReviewReason.LOW_CONFIDENCE
 
     return None
 
@@ -417,6 +368,12 @@ def _echoes_label(value: str) -> bool:
     if not normalized:
         return False
 
+    # "SAME AS CONSIGNEE" — 통지처 칸의 정상적인 값이고 실무에서 가장 흔한
+    # 표기다. 항목명을 품고 있는 것은 맞지만 밀린 값이 아니므로, 이걸 걸면
+    # 확인 대기열에 늘 한 건이 얹힌다.
+    if re.match(r"^SAME AS \b", normalized):
+        return False
+
     padded = f" {normalized} "
     for label in _label_vocabulary():
         if f" {label} " in padded:
@@ -431,7 +388,7 @@ def _echoes_label(value: str) -> bool:
 def build_document_draft(
     fields,
     ocr: Optional[OCRResult] = None,
-    threshold: float = CONFIRMED_THRESHOLD,
+    threshold: float = LOW_CONFIDENCE_THRESHOLD,
 ) -> BLDraft:
     """선하증권 외 서류(`doc_parser.DocumentFields`) → 초안.
 
@@ -458,9 +415,8 @@ def build_document_draft(
         confidence = fields.confidence.get(name)
         is_critical = name in spec.critical
         reason = _document_review_reason(value, confidence, is_critical, threshold)
-        grade = grade_for(
-            value, confidence, _GRADE_DEMOTION.get(reason),
-            confirmed=threshold, required=min(REVIEW_REQUIRED_THRESHOLD, threshold),
+        bbox = _merge_bbox(
+            fields.bbox.get(name), ocr.image_width if ocr else 0, ocr.image_height if ocr else 0
         )
 
         draft.fields.append(
@@ -470,11 +426,11 @@ def build_document_draft(
                 value=value,
                 confidence=confidence,
                 source=fields.provenance.get(name),
-                grade=grade,
                 is_critical=is_critical,
-                needs_review=grade is not ConfidenceGrade.CONFIRMED,
+                needs_review=reason is not None,
                 review_reason=reason,
                 review_message=_REASON_MESSAGES.get(reason) if reason else None,
+                bbox=bbox,
             )
         )
 
@@ -489,9 +445,8 @@ def _document_review_reason(
 ) -> Optional[ReviewReason]:
     if not value:
         return ReviewReason.MISSING_CRITICAL if is_critical else ReviewReason.MISSING
-    # 항목명 혼입이 신뢰도보다 앞선다 — `_review_reason` 과 같은 이유다.
-    if _echoes_label(value):
-        return ReviewReason.LABEL_ECHOED
     if confidence is not None and confidence < threshold:
         return ReviewReason.LOW_CONFIDENCE
+    if _echoes_label(value):
+        return ReviewReason.LABEL_ECHOED
     return None
