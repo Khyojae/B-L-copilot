@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
-from .checks import INCOTERMS, parse_date
+from .checks import INCOTERMS, parse_date, parse_quantity
 from .types import LCTerms
 
 
@@ -114,6 +114,9 @@ def _apply_tags(
             unmapped[tag] = raw
             continue
         handler(raw, fields, notes)
+    # 47A/45A 를 함께 봐야 해서 태그별 핸들러 루프 밖에 둔다 — 값 자체는
+    # 위 루프가 이미 채운 `tags` 원본에서 다시 읽는다.
+    _h_incoterms(tags, fields, notes)
     return fields, unmapped
 
 
@@ -315,26 +318,125 @@ def _h_pod(raw: str, out: Dict[str, object], notes: List[str]) -> None:
 
 
 def _h_goods(raw: str, out: Dict[str, object], notes: List[str]) -> None:
-    goods = _joined(raw)
-    out["description_of_goods"] = goods
+    out["description_of_goods"] = _joined(raw)
+    # 거래조건(Incoterms)은 여기서 뽑지 않는다 — `_h_incoterms` 가 47A 를
+    # 우선으로, 없으면 이 45A 값을 다시 읽어 채운다. 이유는 그쪽 주석 참고.
 
-    # **거래조건은 채우지 않는다.** MT700 에 Incoterms 전용 태그가 없어
-    # 45A 자유서식에서 뽑아야 하는데, 뽑은 값은 L/C 가 필드로 명시한 값이
-    # 아니다. `FOB` 만 담으면 송장의 `FOB BUSAN` 과 문자열이 달라 X010 이
-    # 오탐이 되고, `FOB BUSAN` 을 담으면 `FOB BUSAN, KOREA` 와 어긋난다.
-    # 어느 쪽이든 정상 서류를 하자로 만든다 — 기획안 9절의 '심각도 보수적
-    # 산정'이 이 방향이다. 대신 사람이 채울 수 있게 사실만 알린다.
-    found = [t for t in INCOTERMS if re.search(rf"\b{t}\b", goods.upper())]
-    if found:
-        notes.append(
-            f":45A: 물품 명세에 거래조건 {'/'.join(found)} 표기가 있으나 "
-            "L/C 필드로는 채우지 않았습니다 — 필요하면 incoterms 를 직접 지정하세요."
-        )
+
+def _h_incoterms(tags: Dict[str, str], out: Dict[str, object], notes: List[str]) -> None:
+    """거래조건 코드를 47A(추가조건) 우선, 없으면 45A(물품 명세)에서 뽑는다.
+
+    **거래조건 "코드"만 담는다 — 장소 병기는 담지 않는다.** MT700 에는
+    Incoterms 전용 태그가 없어 자유서식에서 뽑아야 하는데, `FOB BUSAN` 처럼
+    장소까지 담으면 송장의 `FOB BUSAN` 과는 맞아도 `FOB BUSAN, KOREA` 와는
+    어긋난다 — **동등 비교(X010)** 를 하는 룰이 정상 서류를 하자로 잡는다.
+    이 우려는 X010 한정이다. D015(`contains_incoterms`)는 화물 명세가 그
+    거래조건을 "포함"하는지만 보고, D026(`freight_prepaid_required`)은
+    선불계(CFR/CIF/CPT/CIP/D 조건) 여부만 판단하므로 코드 하나로 충분하다.
+    그래서 코드만 채운다.
+
+    47A 를 45A 보다 먼저 보는 이유는 실무에서 거래조건이 47A 추가조건에 더
+    자주 오기 때문이다. 한 태그 안에 서로 다른 코드가 2개 이상 있으면
+    임의로 하나를 고르지 않고 비운다 — 기획안 9절의 '심각도 보수적 산정'.
+    """
+    for tag in ("47A", "45A"):
+        raw = tags.get(tag)
+        if not raw:
+            continue
+        text = _joined(raw).upper()
+        found = sorted({t for t in INCOTERMS if re.search(rf"\b{t}\b", text)})
+        if not found:
+            continue  # 이 태그엔 표기가 없다 — 다음 우선순위로.
+        if len(found) > 1:
+            notes.append(
+                f":{tag}: 거래조건이 여럿 표기되어({'/'.join(found)}) "
+                "채우지 않았습니다 — 필요하면 incoterms 를 직접 지정하세요."
+            )
+            return
+        out["incoterms"] = found[0]
+        notes.append(f":{tag}: 에서 거래조건 {found[0]} 를 읽었습니다.")
+        return
+
+
+# 46A 의 B/L 요구 줄에 실리는 수하인 지정. 지시식이 "TO ORDER" 를 늘 품고
+# 있어(`TO ORDER OF SHIPPER`·`TO THE ORDER OF <은행>`) 먼저 검사해야 한다 —
+# 순서를 바꾸면 `MADE OUT TO ORDER` 가 기명식 패턴에 걸려 "ORDER" 를 상호로
+# 오인한다.
+_TO_ORDER_RE = re.compile(r"\bTO\s+(?:THE\s+)?ORDER\b", re.IGNORECASE)
+_CONSIGNED_TO_RE = re.compile(r"\bCONSIGNED\s+TO\s+(.+)", re.IGNORECASE)
+_MADE_OUT_TO_RE = re.compile(r"\bMADE\s+OUT\s+TO\s+(.+)", re.IGNORECASE)
+
+# 통지처. `NOTIFY` 뒤 줄 끝까지가 이름이다 — "PARTY:"/"ADDRESS" 는 실무에서
+# 흔한 장식이라 있어도 없어도 받는다.
+_NOTIFY_RE = re.compile(r"\bNOTIFY\b\s*(?:PARTY|ADDRESS)?\s*[:\-]?\s*(.+)", re.IGNORECASE)
 
 
 def _h_documents(raw: str, out: Dict[str, object], notes: List[str]) -> None:
     items = [_BULLET_RE.sub("", line).strip() for line in raw.splitlines()]
-    out["documents_required"] = [i for i in items if i]
+    items = [i for i in items if i]
+    out["documents_required"] = items
+    _h_bl_consignment(items, out, notes)
+
+
+def _h_bl_consignment(items: List[str], out: Dict[str, object], notes: List[str]) -> None:
+    """B/L 요구 항목에서 수하인 지정과 통지처를 읽는다.
+
+    지시식(`TO ORDER` 계열)은 `bl_consignment` 로 간다 — D027 이 이 값을
+    본다. 기명식(`CONSIGNED TO`/`MADE OUT TO <상호>`)만 `consignee` 에
+    담는다. D005B(`match_place`)는 상호 대조 규칙이라 "TO ORDER" 같은 문구를
+    넣으면 안 된다.
+
+    통지처는 두 분기 중 어느 쪽이든(지시식이어도) 같은 줄에 실리므로
+    (`...MADE OUT TO ORDER AND BLANK ENDORSED NOTIFY <상호>`) 분기와 무관하게
+    따로 뽑는다.
+    """
+    bl_item = next(
+        (i for i in items if re.search(r"BILL OF LADING|\bB/?L\b", i, re.IGNORECASE)),
+        None,
+    )
+    if not bl_item:
+        return
+    if _TO_ORDER_RE.search(bl_item):
+        out["bl_consignment"] = "TO_ORDER"
+    else:
+        m = _CONSIGNED_TO_RE.search(bl_item) or _MADE_OUT_TO_RE.search(bl_item)
+        if m:
+            name = m.group(1).strip().rstrip(".")
+            if name:
+                out["consignee"] = name
+    _h_notify(bl_item, out, notes)
+
+
+def _h_notify(bl_item: str, out: Dict[str, object], notes: List[str]) -> None:
+    """B/L 요구 줄의 `NOTIFY` 절에서 통지처를 뽑는다.
+
+    `NOTIFY APPLICANT` 처럼 대상이 개설의뢰인 자신인 표기가 실무에 흔하다.
+    원문 그대로 "APPLICANT" 를 `notify_party` 에 넣으면, 서류에는 실제
+    개설의뢰인 상호가 인쇄되므로 D020(상호 대조)이 매번 불일치로 걸린다 —
+    미표기보다 나쁜 오탐이다. 그래서 개설의뢰인(50)이 이미 읽혀 있으면 그
+    상호로 치환한다. SWIFT 필드 순서상 50 은 46A 보다 항상 먼저 오므로
+    보통은 채워져 있다. 못 채웠으면(비표준 순서 등) 원문을 그대로 두고
+    그 사실을 notes 에 남긴다 — 값을 비우면 D010 이 조용히 미검사로 빠져
+    "조용한 실패가 안전해 보이는" 쪽으로 되돌아간다.
+    """
+    m = _NOTIFY_RE.search(bl_item)
+    if not m:
+        return
+    name = m.group(1).strip().rstrip(".")
+    if not name:
+        return
+    if name.upper() == "APPLICANT":
+        applicant = out.get("applicant")
+        if applicant:
+            out["notify_party"] = applicant
+            notes.append(":46A: NOTIFY APPLICANT 를 개설의뢰인(50) 상호로 치환했습니다.")
+        else:
+            out["notify_party"] = name
+            notes.append(
+                ":46A: NOTIFY APPLICANT 인데 개설의뢰인(50)을 아직 읽지 못해 원문을 그대로 둡니다."
+            )
+        return
+    out["notify_party"] = name
 
 
 def _h_presentation(raw: str, out: Dict[str, object], notes: List[str]) -> None:
@@ -363,6 +465,49 @@ def _party(raw: str, tag: str, notes: List[str]) -> str:
     return lines[0] if lines else ""
 
 
+# 47A 자유서식 중 한도 문장을 찾는 열쇠말. GROSS WEIGHT/MEASUREMENT 가 줄에
+# 있어도 이 열쇠말이 없으면 "실제 값 통보"(예: 송장에 이미 적힌 실측치)일 수
+# 있어 한도로 읽지 않는다 — MAXIMUM/MAX. 는 수치 앞, NOT (TO) EXCEED(ING) 는
+# 수치 뒤에 오는 실무 표기다.
+_LIMIT_WORD_RE = re.compile(r"\bMAX(?:IMUM)?\.?\b|\bNOT\s+(?:TO\s+)?EXCEED(?:ING)?\b", re.IGNORECASE)
+
+# `checks.parse_quantity` 는 KG/KGS 와 MT/M.T. 만 안다(B/L 쪽 실무 표기가
+# 그 정도라서). 47A 자유서식에는 "M.TON"/"METRIC TON(S)" 도 흔히 나오므로
+# `parse_quantity` 에 넘기기 전에 그 표기를 MT 로 맞춰 둔다.
+_MTON_ALIAS_RE = re.compile(r"\bM\.?\s?TONS?\b|\bMETRIC\s+TONS?\b", re.IGNORECASE)
+
+
+def _h_47a(raw: str, out: Dict[str, object], notes: List[str]) -> None:
+    """47A(추가조건)는 자유서식이다. 그중 룰이 직접 쓰는 두 한도만 뽑는다.
+
+    나머지(신용장번호 표기 지시, 서드파티 서류 허용 등)는 해석 규칙이 없어
+    그대로 버린다 — 47A 전체를 판정하려면 LLM 보조가 필요하다(기획안 v2 5.3
+    R-LC-47A, 미구현). 거래조건 코드는 여기서 다루지 않는다 — `_h_incoterms`
+    가 원문 태그를 따로 다시 읽는다(이유는 그쪽 주석 참고).
+
+    수치 변환은 `checks.parse_quantity` 를 그대로 쓴다 — 콤마 천단위,
+    KG/KGS ↔ M.TON 환산, CBM/M3 인식이 서류 쪽(D007/D007B)과 여기가
+    갈리면 같은 표기가 한쪽에서만 읽혀 판정이 어긋난다.
+    """
+    for line in raw.splitlines():
+        line = _BULLET_RE.sub("", line).strip()
+        if not line or not _LIMIT_WORD_RE.search(line):
+            continue
+        upper = line.upper()
+        if "GROSS WEIGHT" in upper:
+            value = parse_quantity(_MTON_ALIAS_RE.sub("MT", line), "KG")
+            if value is not None:
+                out["max_gross_weight_kg"] = value
+            else:
+                notes.append(f":47A: 총중량 한도의 단위를 해석하지 못했습니다: {line}")
+        elif "MEASUREMENT" in upper:
+            value = parse_quantity(line, "CBM")
+            if value is not None:
+                out["max_measurement_cbm"] = value
+            else:
+                notes.append(f":47A: 용적 한도의 단위를 해석하지 못했습니다: {line}")
+
+
 _HANDLERS: Dict[str, Handler] = {
     "20": _h_lc_no,
     "31D": _h_expiry,
@@ -375,17 +520,17 @@ _HANDLERS: Dict[str, Handler] = {
     "44F": _h_pod,
     "45A": _h_goods,
     "46A": _h_documents,
+    "47A": _h_47a,
     "48": _h_presentation,
     "50": _h_applicant,
     "59": _h_beneficiary,
 }
 
 # 자리가 없는 태그 중 **없다는 사실이 중요한 것**만 따로 설명한다.
+# 47A 는 이제 자체 핸들러(`_h_47a`)가 있어 여기 실리지 않는다 — 총중량·용적
+# 한도만 뽑고 나머지 자유서식(신용장번호 표기 지시 등)은 조용히 버리는데,
+# 그 사실은 `_h_47a` 의 독스트링이 설명한다.
 _UNMAPPED_NOTES: Dict[str, str] = {
-    "47A": (
-        ":47A: 추가 조건은 자유서식이라 판정하지 않습니다 — "
-        "기획안 v2 5.3 R-LC-47A(LLM 보조 판정)는 미구현입니다."
-    ),
     "44A": ":44A: 수령지는 B/L 대조 항목이 아니어서 옮기지 않았습니다.",
     "44B": ":44B: 최종목적지는 B/L 대조 항목이 아니어서 옮기지 않았습니다.",
     "71B": ":71B: 수수료 부담 조건은 검증 대상이 아닙니다.",
