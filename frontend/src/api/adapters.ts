@@ -23,6 +23,8 @@ import type {
   FieldValue,
 } from '../types/domain';
 import type {
+  WireDraftField,
+  WireDraftResponse,
   WireSeverity,
   WireSkippedRule,
   WireVerifyResponse,
@@ -148,4 +150,61 @@ export function toBLPayload(fields: FieldValue[]): Record<string, string> {
     }
   }
   return bl;
+}
+
+// ─────────────────────────────────────────────
+// F1 인테이크 — `/extract*` 응답 → 화면의 FieldValue[]
+// ─────────────────────────────────────────────
+
+/**
+ * 값을 어떤 방식으로 읽었는지 (`FieldValue.extractor`).
+ *
+ * 백엔드의 응답 최상단 `source` 는 **문서를 읽은 경로**입니다.
+ * · 'pdf-text' · 'excel' · 'email-body' — 텍스트를 그대로 읽었으므로 규칙 추출
+ * · 'image' · 'pdf-ocr' — OCR 을 태웠음
+ * · 'json' — 라벨 JSON 을 그대로 읽었음
+ */
+function toExtractor(
+  docSource: string,
+  fieldSource: string | null,
+): FieldValue['extractor'] {
+  // 필드 하나만 LLM 이 답한 경우가 있습니다. 문서 경로보다 이쪽이 우선입니다.
+  if (fieldSource === 'llm') return 'ocr+llm';
+  if (docSource === 'json') return 'json';
+  if (docSource === 'image' || docSource === 'pdf-ocr' || docSource === 'email-image') {
+    return 'ocr+llm';
+  }
+  return 'rule';
+}
+
+/**
+ * 추출 필드 1개 번역.
+ *
+ * ⚠ **bbox 는 항상 null 입니다.** 백엔드가 좌표를 안 돌려주기 때문입니다
+ *   (wire.ts 의 `WireDraftResponse` 주석 참고). 좌표를 지어내면 뷰어가
+ *   엉뚱한 곳을 하이라이트하므로, 규약 §2.4 대로 없는 값은 없다고 둡니다.
+ *   그 결과 실제 추출로 만든 선적은 모든 필드가 '출처 없음' 배지를 답니다 —
+ *   백엔드가 bbox 를 실어주면 이 한 줄만 고치면 됩니다.
+ */
+function toFieldValue(f: WireDraftField, docSource: string): FieldValue {
+  return {
+    field_name: f.name,
+    value: f.value,
+    // 정규화는 백엔드가 검증 단계에서 스스로 합니다. 우리가 미리 바꾸지 않습니다.
+    normalized_value: null,
+    // 값이 없으면 신뢰도도 없습니다(null). 화면 계산이 숫자를 기대하므로 0 으로 둡니다.
+    confidence: f.confidence ?? 0,
+    // 어느 문서에서 왔는지는 아직 백엔드가 문서 id 를 안 줍니다.
+    source_doc_id: null,
+    page: null,
+    bbox: null,
+    extractor: toExtractor(docSource, f.source),
+    // 백엔드는 출처 간 값 충돌을 이 응답에 표시하지 않습니다. 지어내지 않습니다.
+    conflict_flag: false,
+  };
+}
+
+/** 초안 응답 전체 → 화면이 쓰는 필드 목록 */
+export function toFieldValues(res: WireDraftResponse): FieldValue[] {
+  return res.fields.map((f) => toFieldValue(f, res.source));
 }
