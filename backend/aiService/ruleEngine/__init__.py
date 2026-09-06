@@ -20,6 +20,7 @@ from .engine import (
     load_rules,
     read_catalog,
 )
+from .impact import ConsistencyGraph, EQ_CHECKS, ImpactItem
 from .mt700 import MT700Parse, MT700ParseError, parse_mt700
 from .types import (
     DEFAULT_PRESENTATION_DAYS,
@@ -29,6 +30,7 @@ from .types import (
     Outcome,
     Severity,
     SkippedRule,
+    HeldRule,
     Verdict,
     Violation,
 )
@@ -37,8 +39,11 @@ __all__ = [
     "CROSS_REGISTRY",
     "CatalogFingerprint",
     "CheckOutcome",
+    "ConsistencyGraph",
     "CrossDocumentEngine",
     "DocumentSet",
+    "EQ_CHECKS",
+    "ImpactItem",
     "UNDECLARED_VERSION",
     "fingerprint_of",
     "load_cross_rules",
@@ -57,6 +62,7 @@ __all__ = [
     "RuleEngine",
     "Severity",
     "SkippedRule",
+    "HeldRule",
     "Verdict",
     "Violation",
     "load_rules",

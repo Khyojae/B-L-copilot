@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field
 
 from dotenv import load_dotenv
 
-from report import apply_narrative, build_report, render_pdf
+from ocr.types import review_required_fields
+from report import apply_explanations, apply_narrative, build_report, render_pdf
 from report.share import (
     DEFAULT_TTL_SECONDS,
     ExpiredShareToken,
@@ -30,6 +31,7 @@ from report.share import (
 from report import share as share_tokens
 from ruleEngine import (
     UNDECLARED_VERSION,
+    ConsistencyGraph,
     CrossDocumentEngine,
     DocumentSet,
     LCTerms,
@@ -69,6 +71,19 @@ def cross_engine() -> CrossDocumentEngine:
     if _cross_engine is None:
         _cross_engine = CrossDocumentEngine()
     return _cross_engine
+
+
+# F5 정정 영향분석 그래프. 두 카탈로그(위 두 엔진)에서 도출하므로 그
+# 둘처럼 1회만 만든다 — 요청마다 다시 뽑으면 YAML 파싱 비용이 두 번
+# 들어가는 셈이다.
+_impact_graph: Optional[ConsistencyGraph] = None
+
+
+def impact_graph() -> ConsistencyGraph:
+    global _impact_graph
+    if _impact_graph is None:
+        _impact_graph = ConsistencyGraph.build(engine().rules, cross_engine().rules)
+    return _impact_graph
 
 
 # 하자 확률 예측기도 1회만 만든다. 모델 파일 로드가 요청 시간에 들어가면
@@ -201,6 +216,15 @@ class VerifyRequest(BaseModel):
     )
     as_of: Optional[datetime] = Field(
         None, description="제시기간 계산 기준 시각. 생략하면 현재 시각."
+    )
+    field_confidence: Optional[Dict[str, float]] = Field(
+        None,
+        description=(
+            "필드별 신뢰도(0~1). F1 초안 응답의 fields[].confidence 를 그대로 "
+            "되돌려 주면 된다. 0.70 미만인 필드는 '필수 확인' 등급이라 그 "
+            "필드를 쓰는 룰의 판정을 보류한다(기획안 v2 5.3). 주지 않으면 "
+            "사람이 확정한 값으로 보고 전부 검사한다."
+        ),
     )
     documents: Optional[Dict[str, Dict[str, Any]]] = Field(
         None,
@@ -524,18 +548,25 @@ def _run_verification(req: "VerifyRequest"):
         raise HTTPException(status_code=400, detail="bl 필드가 비어 있습니다.")
 
     lc = LCTerms.from_dict(req.lc) if req.lc else None
+    held = review_required_fields(req.bl, req.field_confidence)
 
     try:
-        verdict = engine().verify(req.bl, lc, as_of=req.as_of)
+        verdict = engine().verify(req.bl, lc, as_of=req.as_of, held_fields=held)
     except TypeError as exc:
         # 입력 형 오류는 400 이다. 500 으로 흘리면 게이트웨이가 재시도한다.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # 예측기에 넘길 판정은 **보류를 적용하지 않은** 것이다. 모델은 룰이
+    # 전부 도는 판정으로 학습했고, 보류가 걸리면 `evaluated_count` 와
+    # `violation_weight_sum` 이 학습 때와 다른 분포로 들어간다. 서류 간
+    # 판정을 합치기 전 것을 넘기는 이유와 같다 — 아래 `_predict` 주석에 있다.
+    for_model = engine().verify(req.bl, lc, as_of=req.as_of) if held else verdict
 
     merged = verdict
     if req.documents:
         merged = verdict.merge_cross(cross_engine().verify(_document_set(req, lc)))
 
-    return merged, verdict, lc
+    return merged, for_model, lc
 
 
 def _document_set(req: "VerifyRequest", lc: Optional[LCTerms]) -> DocumentSet:
@@ -585,6 +616,25 @@ def verify(req: VerifyRequest) -> VerifyResponse:
     )
 
 
+class ImpactRequest(BaseModel):
+    """F5 정정 영향분석 요청. S3 편집기가 필드 하나를 고칠 때마다 호출한다."""
+
+    doc: str = Field(..., description="서류 종류. '선하증권'·'상업송장'·'포장명세서'·'신용장'.")
+    field: str = Field(..., description="방금 고친 필드명.")
+
+
+@app.post("/impact")
+def impact(req: ImpactRequest) -> dict:
+    """F5. 이 필드를 고치면 함께 확인해야 할 다른 서류·필드 체크리스트.
+
+    깊이 1만 본다(축소 구현) — `ruleEngine.impact` 머리말에 이유가 있다.
+    그래프에 없는 (서류, 필드) 조합은 오타가 아니라 **정합성 룰이 아직
+    그 필드를 다루지 않는다**는 뜻이라 빈 목록을 200 으로 돌려준다.
+    """
+    items = impact_graph().impacted(req.doc, req.field)
+    return {"impacted": [i.to_dict() for i in items]}
+
+
 def _predict(bl, lc, verdict, as_of):
     """하자 확률. 예측이 실패해도 검증 결과는 돌려준다.
 
@@ -631,8 +681,16 @@ def _make_report(req: "ReportRequest"):
         submitted_documents=req.submitted_documents,
         as_of=req.as_of,
         prediction=_predict(req.bl, lc, single, req.as_of),
+        # 보류 비율의 분모. 요청이 실은 필드 수를 쓴다 — 서류 종류마다
+        # 필드 수가 달라 리포트가 스스로 알 수 없다.
+        field_count=len(req.bl),
+        graph=impact_graph(),
     )
-    return apply_narrative(report)
+    report = apply_narrative(report)
+    # F7 은 narrative(리포트 전체 요약) 다음에 붙는다. narrative 가 이미
+    # 채운 headline·counts 도 check_narrative 의 허용 집합에 들어가므로,
+    # 순서를 바꾸면 설명문이 인용할 수 있는 값의 범위가 달라진다.
+    return apply_explanations(report)
 
 
 @app.post("/report")

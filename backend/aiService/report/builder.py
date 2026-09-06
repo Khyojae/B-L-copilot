@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
 
 from ruleEngine import deadline as deadline_rules
+from ruleEngine.cross_doc import BILL_OF_LADING
+from ruleEngine.impact import ConsistencyGraph
 from ruleEngine.types import LCTerms, Verdict
 
 from .model import (
@@ -29,6 +31,12 @@ from .model import (
 # 심각도 → 정렬 순위. 수정 권고 우선순위에 그대로 쓴다.
 _SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
+# 확률 대신 범위를 제시하는 보류 비율 (기획안 v2 5.4 "전체 필드의 20% 초과").
+#
+# **초과**다. 정확히 20% 는 점 확률을 유지한다 — 명세가 "초과"로 썼고,
+# 경계에서 표기가 뒤집히면 필드 하나 차이로 리포트의 성격이 달라진다.
+HOLD_RATIO_LIMIT = 0.20
+
 
 def build_report(
     verdict: Verdict,
@@ -37,6 +45,8 @@ def build_report(
     submitted_documents: Optional[Sequence[str]] = None,
     as_of: Optional[datetime] = None,
     prediction: Optional[Any] = None,
+    field_count: int = 0,
+    graph: Optional[ConsistencyGraph] = None,
 ) -> Report:
     """검증 결과와 서류 정보를 리포트로 조립한다.
 
@@ -52,6 +62,11 @@ def build_report(
     산출 출처는 `report.model` 에 남아 PDF 각주에 그대로 찍힌다. 5절이
     기록한 "리포트 출처 거짓 표기" 결함과 같은 이유로 이 표기는 정확해야
     한다 — 모델이 없어 룰 가중치로 떨어졌으면 `rules-v1` 이어야 한다.
+
+    `graph` 는 F5 정정 영향분석(`ruleEngine.impact.ConsistencyGraph`)이다.
+    주지 않으면 `Recommendation.impact` 가 빈 목록으로 남을 뿐 나머지는
+    그대로 동작한다 — `prediction` 을 안 줘도 리포트가 나오는 것과 같은
+    이유(발표 중 외부 실패로 리포트가 통째로 비면 안 된다)를 여기도 지킨다.
     """
     now = as_of or datetime.now()
     lc = lc or LCTerms()
@@ -75,14 +90,60 @@ def build_report(
     report.risks = _risks(verdict)
     report.deadline = _deadline(bl, lc, now)
     report.checklist = _checklist(verdict, bl, lc, submitted_documents, report.deadline)
-    report.recommendations = _recommendations(verdict)
+    report.recommendations = _recommendations(verdict, graph)
     report.outlook, report.outlook_detail = _outlook(verdict, report.deadline)
     report.unchecked = [
         UncheckedItem(rule_id=s.rule_id, title=s.title, reason=s.reason)
         for s in verdict.skipped
     ]
+    report.held = [
+        UncheckedItem(rule_id=h.rule_id, title=h.title, reason=h.reason)
+        for h in verdict.held
+    ]
+    _apply_hold_gate(report, verdict, bl, field_count)
 
     return report
+
+
+# ── ① 판정 보류 게이트 ───────────────────────────────────────────
+
+def _apply_hold_gate(
+    report: Report, verdict, bl: Dict[str, Optional[str]], field_count: int
+) -> None:
+    """보류가 많으면 확률 대신 범위를 쓰게 표시한다 (기획안 v2 5.4).
+
+    **분모는 필드 수이고 분자는 보류된 룰이 참조하는 필드 수다.** 룰 수로
+    세지 않는 이유는 명세가 "전체 필드의 20% 초과"로 필드를 단위로 썼기
+    때문이고, 그 편이 실제로도 맞다 — 한 필드가 못 미더워서 룰 5건이 보류될
+    수 있는데 그걸 5로 세면 필드 하나가 리포트 전체의 성격을 뒤집는다.
+
+    `field_count` 를 인자로 받는 이유는 **분모가 서류 종류마다 다르기**
+    때문이다. 선하증권은 15 필드지만 송장·포장명세서는 다르고, 리포트는
+    그 명세를 들고 있지 않다. 주지 않으면 `bl` 의 키 수로 떨어진다.
+    """
+    # 하한은 리포트가 쓰는 확률이다. `verdict.probability_range` 를 그대로
+    # 쓰면 모델이 낸 확률(prediction)로 바꿔 놓은 값과 범위가 어긋난다 —
+    # 요약에는 0.62 가 찍히는데 범위는 0.30~0.55 로 나오는 식이다.
+    low = report.defect_probability
+    high = round(min(1.0, low + sum(h.weight for h in verdict.held)), 4)
+    report.probability_range = (low, high)
+
+    held_fields = {name for h in verdict.held for name in h.fields}
+    report.held_field_count = len(held_fields)
+
+    total = field_count or len(bl) or 0
+    report.hold_ratio = round(len(held_fields) / total, 4) if total else 0.0
+
+    if report.hold_ratio <= HOLD_RATIO_LIMIT:
+        return
+
+    low, high = report.probability_range
+    report.confidence_warning = (
+        f"입력 필드 {total}개 중 {len(held_fields)}개가 확인이 필요한 상태라 "
+        f"관련 검사 {len(verdict.held)}건의 판정을 보류했습니다. "
+        f"하자 확률을 하나의 값으로 제시하지 않고 {low:.2f}~{high:.2f} 범위로 "
+        "표시합니다. 해당 필드를 확인한 뒤 다시 검증하십시오."
+    )
 
 
 # ── ② 항목별 리스크 ──────────────────────────────────────────────
@@ -193,7 +254,9 @@ def _checklist(
 
 # ── ④ 수정 권고 ──────────────────────────────────────────────────
 
-def _recommendations(verdict: Verdict) -> List[Recommendation]:
+def _recommendations(
+    verdict: Verdict, graph: Optional[ConsistencyGraph] = None
+) -> List[Recommendation]:
     """위반을 심각도순으로 늘어놓고 조치문을 붙인다.
 
     remedy 가 비어 있는 룰은 제목을 조치문 자리에 쓴다. 권고 없는 위반이
@@ -210,9 +273,33 @@ def _recommendations(verdict: Verdict) -> List[Recommendation]:
             action=v.remedy or f"{v.title} 항목을 확인하고 정정하십시오.",
             target_fields=list(v.fields),
             source=v.source,
+            impact=_impact_summary(graph, v.fields),
         )
         for index, v in enumerate(ordered, start=1)
     ]
+
+
+def _impact_summary(graph: Optional[ConsistencyGraph], fields: List[str]) -> List[str]:
+    """F5 정정 영향(F5) 요약 — 이 필드들을 고치면 함께 확인할 값.
+
+    **선하증권 소속으로만 조회한다.** 서류 간 위반(X-rule)의 `fields` 는
+    양쪽 서류의 필드명이 섞여 있어 어느 쪽 서류 소속인지 여기서 알 수
+    없고, 그 위반은 메시지 자체에 이미 두 서류가 함께 나온다 — 중복해서
+    적을 이유가 없다. `graph` 가 없으면(그래프를 안 넘긴 호출부) 빈
+    목록을 돌려준다.
+    """
+    if graph is None:
+        return []
+    summary: List[str] = []
+    seen = set()
+    for name in fields:
+        for item in graph.impacted(BILL_OF_LADING, name):
+            key = (item.doc, item.field, item.rule_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            summary.append(f"{item.doc}의 {item.field} 확인 필요 — {item.reason}")
+    return summary
 
 
 # ── ⑤ 예상 심사 결과 ─────────────────────────────────────────────
@@ -254,6 +341,13 @@ def _outlook(verdict: Verdict, deadline: Optional[Deadline]) -> tuple[str, str]:
         detail += (
             f" 다만 자료 부족으로 검사하지 못한 항목이 {unchecked}건 있어, "
             "이 결과가 서류 전체를 보증하지는 않습니다."
+        )
+    # 보류는 평가불가와 따로 말한다. 사용자가 할 일이 다르다 — 평가불가는
+    # 서류를 더 올려야 풀리고, 보류는 그 필드를 확인해야 풀린다.
+    if verdict.held:
+        detail += (
+            f" 또한 확인이 필요한 필드 때문에 판정을 보류한 항목이 "
+            f"{len(verdict.held)}건 있습니다."
         )
     return head, detail
 

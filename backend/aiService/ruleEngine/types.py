@@ -89,11 +89,53 @@ class SkippedRule:
 
 
 @dataclass
+class HeldRule:
+    """판정을 보류한 룰 (기획안 v2 5.3 예외 조항).
+
+    "필수 확인 필드가 남아 있는 상태에서의 검증 실행: 해당 필드 관련 룰은
+    '판정 보류'로 표기하고 확률 산출에서 제외하되, 보류 건수를 리포트에
+    명시한다."
+
+    **`skipped` 와 합치지 않는다.** 둘 다 '평가하지 않았다'이지만 사용자가
+    할 일이 다르다 — 평가불가는 자료가 없어서이므로 **서류나 L/C 를 더
+    올려야** 풀리고, 보류는 값을 못 믿어서이므로 **그 필드를 확인해야**
+    풀린다. 한 목록에 섞으면 화면이 둘을 같은 안내문으로 그리게 된다.
+
+    `weight` 를 들고 다니는 이유는 리포트가 확률 대신 **범위**를 낼 때
+    상한을 계산해야 하기 때문이다(5.4). 보류된 룰이 전부 위반이었을 때가
+    상한이고, 그 값은 룰의 가중치를 알아야 나온다.
+    """
+
+    rule_id: str
+    title: str
+    fields: List[str] = field(default_factory=list)
+    weight: float = 0.0
+
+    @property
+    def reason(self) -> str:
+        return (
+            f"필수 확인 상태인 필드({', '.join(self.fields)})를 참조하므로 "
+            "판정을 보류했습니다."
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "rule_id": self.rule_id,
+            "title": self.title,
+            "fields": self.fields,
+            "reason": self.reason,
+        }
+
+
+@dataclass
 class Verdict:
     """하자 검증 결과 1건 (서류 세트 하나)."""
 
     violations: List[Violation] = field(default_factory=list)
     skipped: List[SkippedRule] = field(default_factory=list)
+    # 필수 확인 필드를 참조해 판정을 보류한 룰 (v2 5.3). `skipped` 와 나눠
+    # 두는 이유는 `HeldRule` 주석에 있다.
+    held: List[HeldRule] = field(default_factory=list)
     evaluated_count: int = 0
 
     # 확률 산출 주체. 지금은 룰 가중치 합산이고, 실전 라벨이 쌓이면
@@ -134,6 +176,22 @@ class Verdict:
             return 0.0
         return round(min(1.0, sum(v.weight for v in self.violations)), 4)
 
+    @property
+    def probability_range(self) -> tuple:
+        """보류를 감안한 하자 확률의 범위 (하한, 상한).
+
+        하한은 보류된 룰이 **전부 통과**했을 때이므로 지금 확률 그대로이고,
+        상한은 **전부 위반**이었을 때이므로 보류된 가중치를 더한 값이다.
+        보류가 없으면 두 값이 같다.
+
+        추정이 아니라 산술이다. 보류된 룰이 어느 쪽으로 떨어질지는 알 수
+        없고, 알 수 없다는 사실을 폭으로 보이는 것이 이 값의 목적이다 —
+        v2 5.4 가 "확률 대신 범위를 제시한다"고 쓴 자리다.
+        """
+        low = self.defect_probability
+        high = round(min(1.0, low + sum(h.weight for h in self.held)), 4)
+        return (low, high)
+
     def by_severity(self, severity: Severity) -> List[Violation]:
         return [v for v in self.violations if v.severity is severity]
 
@@ -171,6 +229,7 @@ class Verdict:
         return Verdict(
             violations=self.violations + cross.violations,
             skipped=self.skipped + cross.skipped,
+            held=self.held + cross.held,
             evaluated_count=self.evaluated_count + cross.evaluated_count,
             model=self.model,
             catalog=self.catalog,
@@ -183,12 +242,17 @@ class Verdict:
             "catalog": self.catalog,
             "cross_catalog": self.cross_catalog,
             "defect_probability": self.defect_probability,
+            # 보류가 있으면 화면은 이 범위를 써야 한다. 점 확률만 그리면
+            # 보류된 룰이 전부 통과한 것처럼 읽힌다.
+            "probability_range": list(self.probability_range),
             "evaluated_count": self.evaluated_count,
             "skipped_count": len(self.skipped),
+            "held_count": len(self.held),
             "counts": self.counts,
             "has_critical": self.has_critical,
             "violations": [v.to_dict() for v in self.sorted_violations()],
             "skipped": [s.to_dict() for s in self.skipped],
+            "held": [h.to_dict() for h in self.held],
         }
 
 

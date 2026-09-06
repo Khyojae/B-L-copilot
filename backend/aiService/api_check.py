@@ -330,6 +330,31 @@ with TestClient(app) as client, tempfile.TemporaryDirectory() as tmp:
 
     check("POST /verify (모르는 서류 종류)", _verify_cross_bad)
 
+    def _verify_held():
+        """필수 확인 등급 필드가 판정 보류로 이어지는지 (32·33번).
+
+        점검은 "신뢰도를 실으면 검사 범위가 **좁아진다**"는 불변식을 본다.
+        평가 건수가 줄고 그만큼 보류로 옮겨가야 한다 — 줄지 않으면 배선이
+        끊긴 것이고, 그 실패는 200 응답 뒤에 숨는다.
+        """
+        base = {"bl": BL, "lc": lc, "as_of": "2026-06-10T00:00:00"}
+        alone = client.post("/verify", json=base).json()["verdict"]
+        r = client.post("/verify", json={
+            **base, "field_confidence": {"port_of_discharge": 0.4},
+        })
+        r.raise_for_status()
+        d = r.json()["verdict"]
+
+        assert d["held_count"], "필수 확인 필드를 줬는데 보류된 룰이 없다"
+        assert d["evaluated_count"] < alone["evaluated_count"],             "보류가 생겼는데 평가 건수가 그대로다"
+        assert all("port_of_discharge" in h["fields"] for h in d["held"]),             "보류 사유가 준 필드와 무관하다"
+        low, high = d["probability_range"]
+        assert low <= high, "범위의 하한이 상한보다 크다"
+        return (f"평가 {alone['evaluated_count']}→{d['evaluated_count']} · "
+                f"보류 {d['held_count']} · 범위 {low:.2f}~{high:.2f}")
+
+    check("POST /verify (판정 보류)", _verify_held)
+
     print("\n── F4 리포트 ────────────────────────────────────────────────")
 
     body = {"bl": BL, "lc": lc, "as_of": "2026-06-10T00:00:00",

@@ -16,10 +16,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from .checks import REGISTRY, CheckOutcome
-from .types import LCTerms, Severity, SkippedRule, Verdict, Violation
+from .types import HeldRule, LCTerms, Severity, SkippedRule, Verdict, Violation
 
 DEFAULT_RULES_PATH = Path(__file__).with_name("rules.yaml")
 
@@ -122,6 +122,7 @@ class RuleEngine:
         bl,
         lc: Optional[LCTerms] = None,
         as_of: Optional[datetime] = None,
+        held_fields: Optional[Iterable[str]] = None,
     ) -> Verdict:
         """B/L 필드를 L/C 조건에 대조한다.
 
@@ -129,6 +130,14 @@ class RuleEngine:
 
         as_of 는 제시기간 계산의 기준 시각이다. 주입하지 않으면 테스트가
         실행 날짜에 따라 흔들린다.
+
+        `held_fields` 는 신뢰도가 '필수 확인' 등급이라 값을 믿을 수 없는
+        필드다. 이 필드를 참조하는 룰은 **돌리지 않고 판정 보류로 남긴다** —
+        기획안 v2 5.3 의 예외 조항이다.
+
+        돌려서 위반으로 세면 못 믿는 값에 근거해 조문을 인용하게 되고,
+        돌려서 통과로 세면 확인이 필요한 상태가 '하자 없음'으로 읽힌다.
+        둘 다 틀리므로 세 번째 상태로 뺀다.
         """
         # 입력 형 검증은 룰 루프 **앞에서** 한다. 루프 안에서 터지면 룰별
         # 예외 처리에 흡수되어 21건 전부 '평가불가'가 되는데, 그 결과는
@@ -145,7 +154,24 @@ class RuleEngine:
         # 있는 것은 이미 고쳐진 rules.yaml 뿐이다.
         verdict = Verdict(model="rules-v1", catalog=self.fingerprint.to_dict())
 
+        held = frozenset(held_fields or ())
+
         for rule in self.rules:
+            # 보류 판정을 룰 실행 **앞에서** 한다. 실행 후에 걸러내면 그
+            # 사이에 못 믿는 값으로 만든 위반 메시지가 만들어지고, 그 문자열이
+            # 로그나 디버그 출력으로 새어 나간다.
+            touched = sorted(held.intersection(rule.get("fields") or ()))
+            if touched:
+                verdict.held.append(
+                    HeldRule(
+                        rule_id=rule["id"],
+                        title=rule["title"],
+                        fields=touched,
+                        weight=float(rule.get("weight") or 0.0),
+                    )
+                )
+                continue
+
             check = REGISTRY[rule["check"]]
             # 시각 의존 룰에만 쓰이지만 규약을 단순하게 두려고 전부에 넣는다.
             context = {**rule, "_as_of": as_of}

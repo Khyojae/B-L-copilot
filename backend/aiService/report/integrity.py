@@ -142,10 +142,23 @@ def _allowed_numbers(report: Any) -> Set[float]:
         # 산문이 백분율로 쓰는 경우. 0.35 → 35 · 35.0
         numbers.add(round(float(probability) * _PERCENT, 6))
 
+    # 보류 게이트가 켜지면 산문은 점 확률 대신 범위를 서술한다(5.4). 하한·
+    # 상한과 보류 비율을 허용에 넣지 않으면 **정상 문장이 전부 걸려** 리포트가
+    # 통째로 템플릿으로 떨어진다 — 22번이 막으려던 것과 정반대의 실패다.
+    for bound in getattr(report, "probability_range", None) or ():
+        numbers.add(float(bound))
+        numbers.add(round(float(bound) * _PERCENT, 6))
+
+    for name in ("hold_ratio", "held_field_count"):
+        value = getattr(report, name, None)
+        if value is not None:
+            numbers.add(float(value))
+            numbers.add(round(float(value) * _PERCENT, 6))
+
     for value in (getattr(report, "counts", None) or {}).values():
         numbers.add(float(value))
 
-    for name in ("risks", "checklist", "recommendations", "unchecked"):
+    for name in ("risks", "checklist", "recommendations", "unchecked", "held"):
         numbers.add(float(len(getattr(report, name, []) or [])))
 
     for text in _texts_of(report):
@@ -156,7 +169,9 @@ def _allowed_numbers(report: Any) -> Set[float]:
 
 def _texts_of(report: Any) -> Iterable[str]:
     """리포트가 들고 있는 모든 문자열. 수치 추출의 재료다."""
-    for name in ("bl_no", "lc_no", "model", "outlook", "outlook_detail"):
+    for name in (
+        "bl_no", "lc_no", "model", "outlook", "outlook_detail", "confidence_warning",
+    ):
         value = getattr(report, name, None)
         if value:
             yield str(value)
@@ -183,8 +198,9 @@ def _texts_of(report: Any) -> Iterable[str]:
     for rec in getattr(report, "recommendations", []) or []:
         yield from _strings(rec.action, rec.source)
 
-    for item in getattr(report, "unchecked", []) or []:
-        yield from _strings(item.title, item.reason)
+    for name in ("unchecked", "held"):
+        for item in getattr(report, name, []) or []:
+            yield from _strings(item.title, item.reason)
 
 
 def _allowed_articles(report: Any) -> Set[str]:
