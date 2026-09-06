@@ -54,14 +54,22 @@ class DocumentFields:
         self.values: Dict[str, Optional[str]] = {f: None for f in spec.fields}
         self.confidence: Dict[str, float] = {}
         self.provenance: Dict[str, str] = {}
+        self.bbox: Dict[str, List[BBox]] = {}
 
     def set_field(
-        self, name: str, value: Optional[str], confidence: float, source: str
+        self,
+        name: str,
+        value: Optional[str],
+        confidence: float,
+        source: str,
+        bboxes: Optional[List[BBox]] = None,
     ) -> None:
         self.values[name] = value
         if value:
             self.confidence[name] = round(confidence, 4)
             self.provenance[name] = source
+            if bboxes:
+                self.bbox[name] = bboxes
 
     def get(self, name: str) -> Optional[str]:
         return self.values.get(name)
@@ -84,10 +92,10 @@ class DocumentParser:
             found = self._find(bboxes, spec.anchors.get(name, []), spec)
             if found is None:
                 continue
-            value, confidence = found
+            value, confidence, picked = found
             cleaned = _clean(value)
             if cleaned:
-                fields.set_field(name, cleaned, confidence, "anchor")
+                fields.set_field(name, cleaned, confidence, "anchor", picked)
 
         return fields
 
@@ -123,7 +131,7 @@ class DocumentParser:
         if not picked:
             return None
         mean = sum(b.confidence for b in picked) / len(picked)
-        return " ".join(b.text for b in picked), mean * ANCHOR_CONFIDENCE_PENALTY
+        return " ".join(b.text for b in picked), mean * ANCHOR_CONFIDENCE_PENALTY, picked
 
     @staticmethod
     def _locate(bboxes: List[BBox], candidates: List[str]) -> Optional[BBox]:

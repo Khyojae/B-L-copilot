@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from .types import ANCHOR_CONFIDENCE_PENALTY, BBox, BLFields, OCRResult
 
@@ -35,6 +35,12 @@ _BL_HEADER_NOISE = (
 
 def _is_header_noise(line: str) -> bool:
     upper = line.upper()
+    # 지시식 수하인은 서식 항목명이 아니라 값이다. `TO ORDER OF SHIPPER`,
+    # `TO ORDER OF <은행>` 같은 표기가 "SHIPPER" 때문에 노이즈로 버려지면
+    # 수하인이 통째로 비고 D005 가 오탐으로 뜬다. L/C 거래 B/L 은 대부분
+    # 지시식이라 이 예외가 없으면 정상 서류가 하자로 잡힌다.
+    if "TO ORDER" in upper:
+        return False
     return any(kw in upper for kw in _BL_HEADER_NOISE)
 
 
@@ -119,7 +125,11 @@ class FieldParser:
         "footer":       {"xr": (0.0,  0.55), "yr": (0.83, 0.97)},
     }
 
-    # ── 키워드 앵커: 구역 기반 실패 시 fallback ────────────────────
+    # ── 키워드 앵커 ───────────────────────────────────────────────
+    #
+    # 후보는 **구체적인 것부터** 적는다. `_locate_anchor` 가 이 순서대로 찾기
+    # 때문에, "SHIP" 을 "VESSEL" 보다 앞에 두면 `Shipper` 항목명이 선박 앵커로
+    # 잡힌다("SHIP" 이 "SHIPPER" 의 부분 문자열이다).
     FIELD_ANCHORS: Dict[str, List[str]] = {
         "bl_no": [
             "B/L NO", "BL NO", "B.L.NO", "BILL OF LADING NO",
@@ -128,6 +138,12 @@ class FieldParser:
         "shipper": [
             "CONSIGNOR/SHIPPER", "SHIPPER/EXPORTER", "CONSIGNOR",
             "SHIPPER", "EXPORTER", "FROM",
+        ],
+        "consignee": [
+            "CONSIGNEE", "TO ORDER OF", "RECEIVER",
+        ],
+        "notify_party": [
+            "NOTIFY PARTY", "NOTIFY ADDRESS", "NOTIFY",
         ],
         "port_of_loading": [
             "PORT OF LOADING", "PORT OF LOAD", "LOADING PORT",
@@ -138,16 +154,40 @@ class FieldParser:
             "POD", "PLACE OF DELIVERY", "FINAL DESTINATION",
         ],
         "vessel": [
-            "VESSEL", "VESSEL NAME", "OCEAN VESSEL", "SHIP",
-            "OCEAN VESSEL / VOY", "VESSEL/VOYAGE",
+            "VESSEL / VOYAGE NO", "OCEAN VESSEL / VOY", "VESSEL/VOYAGE",
+            "VESSEL NAME", "OCEAN VESSEL", "VESSEL", "SHIP",
+        ],
+        "description_of_goods": [
+            "DESCRIPTION OF GOODS", "DESCRIPTION OF PACKAGES AND GOODS",
+            "DESCRIPTION OF PACKAGES", "GOODS DESCRIPTION",
+        ],
+        "gross_weight": [
+            "GROSS WEIGHT", "G.W.", "GROSS WT",
+        ],
+        "measurement": [
+            "MEASUREMENT", "CBM", "VOLUME",
+        ],
+        "place_of_issue": [
+            "PLACE AND DATE OF ISSUE", "PLACE OF ISSUE", "ISSUED AT",
+        ],
+        "total_freight": [
+            "TOTAL FREIGHT", "FREIGHT AND CHARGES", "FREIGHT & CHARGES",
+            "FREIGHT AMOUNT",
         ],
         "date_of_issue": [
             "DATE OF ISSUE", "DATE ISSUED", "PLACE AND DATE OF ISSUE",
             "DATED", "SIGNED ON",
         ],
         "on_board_date": [
-            "ON BOARD", "SHIPPED ON BOARD", "LADEN ON BOARD",
-            "DATE LADEN ON BOARD", "ON BOARD DATE",
+            "SHIPPED ON BOARD DATE", "DATE LADEN ON BOARD", "SHIPPED ON BOARD",
+            "LADEN ON BOARD", "ON BOARD DATE", "ON BOARD",
+        ],
+        "incoterms": [
+            "INCOTERMS", "TRADE TERMS", "PRICE TERMS", "DELIVERY TERMS",
+        ],
+        "no_of_original_bl": [
+            "NO. OF ORIGINAL B/L", "NUMBER OF ORIGINAL", "NO. OF ORIGINALS",
+            "ORIGINAL B/L",
         ],
     }
 
@@ -191,12 +231,24 @@ class FieldParser:
         r")\b",
         re.IGNORECASE,
     )
-    RE_BL_NO = re.compile(r"\b([A-Z]{2,6}\d{4,12})\b")
+    # 선사 접두어는 4자가 표준이지만(HLCU·MAEU) 그 뒤에 선적항 코드가 붙어
+    # 글자가 7자까지 이어지는 서식이 있다 — HLCUBUS2608001. 6자로 끊으면
+    # 이런 번호가 통째로 안 잡혀 옆 칸의 Booking No. 가 대신 들어온다.
+    RE_BL_NO = re.compile(r"\b([A-Z]{2,8}\d{4,12})\b")
     RE_WEIGHT = re.compile(
         r"([\d,]+\.?\d*)\s*(KGS?|KG|MT|M\.T\.|METRIC\s*TONS?)", re.IGNORECASE
     )
     RE_CBM = re.compile(r"([\d,]+\.?\d*)\s*(CBM|M3|CU\.?\s*M)", re.IGNORECASE)
     RE_AMOUNT = re.compile(r"\$\s*([\d,]+\.?\d*)")
+    # Incoterms 2020 코드. 코드 뒤에 이어지는 인도장소(줄 끝까지)를 함께 담는다.
+    RE_INCOTERMS = re.compile(
+        r"\b(?:EXW|FCA|FAS|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP)\b[^\n]{0,30}"
+    )
+    # 원본 통수 표기. "THREE (3)" 형태.
+    RE_ORIGINAL_COUNT = re.compile(
+        r"\b(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\s*\(\d+\)",
+        re.IGNORECASE,
+    )
     # 운송 유형 코드 — 항구명·선박명 구역에 섞여 들어온다
     RE_PORT_NOISE = re.compile(
         r"\b(?:CY|CFS|FCL|LCL|VIA|TRANSIT|THRU)(?:[/\-]\w+)?\b", re.IGNORECASE
@@ -206,7 +258,7 @@ class FieldParser:
 
     # 컨테이너·화물 추적 코드. B/L 번호로 오인되기 쉽다.
     _CARGO_CODE_PREFIX = "DLSU"
-    _BL_NO_MAX_LEN = 12
+    _BL_NO_MAX_LEN = 16
 
     # ── 공개 API ──────────────────────────────────────────────────
 
@@ -215,9 +267,20 @@ class FieldParser:
     # 실제로 엑셀 B/L 을 구역으로 읽으면 선적항 자리에 양하항·화물명세가
     # 통째로 들어온다 — 그리고 그건 값이 있으므로 앵커 탐색까지 가지 않는다.
     #
-    # 이 입력들은 "A열 라벨 / B열 값", "라벨: 값" 형태라 앵커가 정확하다.
-    # 구역을 건너뛰면 모든 필드가 앵커 경로로 떨어진다.
+    # 이 입력들은 "A열 라벨 / B열 값", "라벨: 값" 한 줄 형태라 앵커의 **오른쪽**
+    # 만 봐도 값이 나온다(`same_line`).
     LAYOUTLESS_SOURCES = frozenset({"excel", "email-body"})
+
+    # 구역 좌표를 믿을 수 없는 입력. `REGIONS` 는 라벨 데이터셋(1654×2340
+    # 스캔본) 한 종류의 배치에 맞춰 교정한 값이라, 발행사마다 칸 위치가 다른
+    # 아래 형식에는 맞을 근거가 없다. 게다가 이 입력들은 신뢰도가 전 필드
+    # 1.0 이라 틀려도 `LOW_CONFIDENCE` 로 걸러지지 않는다
+    # (`draft._UNCALIBRATED_SOURCES` 와 같은 목록).
+    #
+    # 그래서 이 형식들은 **앵커를 먼저** 본다. 구역을 아예 끄지는 않는다 —
+    # 항목명 없이 값만 인쇄된 서식이 실재하고, 거기서는 구역만이 유일한
+    # 단서다. 앵커가 못 찾으면 예전처럼 구역으로 내려간다.
+    UNCALIBRATED_SOURCES = frozenset({"pdf-text", "excel", "email-body"})
 
     def parse(self, ocr: OCRResult) -> BLFields:
         if ocr.source in self.LAYOUTLESS_SOURCES:
@@ -288,128 +351,141 @@ class FieldParser:
         # 아랫줄은 같은 필드의 다음 줄이 아니라 **다른 필드**다.
         same_line = ocr.source in self.LAYOUTLESS_SOURCES
 
+        # 구역 좌표를 못 믿는 형식은 앵커를 먼저 본다. 아래 `resolve` 가
+        # 두 경로를 이 순서대로 시도하고, 먼저 값이 나온 쪽을 채택한다.
+        anchor_first = ocr.source in self.UNCALIBRATED_SOURCES
+
+        def resolve(
+            field_name: str,
+            rc: RegionContent,
+            extract: Callable[[str], Optional[str]],
+            *,
+            confidence: Optional[float] = None,
+            also: Optional[Callable[[str], Optional[str]]] = None,
+        ) -> None:
+            """구역·앵커 두 경로에서 값을 뽑아 먼저 성공한 쪽을 채택한다.
+
+            `also` 는 같은 텍스트에서 함께 나오는 두 번째 필드(선박명 옆의
+            항차 번호)를 뽑는 함수다. 채택한 경로의 텍스트로만 돌려야
+            선박은 앵커에서, 항차는 구역에서 오는 뒤섞임이 생기지 않는다.
+            """
+            region_conf = rc.confidence if confidence is None else confidence
+            anchor_rc = self._find_by_anchor(field_name, ocr.bboxes, same_line)
+
+            attempts = [(rc, "region", region_conf)]
+            if anchor_rc is not None:
+                attempts.append((anchor_rc, "anchor", anchor_rc.confidence))
+            if anchor_first:
+                attempts.reverse()
+
+            for source_rc, method, conf in attempts:
+                value = extract(source_rc.text)
+                if value:
+                    f.set_field(field_name, value, conf, method, source_rc.bboxes)
+                    if also is not None:
+                        extra_name, extra_value = also(source_rc.text)
+                        f.set_field(extra_name, extra_value, conf, method, source_rc.bboxes)
+                    return
+
+            # 어느 경로에서도 못 찾았다. 근거가 없다는 사실을 남긴다.
+            f.set_field(field_name, None, region_conf, "region", rc.bboxes)
+            if also is not None:
+                f.set_field(also("")[0], None, region_conf, "region", rc.bboxes)
+
         # ── B/L No. ───────────────────────────────────────────────
+        # 구역 경로는 B/L 번호 칸과 머리글을 합쳐서 본다 — 번호가 서식
+        # 상단에만 인쇄된 경우가 있다.
         bl_region = region("bl_no")
         header_region = region("header")
-        bl_no = self._pick_bl_no(f"{bl_region.text} {header_region.text}")
-        if bl_no:
-            f.set_field("bl_no", bl_no, bl_region.confidence or header_region.confidence, "region")
-        else:
-            found = self._find_by_anchor("bl_no", ocr.bboxes, same_line)
-            if found:
-                bl_no = self._pick_bl_no(found.text)
-                if bl_no:
-                    f.set_field("bl_no", bl_no, found.confidence, "anchor")
+        resolve(
+            "bl_no",
+            RegionContent(
+                text=f"{bl_region.text} {header_region.text}",
+                bboxes=bl_region.bboxes + header_region.bboxes,
+            ),
+            self._pick_bl_no,
+            confidence=bl_region.confidence or header_region.confidence,
+        )
 
-        # ── Shipper ───────────────────────────────────────────────
-        shipper_region = region("shipper")
-        shipper = self._clean_party_name(shipper_region.text)
-        if shipper:
-            f.set_field("shipper", shipper, shipper_region.confidence, "region")
-        else:
-            found = self._find_by_anchor("shipper", ocr.bboxes, same_line)
-            if found:
-                value = self._clean_party_name(found.text) or found.text.strip()[:150]
-                f.set_field("shipper", value or None, found.confidence, "anchor")
-
-        # ── Consignee / Notify Party ──────────────────────────────
-        for field_name, region_name in (
-            ("consignee", "consignee"),
-            ("notify_party", "notify"),
-        ):
-            rc = region(region_name)
-            value = self._clean_party_name(rc.text)
-            if value:
-                f.set_field(field_name, value, rc.confidence, "region")
-                continue
-            # 구역이 비면 앵커로 찾는다. 구역만 보던 시절에는 지면 배치가
-            # 없는 입력(엑셀·이메일 본문)에서 이 두 필드가 항상 비었다.
-            found = self._find_by_anchor(field_name, ocr.bboxes, same_line)
-            if found:
-                cleaned = self._clean_party_name(found.text) or found.text.strip()[:150]
-                f.set_field(field_name, cleaned or None, found.confidence, "anchor")
+        # ── 화주 / 수하인 / 통지처 ────────────────────────────────
+        resolve("shipper", region("shipper"), self._clean_party_name)
+        resolve("consignee", region("consignee"), self._clean_party_name)
+        resolve("notify_party", region("notify"), self._clean_party_name)
 
         # ── Vessel / Voyage ───────────────────────────────────────
-        vessel_region = region("vessel_info")
-        vessel, voyage = self._extract_vessel_voyage(vessel_region.text)
-        if vessel or voyage:
-            f.set_field("vessel", vessel, vessel_region.confidence, "region")
-            f.set_field("voyage_no", voyage, vessel_region.confidence, "region")
-        else:
-            found = self._find_by_anchor("vessel", ocr.bboxes, same_line)
-            if found:
-                vessel, voyage = self._extract_vessel_voyage(found.text)
-                f.set_field("vessel", vessel or found.text.strip()[:100],
-                            found.confidence, "anchor")
-                f.set_field("voyage_no", voyage, found.confidence, "anchor")
+        def vessel_only(text: str) -> Optional[str]:
+            vessel, voyage = self._extract_vessel_voyage(text)
+            # 항차만 읽힌 경우에도 이 칸을 채택해야 항차가 버려지지 않는다.
+            return vessel or (text.strip()[:100] if voyage else None)
+
+        def voyage_pair(text: str) -> Tuple[str, Optional[str]]:
+            return "voyage_no", self._extract_vessel_voyage(text)[1]
+
+        resolve("vessel", region("vessel_info"), vessel_only, also=voyage_pair)
 
         # ── 선적항 / 양하항 ───────────────────────────────────────
-        for field_name, region_name in (
-            ("port_of_loading", "port_left"),
-            ("port_of_discharge", "port_right"),
-        ):
-            rc = region(region_name)
-            port = self._clean_port_name(rc.text) if rc else None
-            if port:
-                f.set_field(field_name, port, rc.confidence, "region")
-            else:
-                found = self._find_by_anchor(field_name, ocr.bboxes, same_line)
-                if found:
-                    f.set_field(
-                        field_name,
-                        self._clean_port_name(found.text),
-                        found.confidence,
-                        "anchor",
-                    )
+        resolve("port_of_loading", region("port_left"), self._clean_port_name)
+        resolve("port_of_discharge", region("port_right"), self._clean_port_name)
 
         # ── 화물 명세 ─────────────────────────────────────────────
         cargo_region = region("cargo")
-        f.set_field(
-            "description_of_goods",
-            self._extract_description(cargo_region.text),
-            cargo_region.confidence,
-            "region",
-        )
+        resolve("description_of_goods", cargo_region, self._extract_description)
 
         # ── 중량 / 용적 ───────────────────────────────────────────
         # TOTAL 라인은 화물 구역에 있는 경우와 별도 컬럼에 있는 경우가 모두 있어
         # 양쪽을 합쳐서 본다. 신뢰도는 두 구역의 평균으로 잡는다.
         weight_region = region("weight")
-        f.set_field(
+        resolve(
             "gross_weight",
-            self._extract_total_weight(f"{cargo_region.text}\n{weight_region.text}"),
-            self._merge_confidence(cargo_region, weight_region),
-            "region",
+            RegionContent(
+                text=f"{cargo_region.text}\n{weight_region.text}",
+                bboxes=cargo_region.bboxes + weight_region.bboxes,
+            ),
+            self._extract_total_weight,
+            confidence=self._merge_confidence(cargo_region, weight_region),
         )
         cbm_region = region("measurement")
-        f.set_field(
+        resolve(
             "measurement",
-            self._extract_total_cbm(f"{cargo_region.text}\n{cbm_region.text}"),
-            self._merge_confidence(cargo_region, cbm_region),
-            "region",
+            RegionContent(
+                text=f"{cargo_region.text}\n{cbm_region.text}",
+                bboxes=cargo_region.bboxes + cbm_region.bboxes,
+            ),
+            self._extract_total_cbm,
+            confidence=self._merge_confidence(cargo_region, cbm_region),
         )
 
         # ── 날짜 ──────────────────────────────────────────────────
         self._map_dates(f, region("footer"), region("freight"), ocr)
 
         # ── 발행지 ────────────────────────────────────────────────
-        footer_region = region("footer")
-        f.set_field(
-            "place_of_issue",
-            self._extract_place_of_issue(footer_region.text),
-            footer_region.confidence,
-            "region",
-        )
+        resolve("place_of_issue", region("footer"), self._extract_place_of_issue)
 
         # ── 운임 ──────────────────────────────────────────────────
-        freight_region = region("freight")
-        amount = self.RE_AMOUNT.search(freight_region.text)
-        f.set_field(
-            "total_freight",
-            f"${amount.group(1)}" if amount else None,
-            freight_region.confidence,
-            "region",
-        )
+        def pick_amount(text: str) -> Optional[str]:
+            amount = self.RE_AMOUNT.search(text)
+            return f"${amount.group(1)}" if amount else None
+
+        resolve("total_freight", region("freight"), pick_amount)
+
+        # ── Incoterms ─────────────────────────────────────────────
+        # 운임란 바로 옆(같은 freight 구역)에 인쇄되는 경우가 많다.
+        resolve("incoterms", region("freight"), self._extract_incoterms)
+
+        # ── 원본 통수 ─────────────────────────────────────────────
+        resolve("no_of_original_bl", region("footer"), self._extract_original_count)
+
+        # ── 문언·부기 ─────────────────────────────────────────────
+        # Charter Party·갑판적재·정정 등은 라벨 박스가 없는 자유 서술이라
+        # 구역/앵커로는 위치를 미리 정할 수 없다. 페이지 원문 전체를 그대로
+        # 담아 두고, 하자 룰이 문구를 직접 검색한다(D028~D031).
+        #
+        # 한계: 이 필드에는 다른 필드의 라벨·값도 함께 딸려 들어온다(예:
+        # "CONSIGNEE", 화물 명세 원문 등). D028~D031 은 전부 "금지어가
+        # 있으면 하자"형이라 이 잡음은 최악의 경우에도 미탐(하자를 놓침)으로만
+        # 작용하고 오탐(정상을 하자로 잡음)을 만들지 않는다.
+        if ocr.raw_text.strip():
+            f.set_field("bl_clauses", ocr.raw_text, 1.0, "region", ocr.bboxes)
 
         return f
 
@@ -429,7 +505,7 @@ class FieldParser:
         freight_dates = [d for d in self.RE_DATE.findall(freight.text) if _is_valid_date_str(d)]
 
         if footer_dates:
-            f.set_field("date_of_issue", footer_dates[-1], footer.confidence, "region")
+            f.set_field("date_of_issue", footer_dates[-1], footer.confidence, "region", footer.bboxes)
 
         all_dates = freight_dates + footer_dates
         if len(all_dates) >= 2:
@@ -438,9 +514,10 @@ class FieldParser:
                 all_dates[0],
                 freight.confidence if freight_dates else footer.confidence,
                 "region",
+                freight.bboxes if freight_dates else footer.bboxes,
             )
         elif all_dates and not f.date_of_issue:
-            f.set_field("date_of_issue", all_dates[0], footer.confidence, "region")
+            f.set_field("date_of_issue", all_dates[0], footer.confidence, "region", footer.bboxes)
 
         # 구역 추출이 실패했으면 앵커로 재시도
         for name in ("date_of_issue", "on_board_date"):
@@ -448,7 +525,8 @@ class FieldParser:
                 continue
             found = self._find_date_by_anchor(name, ocr.bboxes)
             if found:
-                f.set_field(name, found[0], found[1], "anchor")
+                value, confidence, bboxes = found
+                f.set_field(name, value, confidence, "anchor", bboxes)
 
     # ── 키워드 앵커 fallback ──────────────────────────────────────
 
@@ -461,51 +539,116 @@ class FieldParser:
         B/L 서식에서는 라벨 아래에 값이 오는 배치가 흔하지만, 그리드에서
         **아래 줄은 다른 필드**다. 아래를 함께 담으면 선적항 값에 양하항과
         화물명세가 붙는다.
+
+        어느 방향이든 **다음 항목명을 만나면 거기서 끊는다**. 좌표 창만으로
+        자르면 창 크기가 문서 배율에 좌우된다 — PDF 는 글자 높이가 9.6pt,
+        스캔본은 30px 라 같은 배수가 전혀 다른 범위를 뜻한다. 실제로 이
+        때문에 B/L 번호 자리에 아래 칸의 Booking No. 가 같이 딸려 왔다.
         """
         candidates = self.FIELD_ANCHORS.get(field_name, [])
         anchor = self._locate_anchor(bboxes, candidates)
         if anchor is None:
             return None
 
-        line_height = max(anchor.y_max - anchor.y_min, 20)
-        values = [
-            b
-            for b in bboxes
-            if (
-                # 같은 라인의 오른쪽
-                (abs(b.center_y - anchor.center_y) <= line_height * 0.7
-                 and b.x_min > anchor.x_max)
-                # 또는 바로 아래 한두 줄
-                or (not same_line_only
-                    and anchor.center_y + line_height * 0.3 < b.center_y
-                    < anchor.center_y + line_height * 2.5
-                    and anchor.x_min - line_height <= b.x_min
-                    <= anchor.x_max + line_height * 4)
-            )
-        ]
-        if not values:
+        # 배율 무관하게 앵커 자신의 글자 높이를 기준으로 쓴다. 0 은 방어.
+        line_height = max(anchor.y_max - anchor.y_min, 1.0)
+
+        same_line = sorted(
+            (b for b in bboxes
+             if abs(b.center_y - anchor.center_y) <= line_height * 0.7
+             and b.x_min > anchor.x_max),
+            key=lambda b: b.x_min,
+        )
+        below = [] if same_line_only else sorted(
+            (b for b in bboxes
+             if anchor.center_y + line_height * 0.3 < b.center_y
+             < anchor.center_y + line_height * 2.5
+             and anchor.x_min - line_height <= b.x_min
+             <= anchor.x_max + line_height * 4),
+            key=lambda b: (b.center_y, b.x_min),
+        )
+
+        def take_until_label(seq: List[BBox]) -> List[BBox]:
+            out: List[BBox] = []
+            for b in seq:
+                if self._is_form_label(b.text):
+                    break
+                out.append(b)
+            return out
+
+        picked = (take_until_label(same_line) + take_until_label(below))[:10]
+        if not picked:
             return None
 
-        values.sort(key=lambda b: (b.center_y, b.x_min))
-        picked = values[:10]
         return RegionContent(
             text=" ".join(b.text for b in picked).strip(),
             bboxes=picked,
             confidence_factor=ANCHOR_CONFIDENCE_PENALTY,
         )
 
+    # 항목명 판정용 어휘. 앵커 후보와 서식 항목명을 합치되, 짧은 것
+    # (POL·POD·CBM·SHIP·FROM…)은 뺀다 — 값 안에 우연히 들어 있기 쉽다.
+    _MIN_STOP_LABEL_LEN = 6
+    # 항목명 뒤에 붙는 군더더기 허용치 — "(HS Code)", ":", 단위 표기 정도.
+    _STOP_LABEL_SLACK = 12
+
+    @classmethod
+    def _stop_labels(cls) -> frozenset:
+        cached = cls.__dict__.get("_STOP_LABELS_CACHE")
+        if cached is None:
+            words = {w for group in cls.FIELD_ANCHORS.values() for w in group}
+            words.update(cls.EXTRA_FORM_LABELS)
+            # `TO ORDER OF` 는 앵커이면서 **값의 일부**다(지시식 수하인).
+            # 중단 항목명으로 두면 앵커 바로 아래의 `TO ORDER OF SHIPPER` 에서
+            # 수집이 끊겨 수하인이 항목명째로 구역 경로로 밀려난다.
+            words.discard("TO ORDER OF")
+            cached = frozenset(
+                norm
+                for w in words
+                if len(norm := re.sub(r"[^A-Z0-9/ ]", "", w.upper()).strip())
+                >= cls._MIN_STOP_LABEL_LEN
+            )
+            cls._STOP_LABELS_CACHE = cached
+        return cached
+
+    @classmethod
+    def _is_form_label(cls, text: str) -> bool:
+        """이 bbox 가 값이 아니라 서식에 인쇄된 항목명인지.
+
+        **앞에서부터** 일치할 때만 항목명으로 본다. 뒤쪽 부분일치까지 인정하면
+        통지처 값 "SAME AS CONSIGNEE" 가 CONSIGNEE 항목명으로 오인돼 값이
+        통째로 날아간다.
+        """
+        norm = re.sub(r"[^A-Z0-9/ ]", "", text.upper()).strip()
+        if not norm:
+            return False
+        return any(
+            norm.startswith(label) and len(norm) <= len(label) + cls._STOP_LABEL_SLACK
+            for label in cls._stop_labels()
+        )
+
     def _find_date_by_anchor(
         self, field_name: str, bboxes: List[BBox]
-    ) -> Optional[Tuple[str, float]]:
-        """날짜 앵커 근처에서 날짜 패턴을 찾는다. (값, 신뢰도) 반환."""
+    ) -> Optional[Tuple[str, float, List[BBox]]]:
+        """날짜 앵커 근처에서 날짜 패턴을 찾는다. (값, 신뢰도, 근거 bbox) 반환."""
+        # 항목명을 찾았으면 **그 칸 안에서만** 본다.
+        #
+        # 예전에는 항목명 위아래 60 단위를 훑었는데, 60 이 무엇의 60 인지가
+        # 문서마다 달랐다. PDF(pt)에서는 두 칸 위아래까지 닿아서, 발행일 칸이
+        # 비어 있는 서류의 발행일에 옆 칸 본선적재일이 그대로 복사됐다 —
+        # 없는 날짜를 만들어낸 것이라 하자 검증까지 그대로 흘러간다.
         candidates = self.FIELD_ANCHORS.get(field_name, [])
-        anchor = self._locate_anchor(bboxes, candidates, normalize=r"[^A-Z ]")
+        if self._locate_anchor(bboxes, candidates) is not None:
+            found = self._find_by_anchor(field_name, bboxes)
+            if found is None:
+                # 항목명은 있는데 칸이 비었다 = 문서에 그 날짜가 없다.
+                # 여기서 문서 전체를 뒤지면 옆 칸 날짜를 베껴 오게 된다.
+                return None
+            dates = [d for d in self.RE_DATE.findall(found.text) if _is_valid_date_str(d)]
+            return (dates[-1], found.confidence, found.bboxes) if dates else None
 
-        nearby = (
-            bboxes
-            if anchor is None
-            else [b for b in bboxes if abs(b.center_y - anchor.center_y) < 60]
-        )
+        # 항목명 자체가 없으면 예전처럼 문서 전체에서 날짜를 찾는다.
+        nearby = bboxes
         if not nearby:
             return None
 
@@ -516,18 +659,32 @@ class FieldParser:
             return None
 
         mean_conf = sum(b.confidence for b in nearby) / len(nearby)
-        return dates[-1], mean_conf * ANCHOR_CONFIDENCE_PENALTY
+        return dates[-1], mean_conf * ANCHOR_CONFIDENCE_PENALTY, ordered
 
     @staticmethod
     def _locate_anchor(
         bboxes: List[BBox], candidates: List[str], normalize: str = r"[^A-Z0-9/ ]"
     ) -> Optional[BBox]:
-        """라벨 키워드와 일치하는 bbox 를 찾는다."""
-        for bbox in bboxes:
-            text = re.sub(normalize, "", bbox.text.upper()).strip()
-            for cand in candidates:
-                cand_norm = re.sub(normalize, "", cand.upper()).strip()
-                if cand_norm and (cand_norm == text or cand_norm in text):
+        """라벨 키워드와 일치하는 bbox 를 찾는다.
+
+        후보를 바깥 루프로 돌린다 — 안쪽으로 돌리면 **문서에 먼저 나오는
+        bbox** 가 이기므로, `Shipper` 칸이 `SHIP` 후보에 걸려 선박명 앵커가
+        된다. 후보 목록은 구체적인 것부터 적혀 있으니 그 순서를 우선한다.
+
+        같은 후보 안에서는 완전 일치를 부분 일치보다 먼저 본다 — 부분 일치를
+        먼저 채택하면 `MEASUREMENT` 후보가 `TOTAL MEASUREMENT` 요약줄에
+        걸리는 식으로 항목명 대신 값 줄을 집는다.
+        """
+        normalized = [(b, re.sub(normalize, "", b.text.upper()).strip()) for b in bboxes]
+        for cand in candidates:
+            cand_norm = re.sub(normalize, "", cand.upper()).strip()
+            if not cand_norm:
+                continue
+            for bbox, text in normalized:
+                if cand_norm == text:
+                    return bbox
+            for bbox, text in normalized:
+                if cand_norm in text:
                     return bbox
         return None
 
@@ -694,6 +851,14 @@ class FieldParser:
             return None, None
 
         first = lines[0]
+
+        # "HMM ALGECIRAS / 2608E" — 항목명이 "Vessel / Voyage No." 인 서식이
+        # 흔해서 값도 슬래시로 붙어 나온다. 아래 `V.123` 패턴은 이걸 못 잡아
+        # 선박명 칸에 항차까지 들어가고 항차는 빈 채로 남는다.
+        slash = re.match(r"^(.+?)\s*/\s*([A-Z0-9\-]{2,10})$", first, re.IGNORECASE)
+        if slash:
+            return slash.group(1).strip() or None, slash.group(2).strip()
+
         voyage_m = re.search(r"\bV\.?(\w+)\b", first)
         voyage = voyage_m.group(0) if voyage_m else None
         head = first[: voyage_m.start()].strip() if voyage_m else first
@@ -712,6 +877,25 @@ class FieldParser:
             if len(place) > 2:
                 return place[:80]
         return None
+
+    def _extract_incoterms(self, text: str) -> Optional[str]:
+        """Incoterms 코드 추출. "FOB BUSAN" 처럼 코드+인도장소를 함께 담는다."""
+        if not text or not text.strip():
+            return None
+        m = self.RE_INCOTERMS.search(text)
+        if not m:
+            return None
+        value = re.sub(r"\s+", " ", m.group(0)).strip()
+        return value[:40] or None
+
+    def _extract_original_count(self, text: str) -> Optional[str]:
+        """원본 통수 추출. "THREE (3)" 형태의 표기를 찾는다."""
+        if not text or not text.strip():
+            return None
+        m = self.RE_ORIGINAL_COUNT.search(text)
+        if not m:
+            return None
+        return re.sub(r"\s+", " ", m.group(0)).strip().upper()[:20]
 
     @staticmethod
     def _merge_confidence(*regions: RegionContent) -> float:
