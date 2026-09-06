@@ -1,0 +1,10 @@
+{
+  "train_seed": 42,
+  "train_base_count": 1000,
+  "train_variants_per_base": 3,
+  "train_rows": 3000,
+  "eval_seed": 20260814,
+  "eval_base_count": 2000,
+  "eval_variants_per_base": 1,
+  "eval_rows": 2000
+}
