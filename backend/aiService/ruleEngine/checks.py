@@ -73,6 +73,10 @@ class CheckOutcome:
     reason: str = ""                      # 평가불가 사유
     detail: str = ""                      # 메시지 {detail} 치환값
     observed: Optional[Dict[str, Optional[str]]] = None
+    # True면 엔진이 rule의 severity/title/message 대신 고정된 "형식 오류"
+    # 경고로 렌더링한다 (P1-15). 룰 본연의 위반(예: 기한 초과)과 섞이면
+    # 안 되므로 별도 플래그로 구분한다.
+    format_error: bool = False
 
     @property
     def bl_value(self) -> Optional[str]:
@@ -96,6 +100,19 @@ def violated(detail: str = "", **observed) -> CheckOutcome:
 def not_evaluated(reason: str, **observed) -> CheckOutcome:
     return CheckOutcome(
         evaluated=False, violated=False, reason=reason, observed=_clean(observed)
+    )
+
+
+def format_error(reason: str, **observed) -> CheckOutcome:
+    """날짜처럼 파싱 자체가 실패한 입력을 '평가불가'로 숨기지 않고 형식
+    오류 위반(warning)으로 드러낸다.
+
+    OCR 산출물 특성상 형식이 깨진 날짜는 흔한 입력인데, not_evaluated로
+    처리하면 SkippedRule로만 남아 리포트 위반 목록에는 아예 안 보인다(P1-15).
+    """
+    return CheckOutcome(
+        evaluated=True, violated=True, format_error=True, reason=reason,
+        observed=_clean(observed),
     )
 
 
@@ -232,16 +249,45 @@ def date_not_after(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     bl_date = parse_date(bl_value)
     lc_date = parse_date(str(lc_value))
     if bl_date is None:
-        return not_evaluated(f"서류 날짜를 해석할 수 없습니다: {bl_value}",
+        return format_error(f"서류 날짜를 해석할 수 없습니다: {bl_value}",
                              bl=bl_value, lc=lc_value)
     if lc_date is None:
-        return not_evaluated(f"L/C 날짜를 해석할 수 없습니다: {lc_value}",
+        return format_error(f"L/C 날짜를 해석할 수 없습니다: {lc_value}",
                              bl=bl_value, lc=lc_value)
 
     if bl_date > lc_date:
         overdue = (bl_date - lc_date).days
         return violated(detail=str(overdue), bl=bl_value, lc=lc_value)
     return passed(bl=bl_value, lc=lc_value)
+
+
+def presentation_before_expiry(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """L/C 유효기일(31D)이 제시 시점 이전인지 (UCP 600 Art.6(d)·14(a)).
+
+    은행은 서류의 **발행일이 아니라 제시일** 기준으로 유효기일을 본다.
+    발행일이 기간 안이어도 제시가 유효기일을 넘기면 하자고, 반대로 발행이
+    다소 늦었어도 유효기일 전에 제시하면 문제되지 않는다. 그래서 이 검사는
+    서류의 어떤 날짜도 참조하지 않고 L/C 유효기일과 제시 시점(as_of)만
+    비교한다 — `fields` 는 화면의 필드 바로가기 용도로만 쓰인다.
+    """
+    lc_value = lc.expiry_date
+    if not lc_value:
+        return not_evaluated("L/C 에 유효기일이 명시되지 않았습니다")
+
+    expiry = parse_date(str(lc_value))
+    if expiry is None:
+        return format_error(
+            f"L/C 유효기일을 해석할 수 없습니다: {lc_value}", lc=lc_value
+        )
+
+    # 기준 시각을 인자로 받지 않고 now() 를 쓰면 테스트가 날짜에 따라
+    # 흔들린다. 엔진이 as_of 를 주입한다.
+    as_of = rule.get("_as_of") or datetime.now()
+
+    if as_of.date() > expiry.date():
+        elapsed = (as_of.date() - expiry.date()).days
+        return violated(detail=str(elapsed), lc=lc_value)
+    return passed(lc=lc_value)
 
 
 def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
@@ -263,7 +309,7 @@ def presentation_period(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
 
     shipped = parse_date(bl_value)
     if shipped is None:
-        return not_evaluated(f"선적일을 해석할 수 없습니다: {bl_value}", bl=bl_value)
+        return format_error(f"선적일을 해석할 수 없습니다: {bl_value}", bl=bl_value)
 
     days = presentation_days(lc)
     # 기준 시각을 인자로 받지 않고 now() 를 쓰면 테스트가 날짜에 따라 흔들린다.
@@ -295,7 +341,7 @@ def date_not_in_future(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
 
     issued = parse_date(bl_value)
     if issued is None:
-        return not_evaluated(f"서류 날짜를 해석할 수 없습니다: {bl_value}", bl=bl_value)
+        return format_error(f"서류 날짜를 해석할 수 없습니다: {bl_value}", bl=bl_value)
 
     as_of = rule.get("_as_of") or datetime.now()
     if issued > as_of:
@@ -389,20 +435,60 @@ def contains_forbidden(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
     if not keywords:
         return not_evaluated("룰에 검사할 문언이 없습니다")
 
+    # 금지어가 있어도 함께 있으면 하자가 아닌 것으로 보는 예외 문구.
+    # 예: "MAY BE CARRIED ON DECK"(가능성 표기)는 UCP 600 Art.26(b) 상
+    # 허용되지만, 그 문장은 "CARRIED ON DECK" 도 포함하므로 예외가 없으면
+    # 정상 서류가 오탐된다. D029 만 이 값을 쓴다.
+    unless_keywords = [str(k).upper() for k in rule.get("unless_keywords", [])]
+
     for name in names:
         value = field_value(bl, name)
         if not value:
             continue
         haystack = value.upper()
         for keyword in keywords:
-            if re.search(rf"\b{re.escape(keyword)}\b", haystack):
-                return violated(detail=keyword, bl=value)
+            if not re.search(rf"\b{re.escape(keyword)}\b", haystack):
+                continue
+            if any(
+                re.search(rf"\b{re.escape(uk)}\b", haystack)
+                for uk in unless_keywords
+            ):
+                continue
+            return violated(detail=keyword, bl=value)
 
     # 대상 필드가 전부 비어 있으면 '문언이 없다'가 아니라 '볼 것이 없다'다.
     # 누락은 required 룰이 따로 잡는다.
     if not any(field_value(bl, name) for name in names):
         return not_evaluated("검사할 서류 내용이 없습니다")
     return passed()
+
+
+# "선적을 위해 수령함" 문언. 본선적재 부기 없이 이 표현만 있으면 수취식
+# B/L(received for shipment B/L)이다.
+_RECEIVED_FOR_SHIPMENT_RE = re.compile(
+    r"RECEIVED\s+(?:IN\s+APPARENT\s+GOOD\s+ORDER\s+)?FOR\s+SHIPMENT",
+    re.IGNORECASE,
+)
+
+
+def on_board_required_when_received(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """수취식 문언이 있는데 본선적재 부기가 없는지 (UCP 600 Art.20(a)(ii)).
+
+    "RECEIVED FOR SHIPMENT" 문언은 화물을 아직 선적하지 않고 수령만 했다는
+    뜻이다. 신용장이 선적 선하증권을 요구하는 것이 원칙이므로, 이 문언이
+    있는 서류는 별도의 On Board 표기(선적일)로 보완되어야 한다. 문언 자체가
+    없으면 이 룰이 판단할 사안이 아니므로 평가불가로 둔다 — 수취식이 아닌
+    서류에 "본선적재 부기 없음"을 하자로 세우면 정상 선적 B/L 대다수가
+    걸린다.
+    """
+    clauses = field_value(bl, "bl_clauses")
+    if not clauses or not _RECEIVED_FOR_SHIPMENT_RE.search(clauses):
+        return not_evaluated("서류에 수취식(Received for Shipment) 문언이 없습니다")
+
+    on_board = field_value(bl, "on_board_date")
+    if on_board:
+        return passed(bl=on_board)
+    return violated(bl=None)
 
 
 # 운임을 매도인이 부담하는 거래조건. B/L 의 운임 후불 표시와 저촉된다.
@@ -447,6 +533,34 @@ def freight_prepaid_required(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
             if re.search(rf"\b{re.escape(word)}\b", haystack):
                 return violated(detail=word, bl=value, lc=term)
     return passed(bl=present[0][1], lc=term)
+
+
+# 지시식(TO ORDER) 문언. `mt700._TO_ORDER_RE` 와 같은 패턴이다 — 파서는
+# L/C 46A 에서 요구 방식을 읽고, 여기서는 B/L 의 실제 Consignee 기재가
+# 그 방식을 따랐는지 본다. 둘이 어긋나면 한쪽만 고치게 되므로 나란히 둔다.
+_TO_ORDER_BL_RE = re.compile(r"\bTO\s+(?:THE\s+)?ORDER\b", re.IGNORECASE)
+
+
+def bl_consignment_required(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
+    """L/C 가 지시식(TO ORDER) B/L 을 요구하는데 서류가 기명식인지.
+
+    지시식 B/L 은 배서로 유통되어야 신용장의 담보(물품에 대한 권리)가
+    성립한다. 기명식으로 발행되면 유통성이 없어 은행이 거절한다.
+
+    **수하인이 비어 있으면 위반으로 잡지 않는다.** 누락은 D005(필수 항목)의
+    소관이라 여기서 또 세면 같은 사실로 하자가 두 번 계상된다.
+    """
+    flag = str(lc.get(rule.get("lc_flag", "")) or "").upper()
+    if flag != "TO_ORDER":
+        return not_evaluated("L/C 가 지시식 B/L 을 요구하지 않습니다")
+
+    _, consignee = _first_present(bl, _rule_fields(rule))
+    if not consignee:
+        return not_evaluated("서류에 수하인 정보가 없습니다")
+
+    if _TO_ORDER_BL_RE.search(consignee):
+        return passed(bl=consignee)
+    return violated(bl=consignee)
 
 
 def contains_incoterms(bl, lc: LCTerms, rule: dict) -> CheckOutcome:
@@ -527,14 +641,27 @@ def _tokens_match(bl_value: str, lc_value: str) -> bool:
     if not lc_tokens:
         return True
 
-    expanded = set(bl_tokens)
-    for token in bl_tokens:
+    # 신용장은 항구를 "BUSAN, KOREA" 처럼 국가까지 적는 것이 표준(MT700 44E/44F)
+    # 이고, 선하증권은 같은 칸에 "BUSAN" 만 인쇄한다. 쉼표 뒤를 대조에 넣으면
+    # 정상 서류가 항상 불일치로 잡힌다 — 국가는 항구명의 수식이지 별도 요건이
+    # 아니므로 핵심(쉼표 앞)만 본다. "KOREA" 만 적힌 서류는 핵심이 안 맞아
+    # 그대로 위반으로 남는다.
+    core = _significant_tokens(lc_value.split(",")[0])
+    if core:
+        lc_tokens = core
+
+    expanded = _with_synonyms(bl_tokens)
+    overlap = expanded & lc_tokens
+    return len(overlap) / len(lc_tokens) >= MATCH_THRESHOLD
+
+
+def _with_synonyms(tokens: set) -> set:
+    expanded = set(tokens)
+    for token in tokens:
         for synonyms in PORT_SYNONYMS:
             if token in synonyms:
                 expanded |= synonyms
-
-    overlap = expanded & lc_tokens
-    return len(overlap) / len(lc_tokens) >= MATCH_THRESHOLD
+    return expanded
 
 
 def _significant_tokens(value: str) -> set:
@@ -552,6 +679,7 @@ REGISTRY: Dict[str, CheckFn] = {
     "match_place": match_place,
     "contains_keywords": contains_keywords,
     "date_not_after": date_not_after,
+    "presentation_before_expiry": presentation_before_expiry,
     "presentation_period": presentation_period,
     "date_not_in_future": date_not_in_future,
     "numeric_not_above": numeric_not_above,
@@ -561,4 +689,6 @@ REGISTRY: Dict[str, CheckFn] = {
     "freight_prepaid_required": freight_prepaid_required,
     "contains_incoterms": contains_incoterms,
     "bl_in_documents_required": bl_in_documents_required,
+    "bl_consignment_required": bl_consignment_required,
+    "on_board_required_when_received": on_board_required_when_received,
 }
