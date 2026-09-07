@@ -26,6 +26,20 @@ class Settings(BaseSettings):
     worker_batch_size: int = 1
     worker_poll_seconds: float = 2.0
 
+    # 인증 (JWT)
+    jwt_secret: str = "changeme"
+    jwt_algorithm: str = "HS256"
+    jwt_access_expires_min: int = 30
+    jwt_refresh_expires_min: int = 10080
+
+    # aiService(FastAPI, OCR·규칙엔진·XGBoost) 연동. 무상태·인증 없음 — 내부망 전제.
+    ai_service_base_url: str = "http://localhost:5000"
+
+    # 서류 원본 저장 위치. 이번 라운드는 로컬 디스크만 지원한다 —
+    # S3 전환은 저장 경로 하나만 바꾸면 되도록 storage_uri에 파일시스템
+    # 경로만 넣고 이 설정값으로 루트를 잡는다(별도 라운드에서 교체).
+    document_storage_dir: str = "./data/documents"
+
     @cached_property
     def async_database_url(self) -> str:
         """FastAPI 용 asyncpg URL."""

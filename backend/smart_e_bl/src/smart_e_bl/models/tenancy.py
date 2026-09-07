@@ -34,6 +34,7 @@ class AppUser(Base):
     email: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False, default="MEMBER")
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()

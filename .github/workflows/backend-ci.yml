@@ -64,8 +64,6 @@ jobs:
 
       - run: uv sync --locked
 
-      # 지금 낼 수 있는 검증은 마이그레이션이 깨끗하게 적용되는지 뿐이다 —
-      # src/smart_e_bl 에는 아직 pytest 스위트가 없다(tests/ 폴더 자체가
-      # 없음). 테스트가 생기면 `uv run pytest` 단계를 여기 추가할 것.
       - run: uv run alembic upgrade head
       - run: uv run alembic current
+      - run: uv run pytest
