@@ -31,3 +31,27 @@ jobs:
       # tsc -b (타입체크) + vite build. 아직 vitest 등 테스트 스위트가 없어서
       # (frontend/tests/ 는 자리만 있음) 여기까지가 지금 낼 수 있는 최대치다.
       - run: npm run build
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      # lighthouserc.json이 build 결과물을 vite preview로 띄운 뒤
+      # S0(/), S1(/shipments) 두 화면을 측정하고 기준치와 비교한다.
+      # 기준치는 이슈 #17에서 잰 베이스라인(성능 74/83, 접근성 92/92,
+      # best-practices 100/100, SEO 82/82) 기준으로 여유를 두고 잡았다.
+      # 성능·SEO는 CI 러너 사양에 따라 흔들릴 수 있어 warn(빌드는 안 막음),
+      # 접근성·best-practices는 코드 변경으로만 떨어지는 값이라 error로 뒀다.
+      - run: npx lhci autorun --config=./lighthouserc.json
