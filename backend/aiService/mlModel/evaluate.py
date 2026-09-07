@@ -33,6 +33,18 @@ REALISTIC_DEFECT_RATIO = 0.70
 # v2 5.3 수용 기준: "Critical 등급의 오탐률 5% 이하".
 TARGET_CRITICAL_FALSE_ALARM = 0.05
 
+# 은행이 정정 불가능한 구조적 하자로 보는 유형. 선적항/양하항, 수하인,
+# 선적기한, 유효기간은 서류 자체를 무효로 만들어 대금을 못 받는 쪽으로
+# 직결된다 — 놓치면 "하자를 놓친 것"이 아니라 "고객 손실"이 된다. 나머지
+# 유형(물품명세 불일치, 중량 초과 등)은 협의·보완 여지가 있어 별도 하한을
+# 두지 않는다.
+CRITICAL_DEFECT_KINDS = ("port_mismatch", "consignee_mismatch", "late_shipment", "expired")
+
+# 크리티컬 유형 재현율 하한. 전체 F1(평균)이 0.85를 넘어도 크리티컬 유형
+# 하나가 이보다 낮으면 다른 유형이 메워 가려질 수 있어, 유형별 최저치를
+# 따로 잰다.
+TARGET_CRITICAL_DEFECT_RECALL = 0.95
+
 
 @dataclass
 class Metrics:
@@ -190,6 +202,41 @@ class EvaluationReport:
         return max(rates) <= TARGET_CRITICAL_FALSE_ALARM
 
     @property
+    def critical_defect_recall(self) -> Dict[str, float]:
+        """크리티컬 유형만 추린 유형별 재현율."""
+        return {
+            kind: self.per_defect_recall[kind]
+            for kind in CRITICAL_DEFECT_KINDS
+            if kind in self.per_defect_recall
+        }
+
+    @property
+    def worst_critical_defect_recall(self) -> Optional[float]:
+        values = self.critical_defect_recall.values()
+        return min(values) if values else None
+
+    @property
+    def meets_critical_recall_target(self) -> bool:
+        """크리티컬 유형은 하나도 하한 밑으로 떨어지면 안 된다.
+
+        측정 대상에서 크리티컬 유형이 아예 빠졌다면(표본 부족 등) 검증되지
+        않은 것이므로 통과로 치지 않는다.
+        """
+        worst = self.worst_critical_defect_recall
+        if worst is None or len(self.critical_defect_recall) < len(CRITICAL_DEFECT_KINDS):
+            return False
+        return worst >= TARGET_CRITICAL_DEFECT_RECALL
+
+    @property
+    def meets_sla(self) -> bool:
+        """F1 · Critical 오탐률 · Critical 재현율, 셋 다 넘어야 SLA 충족이다."""
+        return (
+            self.meets_target
+            and self.meets_false_alarm_target
+            and self.meets_critical_recall_target
+        )
+
+    @property
     def best_f1(self) -> float:
         # `raw_features_only` 는 제외한다. 그건 배포 후보가 아니라 "모델이
         # 룰과 독립적으로 무엇을 아는가"를 재는 비교군이다. 여기에 넣으면
@@ -252,6 +299,10 @@ class EvaluationReport:
                 if self.model_contribution is not None else None
             ),
             "per_defect_recall": self.per_defect_recall,
+            "critical_defect_recall": self.critical_defect_recall,
+            "target_critical_defect_recall": TARGET_CRITICAL_DEFECT_RECALL,
+            "meets_critical_recall_target": self.meets_critical_recall_target,
+            "meets_sla": self.meets_sla,
             "feature_importance": self.feature_importance,
             "raw_feature_importance": self.raw_feature_importance,
         }
@@ -261,7 +312,8 @@ class EvaluationReport:
             "=" * 62,
             "  F3 하자 검출 성능 평가",
             f"  목표: F1 >= {self.target_f1} (기획안 8.1) · "
-            f"Critical 오탐률 <= {TARGET_CRITICAL_FALSE_ALARM:.0%} (v2 5.3)",
+            f"Critical 오탐률 <= {TARGET_CRITICAL_FALSE_ALARM:.0%} (v2 5.3) · "
+            f"Critical 재현율 >= {TARGET_CRITICAL_DEFECT_RECALL:.0%}",
             "=" * 62,
             "",
             f"개발셋 {self.train_count}건 / 평가셋 {self.eval_count}건"
@@ -280,12 +332,14 @@ class EvaluationReport:
             lines.append(self._independence_block())
 
         if self.per_defect_recall:
-            lines.append("하자 유형별 재현율")
+            lines.append("하자 유형별 재현율 (★ = 크리티컬, 하한 "
+                         f"{TARGET_CRITICAL_DEFECT_RECALL:.0%})")
             for kind, recall in sorted(
                 self.per_defect_recall.items(), key=lambda x: x[1]
             ):
                 bar = "█" * int(recall * 20)
-                lines.append(f"  {kind:<20} {recall:.3f}  {bar}")
+                mark = "★" if kind in CRITICAL_DEFECT_KINDS else " "
+                lines.append(f"  {mark} {kind:<20} {recall:.3f}  {bar}")
             lines.append("")
 
         if self.feature_importance:
@@ -301,9 +355,11 @@ class EvaluationReport:
             lines.append(self._ratio_block())
 
         lines.append(self._false_alarm_block())
+        lines.append(self._critical_recall_block())
 
         f1_mark = "✅" if self.meets_target else "❌"
         fa_mark = "✅" if self.meets_false_alarm_target else "❌"
+        cr_mark = "✅" if self.meets_critical_recall_target else "❌"
         scope = "두 비율 조건 모두" if self.realistic else "균형 조건"
         lines.append(f"{f1_mark} F1 목표 ({scope})   최고 F1 {self.best_f1:.4f}")
         lines.append(
@@ -311,8 +367,34 @@ class EvaluationReport:
             + (f" / 실제비율 {self.realistic.critical_false_alarm_rate:.2%}"
                if self.realistic else "")
         )
+        worst = self.worst_critical_defect_recall
+        lines.append(
+            f"{cr_mark} Critical 재현율 최저치   "
+            + (f"{worst:.2%}" if worst is not None else "측정 안 됨")
+        )
+        sla_mark = "✅" if self.meets_sla else "❌"
+        lines.append(f"{sla_mark} SLA 종합 (위 세 조건 모두 충족해야 함)")
         lines.append("=" * 62)
         return "\n".join(lines)
+
+    def _critical_recall_block(self) -> str:
+        """크리티컬 하자 유형 재현율 하한 (놓치면 고객이 대금을 못 받는 유형)."""
+        rows = [
+            f"  {kind:<20} {recall:.2%}"
+            for kind, recall in sorted(self.critical_defect_recall.items())
+        ]
+        missing = [k for k in CRITICAL_DEFECT_KINDS if k not in self.critical_defect_recall]
+        return "\n".join([
+            f"Critical 유형 재현율 (하한 {TARGET_CRITICAL_DEFECT_RECALL:.0%})",
+            *rows,
+            *([f"  (표본 부족으로 미측정: {', '.join(missing)})"] if missing else []),
+            *_wrap(
+                "이 네 유형은 서류 자체를 무효로 만들어 정정이 안 된다 — F1 평균이 "
+                "목표를 넘어도 이 중 하나가 하한 밑이면 SLA 미충족으로 본다.",
+                width=58, first="  → ", rest="    ",
+            ),
+            "",
+        ])
 
     def _ratio_block(self) -> str:
         """정상/하자 비율 이중 보고 (기획안 v2 10.3).
