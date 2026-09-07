@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from smart_e_bl.models.enums import ConfidenceGrade, Severity
+from smart_e_bl.models.enums import ConfidenceGrade, DocumentType, ExtractorKind, Severity
 
 # aiService DraftField.grade (소문자) → DB ConfidenceGrade
 AI_GRADE_TO_DB: dict[str, ConfidenceGrade] = {
@@ -42,4 +42,43 @@ DB_SEVERITY_TO_FRONTEND: dict[Severity, str] = {
     Severity.CRITICAL: "Critical",
     Severity.WARNING: "Warning",
     Severity.INFO: "Info",
+}
+
+# DB ExtractorKind → 프론트 domain.ts FieldValue.extractor 리터럴.
+# 프론트 타입에는 'manual'이 없다 — 이번 라운드는 자동 추출만 다루므로
+# 실제로는 걸리지 않지만, 누락 시 조용히 잘못된 값을 내보내지 않도록
+# 명시적으로 매핑해 둔다(모르는 값이면 KeyError로 드러나게).
+DB_EXTRACTOR_TO_FRONTEND: dict[ExtractorKind, str] = {
+    ExtractorKind.RULE: "rule",
+    ExtractorKind.OCR_LLM: "ocr+llm",
+    ExtractorKind.JSON: "json",
+    ExtractorKind.MANUAL: "rule",  # 프론트에 대응 값 없음 — 임시로 rule 취급
+}
+
+# DB DocumentType(9종, 세분화) → 프론트 domain.ts DocumentKind(6종, 개략).
+# 프론트가 아직 다루지 않는 세부 종류(보험증권·원산지증명·수출신고필증 등)는
+# UNKNOWN으로 내린다 — 없는 탭을 만들어 보여주는 것보다 "분류 전"이 낫다.
+DB_DOC_TYPE_TO_FRONTEND: dict[DocumentType, str] = {
+    DocumentType.BL_DRAFT: "BL",
+    DocumentType.BL_COPY: "BL",
+    DocumentType.SI: "SI",
+    DocumentType.COMMERCIAL_INVOICE: "INVOICE",
+    DocumentType.PACKING_LIST: "PACKING",
+    DocumentType.LC_MT700: "LC",
+    DocumentType.INSURANCE_POLICY: "UNKNOWN",
+    DocumentType.CERTIFICATE_OF_ORIGIN: "UNKNOWN",
+    DocumentType.EXPORT_DECLARATION: "UNKNOWN",
+    DocumentType.OTHER: "UNKNOWN",
+}
+
+# 업로드 시 프론트 DocumentKind → DB DocumentType(역방향).
+# 'BL'은 DB에 BL_DRAFT/BL_COPY 두 종류가 있는데, 이 서비스는 제출 전
+# 초안 검증이 목적이므로 업로드는 항상 BL_DRAFT로 받는다.
+FRONTEND_DOC_KIND_TO_DB: dict[str, DocumentType] = {
+    "BL": DocumentType.BL_DRAFT,
+    "INVOICE": DocumentType.COMMERCIAL_INVOICE,
+    "PACKING": DocumentType.PACKING_LIST,
+    "LC": DocumentType.LC_MT700,
+    "SI": DocumentType.SI,
+    "UNKNOWN": DocumentType.OTHER,
 }

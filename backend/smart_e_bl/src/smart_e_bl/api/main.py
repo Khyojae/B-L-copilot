@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from smart_e_bl.api.routes import auth, jobs
+from smart_e_bl.api.routes import auth, jobs, shipments
 from smart_e_bl.config import settings
 from smart_e_bl.db import async_engine, get_session
 
@@ -33,6 +33,7 @@ app = FastAPI(
 
 app.include_router(auth.router)
 app.include_router(jobs.router)
+app.include_router(shipments.router)
 
 
 class HealthResponse(BaseModel):

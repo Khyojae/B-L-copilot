@@ -26,6 +26,16 @@ dependencies = [
 [project.scripts]
 smart-ebl-worker = "smart_e_bl.worker.main:main"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=0.25",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
 build-backend = "uv_build"
