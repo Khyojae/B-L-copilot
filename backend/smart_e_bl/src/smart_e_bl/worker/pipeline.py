@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from smart_e_bl.clients.ai_service import AiServiceError, SyncAiServiceClient
 from smart_e_bl.config import settings
-from smart_e_bl.mapping import AI_GRADE_TO_DB
+from smart_e_bl.mapping import AI_FIELD_TO_DB_CODE, AI_GRADE_TO_DB, DB_DOC_TYPE_TO_AI
 from smart_e_bl.models import Document, FieldDefinition, FieldValue, IngestJob
 from smart_e_bl.models.enums import ConfidenceGrade, ExtractorKind
 
@@ -59,15 +59,31 @@ def _known_field_codes(session: Session) -> set[str]:
     return set(session.scalars(select(FieldDefinition.code)))
 
 
+def _field_code_for(document: Document, ai_name: str) -> str | None:
+    """aiService 필드명 → field_definition.code.
+
+    aiService 는 `bl_no` 처럼 서류 접두어 없는 이름을 쓰고, 카탈로그는
+    `BL.BL_NO` 처럼 서류별 코드를 쓴다. 같은 이름(`gross_weight`)이 선하증권과
+    포장명세서에 다 있으므로 **어느 서류에서 나왔는지**(document.doc_type)가
+    있어야 코드가 정해진다 — 그래서 매핑 표(mapping.AI_FIELD_TO_DB_CODE)의
+    키가 (서류 종류, 필드명) 이다. 표에 없는 조합은 None.
+    """
+    ai_doc = DB_DOC_TYPE_TO_AI.get(document.doc_type)
+    if ai_doc is None:
+        return None
+    return AI_FIELD_TO_DB_CODE.get((ai_doc, ai_name))
+
+
 def _to_field_value(
     *,
     tenant_id: uuid.UUID,
     shipment_id: uuid.UUID,
     document_id: uuid.UUID,
     page: int,
+    field_code: str,
     ai_field: dict[str, Any],
 ) -> FieldValue:
-    """aiService DraftField.to_dict() 1건 → FieldValue 행 1개.
+    """aiService DraftField.to_dict() 1건 → FieldValue 행 1개. `field_code` 는 변환된 DB 코드.
 
     ⚠ 근거 없는 값은 확정값으로 저장하지 않는다(추정 생성 금지, 규약 §5).
     aiService가 bbox 없이 값을 준 경우(예: LLM이 문서 전체를 보고 답해 특정
@@ -91,7 +107,7 @@ def _to_field_value(
     kwargs: dict[str, Any] = dict(
         tenant_id=tenant_id,
         shipment_id=shipment_id,
-        field_code=ai_field["name"],
+        field_code=field_code,
         value=value,
         normalized_value=None,
         confidence=ai_field.get("confidence"),
@@ -130,15 +146,18 @@ def run_extraction(session: Session, job: IngestJob) -> int:
     known_codes = _known_field_codes(session)
     saved = 0
     for ai_field in draft.get("fields", []):
-        if ai_field["name"] not in known_codes:
-            # field_definition에 없는 코드 — 스키마 밖 필드. 잡 전체를 죽이지
-            # 않고 건너뛴다.
+        field_code = _field_code_for(document, ai_field["name"])
+        if field_code is None or field_code not in known_codes:
+            # 매핑 표에 없거나(aiService 만 뽑는 필드 — bl_clauses·voyage_no 등)
+            # field_definition 에 없는 코드(표가 카탈로그보다 앞서간 경우).
+            # 스키마 밖 필드라 잡 전체를 죽이지 않고 건너뛴다.
             continue
         field_value = _to_field_value(
             tenant_id=document.tenant_id,
             shipment_id=document.shipment_id,
             document_id=document.id,
             page=page,
+            field_code=field_code,
             ai_field=ai_field,
         )
         session.add(field_value)

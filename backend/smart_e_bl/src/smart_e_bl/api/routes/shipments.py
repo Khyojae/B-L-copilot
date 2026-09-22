@@ -1,7 +1,12 @@
-"""선적 생성 · 서류 업로드 · 초안 조회.
+"""선적 생성 · 서류 업로드 · 초안 조회 · 정정 영향분석(F5) · 리포트(F4·F7).
 
 업로드는 파일을 로컬 디스크에 저장하고 document+ingest_job 행을 만든 뒤
 job_id를 즉시 반환한다(기획안 5.1). 실제 추출은 워커가 비동기로 한다.
+
+영향분석과 리포트는 aiService 를 동기 호출로 감싼다. 추출과 달리 잡으로
+빼지 않는 이유: 둘 다 OCR 이 없어 수 초 안에 끝나고(clients/ai_service.py
+의 타임아웃 주석), 편집기·리포트 화면이 결과를 바로 기다리는 요청이라
+폴링을 시키면 오히려 느려진다.
 """
 
 from __future__ import annotations
@@ -10,22 +15,35 @@ import hashlib
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from smart_e_bl.clients.ai_service import AiServiceError, AsyncAiServiceClient
 from smart_e_bl.config import settings
 from smart_e_bl.db import get_session
-from smart_e_bl.deps import CurrentUser, get_current_user
-from smart_e_bl.mapping import DB_DOC_TYPE_TO_FRONTEND, DB_EXTRACTOR_TO_FRONTEND, FRONTEND_DOC_KIND_TO_DB
+from smart_e_bl.deps import CurrentUser, get_ai_client, get_current_user
+from smart_e_bl.mapping import (
+    AI_DOC_TO_FRONTEND_KIND,
+    DB_DOC_TYPE_TO_FRONTEND,
+    DB_EXTRACTOR_TO_FRONTEND,
+    FRONTEND_DOC_KIND_TO_AI,
+    FRONTEND_DOC_KIND_TO_DB,
+    ai_field_to_field_code,
+    field_code_to_ai_name,
+)
 from smart_e_bl.models import Document, FieldValue, IngestJob, Shipment
 from smart_e_bl.models.enums import DocumentSource, JobStatus, ShipmentStatus
+from smart_e_bl.report_payload import build_report_payload
 from smart_e_bl.schemas.shipments import (
     CreateShipmentRequest,
     DocumentMetaResponse,
     FieldValueResponse,
+    ImpactItemResponse,
+    ImpactRequest,
+    ImpactResponse,
     ShipmentDraftResponse,
     ShipmentResponse,
     UploadDocumentResponse,
@@ -205,3 +223,129 @@ async def get_shipment_draft(
         ],
         suggestions=[],
     )
+
+
+# ── F5 정정 영향분석 ──────────────────────────────────────────────
+
+
+@router.post("/{shipment_id}/impact", response_model=ImpactResponse)
+async def impact(
+    shipment_id: uuid.UUID,
+    body: ImpactRequest,
+    current: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    ai: AsyncAiServiceClient = Depends(get_ai_client),
+) -> ImpactResponse:
+    """이 필드를 고치면 함께 확인해야 할 다른 서류·필드(깊이 1, EQ 제약).
+
+    선적을 조회하는 이유는 소유권 확인뿐이다 — 그래프는 룰 카탈로그에서
+    나오지 선적 데이터에서 나오지 않으므로, 어떤 값이 저장돼 있든 같은
+    (서류, 필드)에는 같은 답이 온다. 값을 바꾸지 않고 결과만 보는
+    시뮬레이션 조회가 곧 이 엔드포인트다.
+    """
+    await _get_owned_shipment(shipment_id, current, session)
+
+    ai_doc = FRONTEND_DOC_KIND_TO_AI[body.doc_kind]
+    ai_field = field_code_to_ai_name(body.field_name)
+    if ai_field is None:
+        # 표에 없는 코드 = 정합성 룰이 다루지 않는 필드. aiService 가 모르는
+        # (서류, 필드)에 빈 목록을 주는 것과 같은 의미라 여기서도 빈 목록이다.
+        return ImpactResponse(items=[])
+
+    try:
+        impacted = await ai.impact(ai_doc, ai_field)
+    except AiServiceError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    return ImpactResponse(
+        items=[
+            ImpactItemResponse(
+                affected_doc=AI_DOC_TO_FRONTEND_KIND[item["doc"]],
+                affected_field=ai_field_to_field_code(item["doc"], item["field"]),
+                rule_id=item["rule_id"],
+                source=item["source"],
+                action=item["reason"],
+            )
+            for item in impacted
+            if item["doc"] in AI_DOC_TO_FRONTEND_KIND
+        ]
+    )
+
+
+# ── F4 리포트 (F7 판정 설명 포함) ──────────────────────────────────
+
+
+async def _report_payload(
+    shipment_id: uuid.UUID, current: CurrentUser, session: AsyncSession
+) -> dict:
+    """선적 + 저장된 필드값 → aiService /report 본문.
+
+    `is_representative` 로 거르지 않고 서류에 매인 행을 전부 읽는다. 대표
+    유일성(field_value_representative_uk)은 (선적, 필드코드) 단위라 서류
+    종류가 달라도 같은 코드는 하나만 대표가 될 수 있는데, 서류별 검증
+    입력에는 각 서류의 값이 따로 필요하다. 대표/후보 우선순위는
+    build_report_payload 가 서류별로 다시 정한다.
+    """
+    shipment = await _get_owned_shipment(shipment_id, current, session)
+
+    rows = (
+        await session.execute(
+            select(Document.doc_type, FieldValue)
+            .join(Document, FieldValue.document_id == Document.id)
+            .where(FieldValue.shipment_id == shipment_id)
+            .order_by(FieldValue.field_code)
+        )
+    ).all()
+    doc_types = (
+        await session.scalars(select(Document.doc_type).where(Document.shipment_id == shipment_id))
+    ).all()
+
+    payload = build_report_payload(
+        shipment, [(doc_type, fv) for doc_type, fv in rows], submitted_types=list(doc_types)
+    )
+    if not payload["bl"]:
+        # aiService 는 bl 이 비면 400 을 낸다. 여기서는 "요청이 잘못됐다"가
+        # 아니라 "아직 추출이 안 끝났다"는 상태 문제라 409 로 구분한다.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "선하증권 필드가 아직 없습니다 — 추출 작업(job)이 끝났는지 확인하세요",
+        )
+    return payload
+
+
+@router.get("/{shipment_id}/report")
+async def get_report(
+    shipment_id: uuid.UUID,
+    current: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    ai: AsyncAiServiceClient = Depends(get_ai_client),
+) -> dict:
+    """리포트 JSON. aiService Report.to_dict() 를 그대로 전달한다.
+
+    변환하지 않는 이유: 프론트 S7 이 지금 aiService 응답 형태를 직접 그리고
+    있어서, 여기서 모양을 바꾸면 화면이 깨진다. domain.ts 의 Report 타입으로
+    옮기는 일은 프론트 연결 작업과 함께 한다.
+    """
+    payload = await _report_payload(shipment_id, current, session)
+    try:
+        return await ai.report(payload)
+    except AiServiceError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+
+@router.get("/{shipment_id}/report/pdf")
+async def get_report_pdf(
+    shipment_id: uuid.UUID,
+    current: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    ai: AsyncAiServiceClient = Depends(get_ai_client),
+) -> Response:
+    """리포트 PDF 다운로드. 파일명은 aiService 가 정한 Content-Disposition 을 그대로 쓴다."""
+    payload = await _report_payload(shipment_id, current, session)
+    try:
+        content, disposition = await ai.report_pdf(payload)
+    except AiServiceError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    headers = {"Content-Disposition": disposition or 'attachment; filename="BL_Copilot_Report.pdf"'}
+    return Response(content=content, media_type="application/pdf", headers=headers)

@@ -10,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from smart_e_bl.clients.ai_service import AsyncAiServiceClient
 from smart_e_bl.db import get_session
 from smart_e_bl.models import AppUser
 from smart_e_bl.security import InvalidTokenError, TokenType, decode_token
@@ -41,3 +42,9 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "사용자를 찾을 수 없거나 비활성 상태입니다")
 
     return CurrentUser(user_id=user.id, tenant_id=user.tenant_id, role=user.role)
+
+
+def get_ai_client() -> AsyncAiServiceClient:
+    """aiService 클라이언트. 의존성으로 두는 이유는 테스트가 네트워크 없이
+    가짜 클라이언트로 바꿔 끼우기 위해서다(`app.dependency_overrides`)."""
+    return AsyncAiServiceClient()

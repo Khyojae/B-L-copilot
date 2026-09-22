@@ -65,3 +65,40 @@ class ShipmentDraftResponse(BaseModel):
 class UploadDocumentResponse(BaseModel):
     document_id: uuid.UUID
     job_id: uuid.UUID
+
+
+# ── F5 정정 영향분석 ──────────────────────────────────────────────
+
+
+class ImpactRequest(BaseModel):
+    """S3 편집기가 필드 하나를 고칠 때마다 보낸다."""
+
+    doc_kind: Literal["BL", "INVOICE", "PACKING", "LC"]
+    # DB 필드 코드("BL.CONSIGNEE"). 신용장은 DB 코드가 없어 aiService 필드명
+    # ("port_of_loading")을 그대로 쓴다.
+    field_name: str
+
+
+class ImpactItemResponse(BaseModel):
+    """프론트 domain.ts ImpactItem 의 부분집합.
+
+    party · urgency · requires_recheck 는 룰 카탈로그에 담당 당사자 정보가
+    없어 아직 못 채운다(aiService F5 응답 보강이 선행 작업). 프론트 타입에
+    있는 이름만 쓰되, 값을 지어내지 않으려고 그 셋은 뺐다.
+    """
+
+    affected_doc: Literal["BL", "INVOICE", "PACKING", "LC"]
+    affected_field: str
+    rule_id: str
+    source: str
+    # aiService ImpactItem.reason("제목 (룰ID)") — 사용자가 할 일의 한 줄 설명.
+    action: str
+    # 축소 구현은 EQ 제약만 도출한다(ruleEngine/impact.py 머리말).
+    constraint_type: Literal["EQ"] = "EQ"
+    indirect: bool = False
+
+
+class ImpactResponse(BaseModel):
+    items: list[ImpactItemResponse]
+    # 탐색 깊이 1 이라 간접 영향은 항상 0 — 깊이를 늘리면 여기가 채워진다.
+    indirect_count: int = 0

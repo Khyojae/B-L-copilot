@@ -22,6 +22,13 @@ _EXTRACT_TIMEOUT = httpx.Timeout(settings.extraction_timeout_seconds, connect=5.
 # PERF_TARGET_MS.VERIFY(프론트 constants/domain.ts) = 10_000ms 예산 안에서
 # 네트워크 왕복 여유를 남기고 8초로 잡는다.
 _VERIFY_TIMEOUT = httpx.Timeout(8.0, connect=3.0)
+# /impact 는 미리 만든 정합성 그래프의 이웃 조회라 즉시 끝난다.
+# PERF_TARGET_MS.IMPACT_PANEL_REFRESH = 500ms — 편집기가 필드마다 부르므로
+# 늦게 실패하는 것보다 빨리 실패하는 게 낫다.
+_IMPACT_TIMEOUT = httpx.Timeout(2.0, connect=1.0)
+# /report 는 검증 + 요약(LLM 이면 왕복 수 회) + 판정 설명(위반마다 1회).
+# PERF_TARGET_MS.REPORT_RENDER = 15s, REPORT_PDF = 30s 예산 안에서 잡는다.
+_REPORT_TIMEOUT = httpx.Timeout(25.0, connect=3.0)
 
 
 class AiServiceError(Exception):
@@ -55,7 +62,7 @@ class SyncAiServiceClient:
 
 
 class AsyncAiServiceClient:
-    """API(F3 검증 실행)용. 비동기 이벤트 루프 안에서 non-blocking으로 호출한다."""
+    """API(F3 검증 · F4 리포트 · F5 영향분석)용. 비동기 이벤트 루프 안에서 non-blocking으로 호출한다."""
 
     def __init__(self, base_url: str | None = None) -> None:
         self._base_url = base_url or settings.ai_service_base_url
@@ -83,3 +90,37 @@ class AsyncAiServiceClient:
                 return response.json()
         except httpx.HTTPError as exc:
             raise AiServiceError(f"aiService /verify 호출 실패: {exc}") from exc
+
+    async def impact(self, doc: str, field: str) -> list[dict[str, Any]]:
+        """F5. `(서류 종류, 필드)` 를 고치면 함께 확인할 (서류, 필드) 목록.
+
+        aiService 는 그래프에 없는 조합도 빈 목록으로 200 을 준다(룰이 아직 그
+        필드를 다루지 않는다는 뜻) — 여기서도 그대로 빈 목록이다.
+        """
+        try:
+            async with httpx.AsyncClient(base_url=self._base_url, timeout=_IMPACT_TIMEOUT) as client:
+                response = await client.post("/impact", json={"doc": doc, "field": field})
+                response.raise_for_status()
+                return response.json()["impacted"]
+        except httpx.HTTPError as exc:
+            raise AiServiceError(f"aiService /impact 호출 실패: {exc}") from exc
+
+    async def report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """F4 리포트 JSON(F7 판정 설명 포함). `payload` 는 /verify 입력 + submitted_documents."""
+        try:
+            async with httpx.AsyncClient(base_url=self._base_url, timeout=_REPORT_TIMEOUT) as client:
+                response = await client.post("/report", json=payload)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPError as exc:
+            raise AiServiceError(f"aiService /report 호출 실패: {exc}") from exc
+
+    async def report_pdf(self, payload: dict[str, Any]) -> tuple[bytes, str | None]:
+        """F4 리포트 PDF. (바이트, 업스트림 Content-Disposition) — 파일명은 aiService 가 정한다."""
+        try:
+            async with httpx.AsyncClient(base_url=self._base_url, timeout=_REPORT_TIMEOUT) as client:
+                response = await client.post("/report/pdf", json=payload)
+                response.raise_for_status()
+                return response.content, response.headers.get("Content-Disposition")
+        except httpx.HTTPError as exc:
+            raise AiServiceError(f"aiService /report/pdf 호출 실패: {exc}") from exc
