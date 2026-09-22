@@ -87,3 +87,8 @@ class Test그래프_속성:
     def test_모르는_필드는_빈_목록이다(self, graph):
         assert graph.impacted(BILL_OF_LADING, "no_such_field") == []
         assert graph.impacted("미상서류", "field") == []
+
+    def test_이웃마다_간선_룰의_심각도가_붙는다(self, graph):
+        items = graph.impacted(BILL_OF_LADING, "consignee")
+        assert items and all(i.severity in {"critical", "warning", "info"} for i in items)
+        assert all(i.to_dict()["severity"] == i.severity for i in items)

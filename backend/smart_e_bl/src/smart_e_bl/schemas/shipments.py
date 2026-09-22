@@ -80,12 +80,7 @@ class ImpactRequest(BaseModel):
 
 
 class ImpactItemResponse(BaseModel):
-    """프론트 domain.ts ImpactItem 의 부분집합.
-
-    party · urgency · requires_recheck 는 룰 카탈로그에 담당 당사자 정보가
-    없어 아직 못 채운다(aiService F5 응답 보강이 선행 작업). 프론트 타입에
-    있는 이름만 쓰되, 값을 지어내지 않으려고 그 셋은 뺐다.
-    """
+    """프론트 domain.ts ImpactItem 과 1:1. 어디서 오는지는 impact_policy.py 머리말."""
 
     affected_doc: Literal["BL", "INVOICE", "PACKING", "LC"]
     affected_field: str
@@ -93,6 +88,12 @@ class ImpactItemResponse(BaseModel):
     source: str
     # aiService ImpactItem.reason("제목 (룰ID)") — 사용자가 할 일의 한 줄 설명.
     action: str
+    # 영향받는 서류의 발행 주체(impact_policy.PARTY_BY_AI_DOC).
+    party: Literal["화주", "포워더", "선사", "은행", "관세사"]
+    # 간선 룰의 심각도 — 이 이웃을 안 맞추면 그 심각도의 위반이 된다.
+    urgency: Literal["Critical", "Warning", "Info"]
+    # EQ 이웃은 정의상 재검증 대상이다(같아야 하는 값의 한쪽이 바뀌었다).
+    requires_recheck: bool = True
     # 축소 구현은 EQ 제약만 도출한다(ruleEngine/impact.py 머리말).
     constraint_type: Literal["EQ"] = "EQ"
     indirect: bool = False
@@ -102,3 +103,7 @@ class ImpactResponse(BaseModel):
     items: list[ImpactItemResponse]
     # 탐색 깊이 1 이라 간접 영향은 항상 0 — 깊이를 늘리면 여기가 채워진다.
     indirect_count: int = 0
+    # 선적 상태에서 나온다(impact_policy.reissue_path_for). ENDORSEMENT ·
+    # SWITCH_BL 은 이번 범위에서 내지 않는다 — 머리말에 이유가 있다.
+    reissue_path: Literal["DRAFT_EDIT", "ENDORSEMENT", "REISSUE", "SWITCH_BL"]
+    requires_amendment: bool

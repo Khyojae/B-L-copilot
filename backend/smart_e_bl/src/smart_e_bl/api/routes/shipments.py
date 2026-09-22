@@ -25,6 +25,12 @@ from smart_e_bl.clients.ai_service import AiServiceError, AsyncAiServiceClient
 from smart_e_bl.config import settings
 from smart_e_bl.db import get_session
 from smart_e_bl.deps import CurrentUser, get_ai_client, get_current_user
+from smart_e_bl.impact_policy import (
+    AI_SEVERITY_TO_FRONTEND,
+    party_for,
+    reissue_path_for,
+    requires_amendment_for,
+)
 from smart_e_bl.mapping import (
     AI_DOC_TO_FRONTEND_KIND,
     DB_DOC_TYPE_TO_FRONTEND,
@@ -238,25 +244,30 @@ async def impact(
 ) -> ImpactResponse:
     """이 필드를 고치면 함께 확인해야 할 다른 서류·필드(깊이 1, EQ 제약).
 
-    선적을 조회하는 이유는 소유권 확인뿐이다 — 그래프는 룰 카탈로그에서
-    나오지 선적 데이터에서 나오지 않으므로, 어떤 값이 저장돼 있든 같은
-    (서류, 필드)에는 같은 답이 온다. 값을 바꾸지 않고 결과만 보는
-    시뮬레이션 조회가 곧 이 엔드포인트다.
+    이웃 목록은 룰 카탈로그에서 나오므로 어떤 값이 저장돼 있든 같은
+    (서류, 필드)에는 같은 이웃이 온다. 선적에서 읽는 것은 **상태**뿐이다 —
+    같은 정정이라도 초안이면 다시 쓰면 되고 제출 후면 재발행·조건 변경이
+    따라오는데, 그 차이(reissue_path · requires_amendment)는 impact_policy 가
+    상태로 정한다. 값을 바꾸지 않고 결과만 보는 시뮬레이션 조회가 곧 이
+    엔드포인트다.
     """
-    await _get_owned_shipment(shipment_id, current, session)
+    shipment = await _get_owned_shipment(shipment_id, current, session)
 
     ai_doc = FRONTEND_DOC_KIND_TO_AI[body.doc_kind]
+    reissue_path = reissue_path_for(shipment.status, ai_doc)
+
     ai_field = field_code_to_ai_name(body.field_name)
     if ai_field is None:
         # 표에 없는 코드 = 정합성 룰이 다루지 않는 필드. aiService 가 모르는
         # (서류, 필드)에 빈 목록을 주는 것과 같은 의미라 여기서도 빈 목록이다.
-        return ImpactResponse(items=[])
+        return ImpactResponse(items=[], reissue_path=reissue_path, requires_amendment=False)
 
     try:
         impacted = await ai.impact(ai_doc, ai_field)
     except AiServiceError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
 
+    impacted = [item for item in impacted if item["doc"] in AI_DOC_TO_FRONTEND_KIND]
     return ImpactResponse(
         items=[
             ImpactItemResponse(
@@ -265,10 +276,15 @@ async def impact(
                 rule_id=item["rule_id"],
                 source=item["source"],
                 action=item["reason"],
+                party=party_for(item["doc"]),
+                urgency=AI_SEVERITY_TO_FRONTEND[item["severity"]],
             )
             for item in impacted
-            if item["doc"] in AI_DOC_TO_FRONTEND_KIND
-        ]
+        ],
+        reissue_path=reissue_path,
+        requires_amendment=requires_amendment_for(
+            shipment.status, [item["doc"] for item in impacted]
+        ),
     )
 
 

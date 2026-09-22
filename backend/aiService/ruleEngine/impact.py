@@ -61,6 +61,9 @@ class ImpactItem:
     rule_id: str
     source: str
     reason: str
+    # 간선이 된 룰의 심각도(critical·warning·info). 이 이웃을 안 맞추면 그
+    # 룰이 그 심각도로 위반이 되므로, 확인의 긴급도가 곧 룰의 심각도다.
+    severity: str
 
     def to_dict(self) -> dict:
         return {
@@ -69,6 +72,7 @@ class ImpactItem:
             "rule_id": self.rule_id,
             "source": self.source,
             "reason": self.reason,
+            "severity": self.severity,
         }
 
 
@@ -78,6 +82,7 @@ class _Edge:
     rule_id: str
     source: str
     title: str
+    severity: str
 
 
 class ConsistencyGraph:
@@ -90,14 +95,16 @@ class ConsistencyGraph:
     def __init__(self) -> None:
         self._edges: Dict[Node, List[_Edge]] = {}
 
-    def _add(self, a: Node, b: Node, *, rule_id: str, source: str, title: str) -> None:
+    def _add(
+        self, a: Node, b: Node, *, rule_id: str, source: str, title: str, severity: str
+    ) -> None:
         if a == b:
             return
         self._edges.setdefault(a, []).append(
-            _Edge(other=b, rule_id=rule_id, source=source, title=title)
+            _Edge(other=b, rule_id=rule_id, source=source, title=title, severity=severity)
         )
         self._edges.setdefault(b, []).append(
-            _Edge(other=a, rule_id=rule_id, source=source, title=title)
+            _Edge(other=a, rule_id=rule_id, source=source, title=title, severity=severity)
         )
 
     @classmethod
@@ -119,6 +126,7 @@ class ConsistencyGraph:
                     rule_id=rule["id"],
                     source=rule.get("source", ""),
                     title=rule.get("title", ""),
+                    severity=rule["severity"],
                 )
 
         # cross_rules.yaml: 서류 필드 ↔ 서류 필드.
@@ -135,6 +143,7 @@ class ConsistencyGraph:
                 rule_id=rule["id"],
                 source=rule.get("source", ""),
                 title=rule.get("title", ""),
+                severity=rule["severity"],
             )
 
         return graph
@@ -149,6 +158,7 @@ class ConsistencyGraph:
                 rule_id=edge.rule_id,
                 source=edge.source,
                 reason=f"{edge.title} ({edge.rule_id})",
+                severity=edge.severity,
             )
             for edge in edges
         ]

@@ -19,12 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from smart_e_bl.api.main import app
 from smart_e_bl.clients.ai_service import AiServiceError
 from smart_e_bl.deps import CurrentUser, get_ai_client
-from smart_e_bl.models import AppUser, Document, FieldValue, Tenant
+from smart_e_bl.models import AppUser, Document, FieldValue, Shipment, Tenant
 from smart_e_bl.models.enums import (
     ConfidenceGrade,
     DocumentSource,
     DocumentType,
     ExtractorKind,
+    ShipmentStatus,
 )
 
 
@@ -130,6 +131,7 @@ class TestImpact:
                 "rule_id": "LC-CONSIGNEE",
                 "source": "UCP600 14(d)",
                 "reason": "수하인 일치 (LC-CONSIGNEE)",
+                "severity": "critical",
             },
             {
                 "doc": "상업송장",
@@ -137,6 +139,7 @@ class TestImpact:
                 "rule_id": "X-CONSIGNEE-BUYER",
                 "source": "ISBP 821 A.1",
                 "reason": "수하인=매수인 (X-CONSIGNEE-BUYER)",
+                "severity": "warning",
             },
         ]
 
@@ -149,6 +152,9 @@ class TestImpact:
         assert fake_ai.impact_calls == [("선하증권", "consignee")]
         body = resp.json()
         assert body["indirect_count"] == 0
+        # 방금 만든 선적은 DRAFT — 초안 수정으로 충분하고 조건 변경도 없다.
+        assert body["reissue_path"] == "DRAFT_EDIT"
+        assert body["requires_amendment"] is False
         assert body["items"] == [
             {
                 "affected_doc": "LC",
@@ -156,6 +162,9 @@ class TestImpact:
                 "rule_id": "LC-CONSIGNEE",
                 "source": "UCP600 14(d)",
                 "action": "수하인 일치 (LC-CONSIGNEE)",
+                "party": "은행",
+                "urgency": "Critical",
+                "requires_recheck": True,
                 "constraint_type": "EQ",
                 "indirect": False,
             },
@@ -165,10 +174,70 @@ class TestImpact:
                 "rule_id": "X-CONSIGNEE-BUYER",
                 "source": "ISBP 821 A.1",
                 "action": "수하인=매수인 (X-CONSIGNEE-BUYER)",
+                "party": "화주",
+                "urgency": "Warning",
+                "requires_recheck": True,
                 "constraint_type": "EQ",
                 "indirect": False,
             },
         ]
+
+    async def test_제출_후_선하증권_정정은_재발행과_조건_변경이_따라온다(
+        self, client: AsyncClient, session: AsyncSession, fake_ai: FakeAiClient
+    ):
+        shipment_id = await _create_shipment(client)
+        shipment = await session.get(Shipment, uuid.UUID(shipment_id))
+        assert shipment is not None
+        shipment.status = ShipmentStatus.SUBMITTED
+        await session.flush()
+        fake_ai.impact_result = [
+            {
+                "doc": "신용장",
+                "field": "port_of_loading",
+                "rule_id": "D004",
+                "source": "UCP600 20(a)(ii)",
+                "reason": "선적항 일치 (D004)",
+                "severity": "critical",
+            },
+        ]
+
+        resp = await client.post(
+            f"/api/v1/shipments/{shipment_id}/impact",
+            json={"doc_kind": "BL", "field_name": "BL.PORT_OF_LOADING"},
+        )
+
+        body = resp.json()
+        assert body["reissue_path"] == "REISSUE"
+        assert body["requires_amendment"] is True
+        assert body["items"][0]["party"] == "은행"
+
+    async def test_제출_후라도_송장_정정은_재발행_경로가_아니다(
+        self, client: AsyncClient, session: AsyncSession, fake_ai: FakeAiClient
+    ):
+        shipment_id = await _create_shipment(client)
+        shipment = await session.get(Shipment, uuid.UUID(shipment_id))
+        assert shipment is not None
+        shipment.status = ShipmentStatus.SUBMITTED
+        await session.flush()
+        fake_ai.impact_result = [
+            {
+                "doc": "포장명세서",
+                "field": "description_of_goods",
+                "rule_id": "X-GOODS",
+                "source": "",
+                "reason": "물품명세 일치 (X-GOODS)",
+                "severity": "warning",
+            },
+        ]
+
+        resp = await client.post(
+            f"/api/v1/shipments/{shipment_id}/impact",
+            json={"doc_kind": "INVOICE", "field_name": "INV.DESCRIPTION_OF_GOODS"},
+        )
+
+        body = resp.json()
+        assert body["reissue_path"] == "DRAFT_EDIT"
+        assert body["requires_amendment"] is False  # 신용장이 영향 목록에 없다
 
     async def test_영향_필드가_DB_코드를_가지면_그_코드로_돌려준다(
         self, client: AsyncClient, fake_ai: FakeAiClient
@@ -181,6 +250,7 @@ class TestImpact:
                 "rule_id": "X-GW",
                 "source": "",
                 "reason": "총중량 일치 (X-GW)",
+                "severity": "warning",
             },
         ]
 
@@ -204,7 +274,12 @@ class TestImpact:
         )
 
         assert resp.status_code == 200
-        assert resp.json() == {"items": [], "indirect_count": 0}
+        assert resp.json() == {
+            "items": [],
+            "indirect_count": 0,
+            "reissue_path": "DRAFT_EDIT",
+            "requires_amendment": False,
+        }
         assert fake_ai.impact_calls == []
 
     async def test_모르는_doc_kind는_422(self, client: AsyncClient, fake_ai: FakeAiClient):
