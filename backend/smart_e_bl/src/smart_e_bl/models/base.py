@@ -39,6 +39,9 @@ _ENUM_REGISTRY: dict[str, type[enum.Enum]] = {
     "glossary_scope": enums.GlossaryScope,
     "suggestion_status": enums.SuggestionStatus,
     "suggestion_reject_reason": enums.SuggestionRejectReason,
+    "evidence_mode": enums.EvidenceMode,
+    "evidence_derivation": enums.EvidenceDerivation,
+    "evidence_status": enums.EvidenceStatus,
 }
 
 

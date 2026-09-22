@@ -24,6 +24,13 @@ DDL 은 `migrations/sql/` 에 있고, Alembic 의 `0001_baseline` 리비전이 �
 | `07_reports.sql` | `report` | **F4** | 5.4 |
 | `08_audit.sql` | `audit_log` | 공통 | 5.8 |
 | `09_seed_catalog.sql` | 필드 정의 45 · 룰 20 | — | 5.1, 5.3 |
+| `evidence/10_evidence_enforcement.sql` | `document_token` · `field_value` 근거 컬럼 · 검증 트리거 `fn_field_value_enforce_evidence` · 뷰 `field_value_trusted`/`field_value_review_queue` · 모드 스위치 `evidence_enforcement_config` · 규칙표 `evidence_format_rule` | 논문 프로토타입 (리비전 `0003`) | [docs/evidence_harness.md](../../docs/evidence_harness.md) |
+
+`evidence/` 하위는 baseline 이 아니라 `0003_evidence_enforcement` 리비전이 실행합니다.
+이 리비전은 `field_value_evidence_required_ck`(좌표 존재 CHECK)를 트리거의 E1 모드로
+대체하고, 위반 시 거부 대신 격리(`UNGROUNDED` + `REVIEW_REQUIRED`)합니다. 기본 모드는
+E3(내용 일치 + 선언된 파생) 라 운영 경로의 보장은 이전보다 강합니다. 기계 소비 경로는
+`field_value` 대신 `field_value_trusted` 를 읽어야 합니다.
 
 ## 설계 판단
 

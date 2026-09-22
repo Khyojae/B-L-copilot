@@ -9,6 +9,7 @@ CHECK 제약 32개 · 트리거 6개 · 부분 인덱스 15개.
 from smart_e_bl.models.base import Base
 from smart_e_bl.models.documents import (
     Document,
+    DocumentToken,
     FieldDefinition,
     FieldValue,
     IngestJob,
@@ -41,6 +42,7 @@ __all__ = [
     "Base",
     "DefectPrediction",
     "Document",
+    "DocumentToken",
     "FieldDefinition",
     "FieldValue",
     "GlossaryAlias",

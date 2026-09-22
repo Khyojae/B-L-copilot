@@ -69,10 +69,13 @@ def _to_field_value(
 ) -> FieldValue:
     """aiService DraftField.to_dict() 1건 → FieldValue 행 1개.
 
-    ⚠ 근거 없는 값은 저장하지 않는다(추정 생성 금지, 규약 §5). aiService가
-    bbox 없이 값을 준 경우(예: LLM이 문서 전체를 보고 답해 특정 좌표가 없는
-    경우) DB CHECK(field_value_evidence_required_ck)가 애초에 이를 거부하므로,
-    여기서 먼저 NOT_FOUND로 강등해 저장 자체가 그 규칙을 어기지 않게 한다.
+    ⚠ 근거 없는 값은 확정값으로 저장하지 않는다(추정 생성 금지, 규약 §5).
+    aiService가 bbox 없이 값을 준 경우(예: LLM이 문서 전체를 보고 답해 특정
+    좌표가 없는 경우) 여기서 NOT_FOUND로 강등한다. DB 쪽에서도 트리거
+    (fn_field_value_enforce_evidence)가 근거 스팬을 검증해 뒷받침되지 않는 값은
+    UNGROUNDED 로 격리하므로, 이 강등은 중복 방어다 — 토큰 계층(document_token)을
+    적재하고 evidence_token_from/to 를 넘기기 시작하면 이 분기를 지우고 트리거의
+    근거 역추적(§4.6)에 맡길 수 있다.
     """
     grade = AI_GRADE_TO_DB[ai_field["grade"]]
     value = ai_field["value"]

@@ -98,6 +98,32 @@ class SuggestionStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class EvidenceMode(StrEnum):
+    """migrations/sql/evidence/10: 근거 강제 모드 (논문 절제 실험 4조건)."""
+
+    P = "P"
+    E1 = "E1"
+    E2 = "E2"
+    E3 = "E3"
+
+
+class EvidenceDerivation(StrEnum):
+    """어느 선언된 파생 규칙으로 값이 근거 스팬에서 유도됐는지."""
+
+    EXACT = "EXACT"
+    SUBSTRING = "SUBSTRING"
+    FORMAT = "FORMAT"
+    GLOSSARY = "GLOSSARY"
+    SIMILARITY = "SIMILARITY"
+    NONE = "NONE"
+
+
+class EvidenceStatus(StrEnum):
+    GROUNDED = "GROUNDED"
+    DERIVED = "DERIVED"
+    UNGROUNDED = "UNGROUNDED"
+
+
 class SuggestionRejectReason(StrEnum):
     """기획안 5.2: 거절 사유는 사전 개선과 조직별 예외 규칙 생성에 쓰입니다."""
 

@@ -24,6 +24,9 @@ from smart_e_bl.models.enums import (
     ConfidenceGrade,
     DocumentSource,
     DocumentType,
+    EvidenceDerivation,
+    EvidenceMode,
+    EvidenceStatus,
     ExtractorKind,
     JobStatus,
 )
@@ -114,12 +117,41 @@ class FieldDefinition(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+class DocumentToken(Base):
+    """OCR 단어 토큰 계층 (migrations/sql/evidence/10).
+
+    저장 계층이 "그 좌표 안에 무엇이 쓰여 있었는가"를 물어볼 수 있게 하는 표.
+    OCR 엔진 출력만 적재한다 — 데이터셋 라벨을 넣으면 검증이 자명해진다(오라클 오염).
+    norm_text 는 DB 트리거가 evidence_norm(text) 로 채우므로 넣지 않아도 된다.
+    """
+
+    __tablename__ = "document_token"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document.id", ondelete="CASCADE"), primary_key=True
+    )
+    page: Mapped[int] = mapped_column(Integer, primary_key=True)
+    idx: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    norm_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    bbox_x1: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    bbox_y1: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    bbox_x2: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    bbox_y2: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    ocr_confidence: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
+
+
 class FieldValue(Base):
     """기획안 5.1 필드 값 객체.
 
-    자동 추출 값은 반드시 원문 근거 좌표를 가져야 합니다(추정 생성 금지).
-    이 규칙은 DB CHECK 로 강제되며 타입 시그니처에는 나타나지 않습니다 —
-    document_id/page/bbox 를 비운 채 OCR_LLM 으로 저장하면 런타임에 거부됩니다.
+    자동 추출 값은 원문 근거로부터 유도 가능해야 합니다(추정 생성 금지).
+    이 규칙은 DB 트리거(fn_field_value_enforce_evidence, migrations/sql/evidence/10)가
+    저장 시점에 검사하며 타입 시그니처에는 나타나지 않습니다 — 근거 스팬 텍스트가
+    값을 뒷받침하지 못하면 거부되는 대신 UNGROUNDED 로 격리되고 grade 가
+    REVIEW_REQUIRED 로 강등됩니다. evidence_status·derivation·evidence_mode·
+    evidence_reason 은 트리거가 채우는 판정 컬럼이라 넣어도 덮어써집니다.
+    기계 소비 경로(룰 엔진·리포트·재학습)는 이 표가 아니라 field_value_trusted
+    뷰를 읽어야 합니다.
     """
 
     __tablename__ = "field_value"
@@ -154,6 +186,20 @@ class FieldValue(Base):
     conflict_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     glossary_version: Mapped[str | None] = mapped_column(Text)
+
+    # 논문 §4.2 값–근거 결속. 파서가 넘기는 것: source_layer · evidence_token_from/to
+    source_layer: Mapped[str | None] = mapped_column(Text)  # REGION | ANCHOR | LLM
+    evidence_token_from: Mapped[int | None] = mapped_column(Integer)
+    evidence_token_to: Mapped[int | None] = mapped_column(Integer)  # half-open [from, to)
+    # 트리거가 채우는 판정
+    derivation: Mapped[EvidenceDerivation | None] = mapped_column(pg_enum("evidence_derivation"))
+    evidence_status: Mapped[EvidenceStatus | None] = mapped_column(pg_enum("evidence_status"))
+    evidence_mode: Mapped[EvidenceMode | None] = mapped_column(pg_enum("evidence_mode"))
+    evidence_reason: Mapped[str | None] = mapped_column(Text)
+    # 논문 §4.5 면제 조항 봉인: extractor = MANUAL 이면 반드시 있어야 한다(CHECK).
+    edited_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("app_user.id")
+    )
 
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()
