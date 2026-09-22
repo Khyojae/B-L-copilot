@@ -1,0 +1,397 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.5-flash-lite",
+  "samples": 30,
+  "seed": 11,
+  "verdicts_with_violations": 30,
+  "explanations": 47,
+  "llm_first": 47,
+  "llm_retry": 0,
+  "template": 0,
+  "integrity_pass_rate": 1.0,
+  "llm_pass_rate": 1.0,
+  "p50_seconds": 5.042,
+  "max_seconds": 7.107,
+  "measured_at": "2026-09-22T15:16:04",
+  "rpm": 12.0,
+  "rate_limit_waits": 0,
+  "outcomes": [
+    {
+      "rule_id": "D007",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 1.704,
+      "failure": null
+    },
+    {
+      "rule_id": "D001",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.804,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.148,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.91,
+      "failure": null
+    },
+    {
+      "rule_id": "D013",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.917,
+      "failure": null
+    },
+    {
+      "rule_id": "D002",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.901,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.249,
+      "failure": null
+    },
+    {
+      "rule_id": "D019",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.747,
+      "failure": null
+    },
+    {
+      "rule_id": "D011",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.134,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.039,
+      "failure": null
+    },
+    {
+      "rule_id": "D013",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.754,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.171,
+      "failure": null
+    },
+    {
+      "rule_id": "D019",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.118,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.928,
+      "failure": null
+    },
+    {
+      "rule_id": "D002",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.885,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.168,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.74,
+      "failure": null
+    },
+    {
+      "rule_id": "D002",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.14,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.162,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.062,
+      "failure": null
+    },
+    {
+      "rule_id": "D002",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.742,
+      "failure": null
+    },
+    {
+      "rule_id": "D003",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.05,
+      "failure": null
+    },
+    {
+      "rule_id": "D003",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 7.107,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 2.725,
+      "failure": null
+    },
+    {
+      "rule_id": "D013",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.372,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.795,
+      "failure": null
+    },
+    {
+      "rule_id": "D005B",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.043,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.845,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.463,
+      "failure": null
+    },
+    {
+      "rule_id": "D019",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.674,
+      "failure": null
+    },
+    {
+      "rule_id": "D002",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.203,
+      "failure": null
+    },
+    {
+      "rule_id": "D011",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.77,
+      "failure": null
+    },
+    {
+      "rule_id": "D005B",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 6.081,
+      "failure": null
+    },
+    {
+      "rule_id": "D017",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 3.765,
+      "failure": null
+    },
+    {
+      "rule_id": "D019",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.318,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.776,
+      "failure": null
+    },
+    {
+      "rule_id": "D010",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.251,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.179,
+      "failure": null
+    },
+    {
+      "rule_id": "D005",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.545,
+      "failure": null
+    },
+    {
+      "rule_id": "D005B",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.225,
+      "failure": null
+    },
+    {
+      "rule_id": "D013",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.822,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.059,
+      "failure": null
+    },
+    {
+      "rule_id": "D006",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.446,
+      "failure": null
+    },
+    {
+      "rule_id": "D019",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.536,
+      "failure": null
+    },
+    {
+      "rule_id": "D007",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.07,
+      "failure": null
+    },
+    {
+      "rule_id": "D018",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 4.846,
+      "failure": null
+    },
+    {
+      "rule_id": "D007",
+      "outcome": "llm_first",
+      "attempts": 1,
+      "integrity_ok": true,
+      "seconds": 5.042,
+      "failure": null
+    }
+  ],
+  "failures": {}
+}
